@@ -55,3 +55,9 @@ export const serviceRequestSchema = z.object({
   createdAt: z.iso.datetime(),
 });
 export type ServiceRequest = z.infer<typeof serviceRequestSchema>;
+
+export const principalSchema = z.object({
+  id: z.uuid(),
+  role: roleSchema,
+});
+export type Principal = z.infer<typeof principalSchema>;
