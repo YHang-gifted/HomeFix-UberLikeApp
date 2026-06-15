@@ -15,15 +15,21 @@
     "integrity:files": "node scripts/check-file-integrity.mjs",
     "security:audit": "npm audit --audit-level=high",
     "quality": "npm run integrity:files && npm run format:check && npm run lint && npm run typecheck && npm test && npm run security:audit",
-    "test": "node --test"
+    "test": "node --import tsx --test"
   },
   "devDependencies": {
     "@eslint/js": "9.28.0",
+    "@types/express": "^5.0.6",
     "@types/node": "22.15.29",
     "eslint": "9.28.0",
     "eslint-config-prettier": "10.1.5",
     "prettier": "3.5.3",
+    "tsx": "^4.20.0",
     "typescript": "5.8.3",
     "typescript-eslint": "8.33.1"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "zod": "^4.4.3"
   }
 }

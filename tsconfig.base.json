@@ -27,6 +27,7 @@
       "@app/*": ["app/src/*"],
       "@server/*": ["server/src/*"],
       "@shared/*": ["shared/*"]
-    }
+    },
+    "allowImportingTsExtensions": true
   }
 }
