@@ -30,8 +30,15 @@ export function createServiceRequest(
   return request;
 }
 
-export function getServiceRequestById(id: string): ServiceRequest | undefined {
-  return store.get(id);
+export function getServiceRequestForPrincipal(id: string, principal: Principal): ServiceRequest {
+  const request = store.get(id);
+  if (!request) {
+    throw new AppError('Service request not found', 404);
+  }
+  if (principal.role !== 'admin' && principal.id !== request.customerId) {
+    throw new AppError('Not allowed to view this service request', 403);
+  }
+  return request;
 }
 
 export function resetServiceRequests(): void {
