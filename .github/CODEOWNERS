@@ -1,0 +1,6 @@
+# Changes to the security ledger and security policy require security-reviewer approval.
+# Replace the placeholder below with your real GitHub team or usernames, then enable
+# "Require review from Code Owners" in branch protection for `main`.
+
+/docs/security-fixes.md  @your-org/security-reviewers
+/SECURITY.md             @your-org/security-reviewers

@@ -1,0 +1,29 @@
+{
+  "name": "homefix-uber-like-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "HomeFix quality-first project foundation before application implementation.",
+  "engines": {
+    "node": ">=20 <21"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "integrity:files": "node scripts/check-file-integrity.mjs",
+    "security:audit": "npm audit --audit-level=high",
+    "quality": "npm run integrity:files && npm run format:check && npm run lint && npm run typecheck && npm test && npm run security:audit",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.28.0",
+    "@types/node": "22.15.29",
+    "eslint": "9.28.0",
+    "eslint-config-prettier": "10.1.5",
+    "prettier": "3.5.3",
+    "typescript": "5.8.3",
+    "typescript-eslint": "8.33.1"
+  }
+}

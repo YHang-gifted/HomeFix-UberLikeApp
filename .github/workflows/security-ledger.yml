@@ -1,0 +1,34 @@
+name: Security Ledger
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  ledger:
+    name: Require ledger entry for security fixes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Compute ledger diff
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          git fetch origin "$BASE_REF" --depth=1
+          git diff "origin/$BASE_REF"...HEAD -- docs/security-fixes.md > ledger.diff || true
+
+      - name: Check ledger entry
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          LEDGER_DIFF_FILE: ledger.diff
+        run: node scripts/check-security-ledger.mjs
