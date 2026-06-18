@@ -1,0 +1,20 @@
+# Normalize all text files to LF in the repository and on checkout (all platforms).
+# This stops Windows autocrlf from rewriting files to CRLF, which was causing
+# spurious "modified" files, fake merge conflicts, and Prettier line-ending churn.
+* text=auto eol=lf
+
+# Treat common binary assets as binary (never touch their bytes).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.zip binary
+*.jks binary
+*.keystore binary
