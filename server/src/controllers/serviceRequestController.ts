@@ -9,11 +9,16 @@ import { AppError } from '../errors/appError.ts';
 import {
   createServiceRequest,
   getServiceRequestForPrincipal,
+  listServiceRequests,
   updateServiceRequestStatus,
 } from '../services/serviceRequestService.ts';
 
 const idParamSchema = z.uuid();
 const statusBodySchema = z.object({ status: serviceRequestStatusSchema });
+const listQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+});
 
 export function postServiceRequest(req: Request, res: Response, next: NextFunction): void {
   const principal = req.principal;
@@ -32,6 +37,28 @@ export function postServiceRequest(req: Request, res: Response, next: NextFuncti
   try {
     const created = createServiceRequest(parsed.data, principal);
     res.status(201).json(created);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export function getServiceRequests(req: Request, res: Response, next: NextFunction): void {
+  const principal = req.principal;
+  if (!principal) {
+    next(new AppError('Authentication required', 401));
+    return;
+  }
+
+  const query: unknown = req.query;
+  const parsed = listQuerySchema.safeParse(query);
+  if (!parsed.success) {
+    next(new AppError('Invalid query parameters', 422));
+    return;
+  }
+
+  try {
+    const page = listServiceRequests(principal, parsed.data.limit, parsed.data.offset);
+    res.status(200).json(page);
   } catch (error) {
     next(error);
   }

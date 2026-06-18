@@ -3,6 +3,7 @@ import type { ServiceRequest } from '../../../shared/schemas.ts';
 export interface ServiceRequestRepository {
   save(request: ServiceRequest): void;
   findById(id: string): ServiceRequest | undefined;
+  findAll(): ServiceRequest[];
   clear(): void;
 }
 
@@ -15,6 +16,10 @@ export class InMemoryServiceRequestRepository implements ServiceRequestRepositor
 
   public findById(id: string): ServiceRequest | undefined {
     return this.store.get(id);
+  }
+
+  public findAll(): ServiceRequest[] {
+    return [...this.store.values()];
   }
 
   public clear(): void {
