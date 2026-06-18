@@ -6,8 +6,7 @@ import type {
   ServiceRequest,
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
-
-const store = new Map<string, ServiceRequest>();
+import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 
 export function createServiceRequest(
   input: CreateServiceRequestInput,
@@ -26,12 +25,12 @@ export function createServiceRequest(
     status: 'pending',
     createdAt: new Date().toISOString(),
   };
-  store.set(request.id, request);
+  serviceRequestRepository.save(request);
   return request;
 }
 
 export function getServiceRequestForPrincipal(id: string, principal: Principal): ServiceRequest {
-  const request = store.get(id);
+  const request = serviceRequestRepository.findById(id);
   if (!request) {
     throw new AppError('Service request not found', 404);
   }
@@ -42,5 +41,5 @@ export function getServiceRequestForPrincipal(id: string, principal: Principal):
 }
 
 export function resetServiceRequests(): void {
-  store.clear();
+  serviceRequestRepository.clear();
 }
