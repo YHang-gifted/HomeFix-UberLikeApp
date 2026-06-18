@@ -4,9 +4,19 @@ import type {
   CreateServiceRequestInput,
   Principal,
   ServiceRequest,
+  ServiceRequestStatus,
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
+
+const allowedTransitions: Record<ServiceRequestStatus, ServiceRequestStatus[]> = {
+  pending: ['matched', 'cancelled'],
+  matched: ['accepted', 'cancelled'],
+  accepted: ['in_progress', 'cancelled'],
+  in_progress: ['completed', 'cancelled'],
+  completed: [],
+  cancelled: [],
+};
 
 export function createServiceRequest(
   input: CreateServiceRequestInput,
@@ -38,6 +48,33 @@ export function getServiceRequestForPrincipal(id: string, principal: Principal):
     throw new AppError('Not allowed to view this service request', 403);
   }
   return request;
+}
+
+export function updateServiceRequestStatus(
+  id: string,
+  nextStatus: ServiceRequestStatus,
+  principal: Principal,
+): ServiceRequest {
+  const request = serviceRequestRepository.findById(id);
+  if (!request) {
+    throw new AppError('Service request not found', 404);
+  }
+
+  const isOwnerCustomer = principal.role === 'customer' && principal.id === request.customerId;
+  const isAdmin = principal.role === 'admin';
+  if (!isOwnerCustomer && !isAdmin) {
+    throw new AppError('Not allowed to update this service request', 403);
+  }
+
+  const transitions = allowedTransitions[request.status];
+  const permitted = isAdmin ? transitions : transitions.filter((status) => status === 'cancelled');
+  if (!permitted.includes(nextStatus)) {
+    throw new AppError(`Cannot transition from ${request.status} to ${nextStatus}`, 422);
+  }
+
+  const updated: ServiceRequest = { ...request, status: nextStatus };
+  serviceRequestRepository.save(updated);
+  return updated;
 }
 
 export function resetServiceRequests(): void {
