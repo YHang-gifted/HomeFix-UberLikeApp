@@ -48,6 +48,7 @@ export type CreateServiceRequestInput = z.infer<typeof createServiceRequestInput
 export const serviceRequestSchema = z.object({
   id: z.uuid(),
   customerId: z.uuid(),
+  workerId: z.uuid().optional(),
   category: serviceCategorySchema,
   description: z.string().min(1).max(2000),
   location: coordinatesSchema,

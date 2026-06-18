@@ -78,6 +78,24 @@ export function listServiceRequests(
   return { items, total: sorted.length, limit, offset };
 }
 
+export function assignWorker(id: string, workerId: string, principal: Principal): ServiceRequest {
+  if (principal.role !== 'admin') {
+    throw new AppError('Only an admin may assign a worker', 403);
+  }
+
+  const request = serviceRequestRepository.findById(id);
+  if (!request) {
+    throw new AppError('Service request not found', 404);
+  }
+  if (request.status !== 'pending') {
+    throw new AppError('Only a pending request can be assigned', 422);
+  }
+
+  const updated: ServiceRequest = { ...request, workerId, status: 'matched' };
+  serviceRequestRepository.save(updated);
+  return updated;
+}
+
 export function updateServiceRequestStatus(
   id: string,
   nextStatus: ServiceRequestStatus,
@@ -88,14 +106,25 @@ export function updateServiceRequestStatus(
     throw new AppError('Service request not found', 404);
   }
 
-  const isOwnerCustomer = principal.role === 'customer' && principal.id === request.customerId;
   const isAdmin = principal.role === 'admin';
-  if (!isOwnerCustomer && !isAdmin) {
+  const isOwnerCustomer = principal.role === 'customer' && principal.id === request.customerId;
+  const isAssignedWorker =
+    principal.role === 'worker' &&
+    request.workerId !== undefined &&
+    principal.id === request.workerId;
+  if (!isAdmin && !isOwnerCustomer && !isAssignedWorker) {
     throw new AppError('Not allowed to update this service request', 403);
   }
 
   const transitions = allowedTransitions[request.status];
-  const permitted = isAdmin ? transitions : transitions.filter((status) => status === 'cancelled');
+  let permitted: ServiceRequestStatus[];
+  if (isAdmin) {
+    permitted = transitions;
+  } else if (isOwnerCustomer) {
+    permitted = transitions.filter((status) => status === 'cancelled');
+  } else {
+    permitted = transitions.filter((status) => status !== 'cancelled');
+  }
   if (!permitted.includes(nextStatus)) {
     throw new AppError(`Cannot transition from ${request.status} to ${nextStatus}`, 422);
   }

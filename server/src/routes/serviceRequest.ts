@@ -3,6 +3,7 @@ import express from 'express';
 import {
   getServiceRequest,
   getServiceRequests,
+  patchServiceRequestAssignment,
   patchServiceRequestStatus,
   postServiceRequest,
 } from '../controllers/serviceRequestController.ts';
@@ -13,4 +14,9 @@ export const serviceRequestRouter = express.Router();
 serviceRequestRouter.post('/service-requests', authenticate, postServiceRequest);
 serviceRequestRouter.get('/service-requests', authenticate, getServiceRequests);
 serviceRequestRouter.get('/service-requests/:id', authenticate, getServiceRequest);
+serviceRequestRouter.patch(
+  '/service-requests/:id/assignment',
+  authenticate,
+  patchServiceRequestAssignment,
+);
 serviceRequestRouter.patch('/service-requests/:id/status', authenticate, patchServiceRequestStatus);

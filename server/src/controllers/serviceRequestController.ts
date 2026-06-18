@@ -7,6 +7,7 @@ import {
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import {
+  assignWorker,
   createServiceRequest,
   getServiceRequestForPrincipal,
   listServiceRequests,
@@ -15,6 +16,7 @@ import {
 
 const idParamSchema = z.uuid();
 const statusBodySchema = z.object({ status: serviceRequestStatusSchema });
+const assignBodySchema = z.object({ workerId: z.uuid() });
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
@@ -80,6 +82,38 @@ export function getServiceRequest(req: Request, res: Response, next: NextFunctio
   try {
     const request = getServiceRequestForPrincipal(idResult.data, principal);
     res.status(200).json(request);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export function patchServiceRequestAssignment(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  const principal = req.principal;
+  if (!principal) {
+    next(new AppError('Authentication required', 401));
+    return;
+  }
+
+  const idResult = idParamSchema.safeParse(req.params['id']);
+  if (!idResult.success) {
+    next(new AppError('Invalid service request id', 422));
+    return;
+  }
+
+  const body: unknown = req.body;
+  const parsed = assignBodySchema.safeParse(body);
+  if (!parsed.success) {
+    next(new AppError('Invalid assignment payload', 422));
+    return;
+  }
+
+  try {
+    const updated = assignWorker(idResult.data, parsed.data.workerId, principal);
+    res.status(200).json(updated);
   } catch (error) {
     next(error);
   }
