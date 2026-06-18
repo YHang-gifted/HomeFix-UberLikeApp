@@ -9,6 +9,13 @@ import type {
 import { AppError } from '../errors/appError.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 
+export interface ServiceRequestPage {
+  items: ServiceRequest[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 const allowedTransitions: Record<ServiceRequestStatus, ServiceRequestStatus[]> = {
   pending: ['matched', 'cancelled'],
   matched: ['accepted', 'cancelled'],
@@ -48,6 +55,27 @@ export function getServiceRequestForPrincipal(id: string, principal: Principal):
     throw new AppError('Not allowed to view this service request', 403);
   }
   return request;
+}
+
+export function listServiceRequests(
+  principal: Principal,
+  limit: number,
+  offset: number,
+): ServiceRequestPage {
+  let scoped: ServiceRequest[];
+  if (principal.role === 'admin') {
+    scoped = serviceRequestRepository.findAll();
+  } else if (principal.role === 'customer') {
+    scoped = serviceRequestRepository
+      .findAll()
+      .filter((request) => request.customerId === principal.id);
+  } else {
+    throw new AppError('Not allowed to list service requests', 403);
+  }
+
+  const sorted = [...scoped].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const items = sorted.slice(offset, offset + limit);
+  return { items, total: sorted.length, limit, offset };
 }
 
 export function updateServiceRequestStatus(
