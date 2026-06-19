@@ -1,4 +1,8 @@
+import process from 'node:process';
+
 import type { ServiceRequest } from '../../../shared/schemas.ts';
+import { createPoolQueryable } from '../config/db.ts';
+import { PostgresServiceRequestRepository } from './postgresServiceRequestRepository.ts';
 
 export interface ServiceRequestRepository {
   save(request: ServiceRequest): Promise<void>;
@@ -29,5 +33,21 @@ export class InMemoryServiceRequestRepository implements ServiceRequestRepositor
   }
 }
 
-export const serviceRequestRepository: ServiceRequestRepository =
-  new InMemoryServiceRequestRepository();
+export function selectServiceRequestRepository(
+  databaseUrl: string | undefined,
+): ServiceRequestRepository {
+  if (databaseUrl !== undefined && databaseUrl !== '') {
+    return new PostgresServiceRequestRepository(createPoolQueryable(databaseUrl));
+  }
+  return new InMemoryServiceRequestRepository();
+}
+
+export const serviceRequestRepository: ServiceRequestRepository = selectServiceRequestRepository(
+  process.env['DATABASE_URL'],
+);
+
+export async function initServiceRequestStore(): Promise<void> {
+  if (serviceRequestRepository instanceof PostgresServiceRequestRepository) {
+    await serviceRequestRepository.initSchema();
+  }
+}
