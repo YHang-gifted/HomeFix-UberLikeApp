@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
 
 import { createApp } from '../server/src/app.ts';
+import { signToken } from '../server/src/auth/jwt.ts';
 import { resetServiceRequests } from '../server/src/services/serviceRequestService.ts';
 
 const CUSTOMER_ID = '123e4567-e89b-12d3-a456-426614174000';
@@ -10,7 +11,7 @@ const WORKER_ID = '423e4567-e89b-12d3-a456-426614174000';
 const OTHER_WORKER_ID = '523e4567-e89b-12d3-a456-426614174000';
 
 function headers(id, role) {
-  return { 'content-type': 'application/json', 'x-user-id': id, 'x-user-role': role };
+  return { 'content-type': 'application/json', Authorization: `Bearer ${signToken({ id, role })}` };
 }
 
 describe('Worker assignment and worker-driven transitions', () => {
