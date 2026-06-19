@@ -18,10 +18,12 @@
     "test": "node --import tsx --test"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.3",
     "@eslint/js": "9.28.0",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "22.15.29",
+    "@types/pg": "^8.20.0",
     "eslint": "9.28.0",
     "eslint-config-prettier": "10.1.5",
     "prettier": "3.5.3",
@@ -32,6 +34,7 @@
   "dependencies": {
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "pg": "^8.22.0",
     "zod": "^4.4.3"
   }
 }
