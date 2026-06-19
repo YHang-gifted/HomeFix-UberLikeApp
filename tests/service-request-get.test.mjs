@@ -35,8 +35,8 @@ describe('GET /service-requests/:id', () => {
     });
   });
 
-  beforeEach(() => {
-    resetServiceRequests();
+  beforeEach(async () => {
+    await resetServiceRequests();
   });
 
   async function createRequest() {

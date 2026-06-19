@@ -36,8 +36,8 @@ describe('Worker assignment and worker-driven transitions', () => {
     });
   });
 
-  beforeEach(() => {
-    resetServiceRequests();
+  beforeEach(async () => {
+    await resetServiceRequests();
   });
 
   async function createRequest() {

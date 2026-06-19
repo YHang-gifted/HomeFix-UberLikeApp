@@ -22,7 +22,11 @@ const listQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
-export function postServiceRequest(req: Request, res: Response, next: NextFunction): void {
+export async function postServiceRequest(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   const principal = req.principal;
   if (!principal) {
     next(new AppError('Authentication required', 401));
@@ -37,14 +41,18 @@ export function postServiceRequest(req: Request, res: Response, next: NextFuncti
   }
 
   try {
-    const created = createServiceRequest(parsed.data, principal);
+    const created = await createServiceRequest(parsed.data, principal);
     res.status(201).json(created);
   } catch (error) {
     next(error);
   }
 }
 
-export function getServiceRequests(req: Request, res: Response, next: NextFunction): void {
+export async function getServiceRequests(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   const principal = req.principal;
   if (!principal) {
     next(new AppError('Authentication required', 401));
@@ -59,14 +67,18 @@ export function getServiceRequests(req: Request, res: Response, next: NextFuncti
   }
 
   try {
-    const page = listServiceRequests(principal, parsed.data.limit, parsed.data.offset);
+    const page = await listServiceRequests(principal, parsed.data.limit, parsed.data.offset);
     res.status(200).json(page);
   } catch (error) {
     next(error);
   }
 }
 
-export function getServiceRequest(req: Request, res: Response, next: NextFunction): void {
+export async function getServiceRequest(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   const principal = req.principal;
   if (!principal) {
     next(new AppError('Authentication required', 401));
@@ -80,18 +92,18 @@ export function getServiceRequest(req: Request, res: Response, next: NextFunctio
   }
 
   try {
-    const request = getServiceRequestForPrincipal(idResult.data, principal);
+    const request = await getServiceRequestForPrincipal(idResult.data, principal);
     res.status(200).json(request);
   } catch (error) {
     next(error);
   }
 }
 
-export function patchServiceRequestAssignment(
+export async function patchServiceRequestAssignment(
   req: Request,
   res: Response,
   next: NextFunction,
-): void {
+): Promise<void> {
   const principal = req.principal;
   if (!principal) {
     next(new AppError('Authentication required', 401));
@@ -112,14 +124,18 @@ export function patchServiceRequestAssignment(
   }
 
   try {
-    const updated = assignWorker(idResult.data, parsed.data.workerId, principal);
+    const updated = await assignWorker(idResult.data, parsed.data.workerId, principal);
     res.status(200).json(updated);
   } catch (error) {
     next(error);
   }
 }
 
-export function patchServiceRequestStatus(req: Request, res: Response, next: NextFunction): void {
+export async function patchServiceRequestStatus(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   const principal = req.principal;
   if (!principal) {
     next(new AppError('Authentication required', 401));
@@ -140,7 +156,7 @@ export function patchServiceRequestStatus(req: Request, res: Response, next: Nex
   }
 
   try {
-    const updated = updateServiceRequestStatus(idResult.data, parsed.data.status, principal);
+    const updated = await updateServiceRequestStatus(idResult.data, parsed.data.status, principal);
     res.status(200).json(updated);
   } catch (error) {
     next(error);
