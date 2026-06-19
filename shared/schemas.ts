@@ -62,3 +62,9 @@ export const principalSchema = z.object({
   role: roleSchema,
 });
 export type Principal = z.infer<typeof principalSchema>;
+
+export const loginInputSchema = z.object({
+  email: z.email(),
+  password: z.string().min(1),
+});
+export type LoginInput = z.infer<typeof loginInputSchema>;
