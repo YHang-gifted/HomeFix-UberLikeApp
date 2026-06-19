@@ -36,8 +36,8 @@ describe('PATCH /service-requests/:id/status', () => {
     });
   });
 
-  beforeEach(() => {
-    resetServiceRequests();
+  beforeEach(async () => {
+    await resetServiceRequests();
   });
 
   async function createRequest() {

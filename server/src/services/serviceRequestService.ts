@@ -25,10 +25,10 @@ const allowedTransitions: Record<ServiceRequestStatus, ServiceRequestStatus[]> =
   cancelled: [],
 };
 
-export function createServiceRequest(
+export async function createServiceRequest(
   input: CreateServiceRequestInput,
   principal: Principal,
-): ServiceRequest {
+): Promise<ServiceRequest> {
   if (principal.role !== 'customer' || principal.id !== input.customerId) {
     throw new AppError('Not allowed to create a service request for another user', 403);
   }
@@ -42,12 +42,15 @@ export function createServiceRequest(
     status: 'pending',
     createdAt: new Date().toISOString(),
   };
-  serviceRequestRepository.save(request);
+  await serviceRequestRepository.save(request);
   return request;
 }
 
-export function getServiceRequestForPrincipal(id: string, principal: Principal): ServiceRequest {
-  const request = serviceRequestRepository.findById(id);
+export async function getServiceRequestForPrincipal(
+  id: string,
+  principal: Principal,
+): Promise<ServiceRequest> {
+  const request = await serviceRequestRepository.findById(id);
   if (!request) {
     throw new AppError('Service request not found', 404);
   }
@@ -57,18 +60,17 @@ export function getServiceRequestForPrincipal(id: string, principal: Principal):
   return request;
 }
 
-export function listServiceRequests(
+export async function listServiceRequests(
   principal: Principal,
   limit: number,
   offset: number,
-): ServiceRequestPage {
+): Promise<ServiceRequestPage> {
   let scoped: ServiceRequest[];
   if (principal.role === 'admin') {
-    scoped = serviceRequestRepository.findAll();
+    scoped = await serviceRequestRepository.findAll();
   } else if (principal.role === 'customer') {
-    scoped = serviceRequestRepository
-      .findAll()
-      .filter((request) => request.customerId === principal.id);
+    const all = await serviceRequestRepository.findAll();
+    scoped = all.filter((request) => request.customerId === principal.id);
   } else {
     throw new AppError('Not allowed to list service requests', 403);
   }
@@ -78,12 +80,16 @@ export function listServiceRequests(
   return { items, total: sorted.length, limit, offset };
 }
 
-export function assignWorker(id: string, workerId: string, principal: Principal): ServiceRequest {
+export async function assignWorker(
+  id: string,
+  workerId: string,
+  principal: Principal,
+): Promise<ServiceRequest> {
   if (principal.role !== 'admin') {
     throw new AppError('Only an admin may assign a worker', 403);
   }
 
-  const request = serviceRequestRepository.findById(id);
+  const request = await serviceRequestRepository.findById(id);
   if (!request) {
     throw new AppError('Service request not found', 404);
   }
@@ -92,16 +98,16 @@ export function assignWorker(id: string, workerId: string, principal: Principal)
   }
 
   const updated: ServiceRequest = { ...request, workerId, status: 'matched' };
-  serviceRequestRepository.save(updated);
+  await serviceRequestRepository.save(updated);
   return updated;
 }
 
-export function updateServiceRequestStatus(
+export async function updateServiceRequestStatus(
   id: string,
   nextStatus: ServiceRequestStatus,
   principal: Principal,
-): ServiceRequest {
-  const request = serviceRequestRepository.findById(id);
+): Promise<ServiceRequest> {
+  const request = await serviceRequestRepository.findById(id);
   if (!request) {
     throw new AppError('Service request not found', 404);
   }
@@ -130,10 +136,10 @@ export function updateServiceRequestStatus(
   }
 
   const updated: ServiceRequest = { ...request, status: nextStatus };
-  serviceRequestRepository.save(updated);
+  await serviceRequestRepository.save(updated);
   return updated;
 }
 
-export function resetServiceRequests(): void {
-  serviceRequestRepository.clear();
+export async function resetServiceRequests(): Promise<void> {
+  await serviceRequestRepository.clear();
 }

@@ -46,8 +46,8 @@ describe('POST /service-requests', () => {
     });
   });
 
-  beforeEach(() => {
-    resetServiceRequests();
+  beforeEach(async () => {
+    await resetServiceRequests();
   });
 
   it('creates a request for the authenticated customer (201)', async () => {

@@ -20,19 +20,19 @@ describe('InMemoryServiceRequestRepository', () => {
     repo = new InMemoryServiceRequestRepository();
   });
 
-  it('saves a request and finds it by id', () => {
-    repo.save(sample);
-    const found = repo.findById(sample.id);
+  it('saves a request and finds it by id', async () => {
+    await repo.save(sample);
+    const found = await repo.findById(sample.id);
     assert.equal(found?.id, sample.id);
   });
 
-  it('returns undefined for a missing id', () => {
-    assert.equal(repo.findById('missing'), undefined);
+  it('returns undefined for a missing id', async () => {
+    assert.equal(await repo.findById('missing'), undefined);
   });
 
-  it('clear() empties the store', () => {
-    repo.save(sample);
-    repo.clear();
-    assert.equal(repo.findById(sample.id), undefined);
+  it('clear() empties the store', async () => {
+    await repo.save(sample);
+    await repo.clear();
+    assert.equal(await repo.findById(sample.id), undefined);
   });
 });
