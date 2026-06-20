@@ -12,6 +12,20 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Structural type guard for ApiError. Avoids cross-module `instanceof`, which
+ * is unreliable under tsx on Linux CI (the same .ts can load as two module
+ * instances, giving two distinct ApiError classes). `Error` is a single global,
+ * so `instanceof Error` plus a name/shape check is stable across modules.
+ */
+export function isApiError(error: unknown): error is ApiError {
+  return (
+    error instanceof Error &&
+    error.name === 'ApiError' &&
+    typeof (error as { status?: unknown }).status === 'number'
+  );
+}
+
 type HttpMethod = 'GET' | 'POST' | 'PATCH';
 
 export class ApiClient {

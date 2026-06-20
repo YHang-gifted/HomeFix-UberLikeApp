@@ -1,5 +1,5 @@
 import type { ApiClient } from '../../services/apiClient.ts';
-import { ApiError } from '../../services/apiClient.ts';
+import { isApiError } from '../../services/apiClient.ts';
 
 export interface LoginSuccess {
   ok: true;
@@ -22,7 +22,7 @@ export async function performLogin(
     const token = await client.login(email, password);
     return { ok: true, token };
   } catch (error) {
-    if (error instanceof ApiError && error.status === 401) {
+    if (isApiError(error) && error.status === 401) {
       return { ok: false, message: 'Incorrect email or password' };
     }
     return { ok: false, message: 'Could not reach the server. Please try again.' };
