@@ -14,6 +14,33 @@ const IGNORED_DIRS = new Set([
   'ios',
 ]);
 
+/**
+ * Binary asset extensions that legitimately contain NUL bytes. Kept in sync with
+ * the `binary` entries in `.gitattributes`. These are skipped by the NUL scan so
+ * real images/fonts/archives don't trip the truncation check.
+ */
+const BINARY_EXTENSIONS = new Set([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.ico',
+  '.webp',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.eot',
+  '.pdf',
+  '.zip',
+  '.jks',
+  '.keystore',
+]);
+
+/** True when the path is a known binary asset that may legitimately contain NUL bytes. */
+export function isBinaryPath(file) {
+  return BINARY_EXTENSIONS.has(extname(file).toLowerCase());
+}
+
 /** True when the buffer contains a NUL byte (a sign of truncation or binary corruption). */
 export function hasNulByte(buffer) {
   return buffer.includes(0);
@@ -49,6 +76,10 @@ function main() {
   let checked = 0;
 
   for (const file of listFiles(root)) {
+    if (isBinaryPath(file)) {
+      continue;
+    }
+
     const buffer = readFileSync(file);
     checked += 1;
 

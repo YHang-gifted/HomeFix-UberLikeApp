@@ -4,7 +4,18 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['node_modules/**', 'dist/**', 'build/**', 'coverage/**', 'android/**', 'ios/**'],
+    // app-expo is a self-contained Expo project with its own dependencies and
+    // tsconfig; it is linted by its own tooling (see app-expo), not by the root
+    // type-aware config, whose CI does not install app-expo's node_modules.
+    ignores: [
+      'node_modules/**',
+      'app-expo/**',
+      'dist/**',
+      'build/**',
+      'coverage/**',
+      'android/**',
+      'ios/**',
+    ],
   },
   js.configs.recommended,
   {
