@@ -1,12 +1,5 @@
 import { type ReactElement, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import type { LoginFieldErrors } from '../../../app/src/features/auth/loginForm';
 import { validateLoginForm } from '../../../app/src/features/auth/loginForm';

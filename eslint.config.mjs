@@ -38,6 +38,20 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-return': 'error',
     },
   },
+  {
+    // CommonJS Node config files (e.g. Expo's metro.config.js) that are not part
+    // of the TypeScript program.
+    files: ['**/metro.config.js', '**/*.config.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        require: 'readonly',
+        module: 'writable',
+        __dirname: 'readonly',
+        process: 'readonly',
+      },
+    },
+  },
   eslintConfigPrettier,
   {
     rules: {

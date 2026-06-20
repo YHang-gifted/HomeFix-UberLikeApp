@@ -1,15 +1,15 @@
 import { type ReactElement } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView, StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { LoginScreen } from './src/screens/LoginScreen';
 
 export default function App(): ReactElement {
   return (
-    <SafeAreaView style={styles.root}>
+    <View style={styles.root}>
       <StatusBar style="auto" />
       <LoginScreen />
-    </SafeAreaView>
+    </View>
   );
 }
 
