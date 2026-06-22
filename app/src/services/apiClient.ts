@@ -1,9 +1,11 @@
 import type {
   CreateServiceRequestInput,
+  Principal,
   ServiceRequest,
   ServiceRequestPage,
 } from '../../../shared/schemas.ts';
 import { serviceRequestPageSchema, serviceRequestSchema } from '../../../shared/schemas.ts';
+import { getPrincipalFromToken } from '../auth/token.ts';
 
 export class ApiError extends Error {
   public readonly status: number;
@@ -42,6 +44,11 @@ export class ApiClient {
 
   public setToken(token: string | undefined): void {
     this.token = token;
+  }
+
+  /** The current principal decoded from the stored JWT, or null if not signed in. */
+  public getPrincipal(): Principal | null {
+    return this.token === undefined ? null : getPrincipalFromToken(this.token);
   }
 
   public async login(email: string, password: string): Promise<string> {

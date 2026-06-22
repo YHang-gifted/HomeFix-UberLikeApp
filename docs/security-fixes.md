@@ -27,9 +27,10 @@ Use exactly one of: `authentication`, `authorization`, `input-validation`, `inje
 
 ## Index
 
-| ID       | Date       | Category      | Title                                              | Status  |
-| -------- | ---------- | ------------- | -------------------------------------------------- | ------- |
-| SEC-0001 | 2026-06-14 | authorization | (Example) Missing server-side authz on order PATCH | example |
+| ID       | Date       | Category      | Title                                                             | Status          |
+| -------- | ---------- | ------------- | ----------------------------------------------------------------- | --------------- |
+| SEC-0001 | 2026-06-14 | authorization | (Example) Missing server-side authz on order PATCH                | example         |
+| SEC-0002 | 2026-06-22 | data-exposure | Permissive dev CORS on the API (`Access-Control-Allow-Origin: *`) | mitigated (dev) |
 
 ## Entry template
 
@@ -63,4 +64,19 @@ Copy this block for every new fix.
 - **Canonical fix:** Enforce authorization in a server-side service/middleware that loads the resource owner and compares it to the authenticated principal. Never trust client-provided identity, role, or ownership fields. Apply the same `assertCanAct(principal, resource, action)` helper to every order, payment, review, and profile mutation.
 - **Regression test:** `server/tests/authorization/orderUpdate.authz.test.ts`
 - **Prevention:** Server-side authorization checklist item in the PR template; an integration test asserting a non-owner receives 403.
+- **Related:** none
+
+### SEC-0002 — Permissive development CORS on the API
+
+> Not a vulnerability fix — a deliberate, security-relevant configuration recorded so the production hardening is not forgotten.
+
+- **Date:** 2026-06-22
+- **Category:** data-exposure
+- **Severity:** low
+- **Affected area:** `server/src/middlewares/cors.ts` (applied in `server/src/app.ts` to all routes)
+- **Vulnerability:** The CORS middleware returns `Access-Control-Allow-Origin: *`, allowing any web origin to call the API from a browser. With the current design this is safe: the API authenticates with a Bearer token in the `Authorization` header, not cookies, so there are no ambient credentials to leak cross-origin (the browser will not attach credentials, and `*` is incompatible with credentialed CORS anyway). It becomes a real data-exposure risk only if the API later adopts cookie/session auth or ships `*` to production.
+- **Root cause:** The Expo web client runs on a different localhost port than the API, so cross-origin requests must be allowed for local development; the simplest dev-time setting is `*`.
+- **Canonical fix:** Keep CORS off credentialed mode while using Bearer-token auth. Before production, restrict `Access-Control-Allow-Origin` to an explicit allowlist of known web origins (driven by an env var, e.g. `CORS_ALLOWED_ORIGINS`), and never combine `*` with `Access-Control-Allow-Credentials: true`. If cookie/session auth is ever introduced, this becomes mandatory, not optional.
+- **Regression test:** `tests/cors.test.mjs` (asserts the preflight + header behavior; tighten to assert an allowlist once origins are restricted).
+- **Prevention:** This ledger entry as a release-gate reminder; revisit when adding any cookie/session auth or preparing a production deploy.
 - **Related:** none
