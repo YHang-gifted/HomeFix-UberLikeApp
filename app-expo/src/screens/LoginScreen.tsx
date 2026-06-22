@@ -1,21 +1,21 @@
 import { type ReactElement, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import type { ApiClient } from '../../../app/src/services/apiClient';
 import type { LoginFieldErrors } from '../../../app/src/features/auth/loginForm';
 import { validateLoginForm } from '../../../app/src/features/auth/loginForm';
 import { performLogin } from '../../../app/src/features/auth/loginAction';
-import { ApiClient } from '../../../app/src/services/apiClient';
-import { API_BASE_URL } from '../config';
+import { apiClient } from '../api';
 
 export interface LoginScreenProps {
-  /** Optional client override (used by tests). Defaults to the real API client. */
+  /** Optional client override (used by tests). Defaults to the app singleton. */
   client?: ApiClient;
   /** Called with the JWT after a successful login. */
   onSuccess?: (token: string) => void;
 }
 
 export function LoginScreen({ client, onSuccess }: LoginScreenProps): ReactElement {
-  const apiClient = useMemo(() => client ?? new ApiClient(API_BASE_URL), [client]);
+  const activeClient = useMemo(() => client ?? apiClient, [client]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,7 +33,7 @@ export function LoginScreen({ client, onSuccess }: LoginScreenProps): ReactEleme
     }
 
     setSubmitting(true);
-    const outcome = await performLogin(apiClient, email, password);
+    const outcome = await performLogin(activeClient, email, password);
     setSubmitting(false);
 
     if (outcome.ok) {
@@ -103,23 +103,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     backgroundColor: '#ffffff',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#64748b',
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#334155',
-    marginTop: 12,
-    marginBottom: 4,
-  },
+  title: { fontSize: 32, fontWeight: '700', color: '#0f172a' },
+  subtitle: { fontSize: 16, color: '#64748b', marginBottom: 24 },
+  label: { fontSize: 14, fontWeight: '600', color: '#334155', marginTop: 12, marginBottom: 4 },
   input: {
     borderWidth: 1,
     borderColor: '#cbd5e1',
@@ -129,11 +115,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#0f172a',
   },
-  error: {
-    color: '#dc2626',
-    fontSize: 13,
-    marginTop: 4,
-  },
+  error: { color: '#dc2626', fontSize: 13, marginTop: 4 },
   button: {
     marginTop: 24,
     backgroundColor: '#2563eb',
@@ -143,18 +125,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 48,
   },
-  buttonPressed: {
-    backgroundColor: '#1d4ed8',
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  banner: {
-    marginTop: 16,
-    textAlign: 'center',
-    fontSize: 14,
-    color: '#0f172a',
-  },
+  buttonPressed: { backgroundColor: '#1d4ed8' },
+  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  banner: { marginTop: 16, textAlign: 'center', fontSize: 14, color: '#0f172a' },
 });

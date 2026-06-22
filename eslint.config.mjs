@@ -19,6 +19,17 @@ export default tseslint.config(
   },
   js.configs.recommended,
   {
+    // Test files (.mjs) run on Node and use Web/Node runtime globals.
+    files: ['tests/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        fetch: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+      },
+    },
+  },
+  {
     files: ['**/*.{ts,tsx}'],
     extends: [...tseslint.configs.strictTypeChecked, ...tseslint.configs.stylisticTypeChecked],
     languageOptions: {
