@@ -1,5 +1,9 @@
-import type { CreateServiceRequestInput, ServiceRequest } from '../../../shared/schemas.ts';
-import { serviceRequestSchema } from '../../../shared/schemas.ts';
+import type {
+  CreateServiceRequestInput,
+  ServiceRequest,
+  ServiceRequestPage,
+} from '../../../shared/schemas.ts';
+import { serviceRequestPageSchema, serviceRequestSchema } from '../../../shared/schemas.ts';
 
 export class ApiError extends Error {
   public readonly status: number;
@@ -58,6 +62,23 @@ export class ApiClient {
   public async getServiceRequest(id: string): Promise<ServiceRequest> {
     const data = await this.send('GET', `/service-requests/${id}`, undefined, true);
     return serviceRequestSchema.parse(data);
+  }
+
+  public async listServiceRequests(params?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<ServiceRequestPage> {
+    const query = new URLSearchParams();
+    if (params?.limit !== undefined) {
+      query.set('limit', String(params.limit));
+    }
+    if (params?.offset !== undefined) {
+      query.set('offset', String(params.offset));
+    }
+    const queryString = query.toString();
+    const path = queryString.length > 0 ? `/service-requests?${queryString}` : '/service-requests';
+    const data = await this.send('GET', path, undefined, true);
+    return serviceRequestPageSchema.parse(data);
   }
 
   private async send(

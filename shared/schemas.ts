@@ -57,6 +57,14 @@ export const serviceRequestSchema = z.object({
 });
 export type ServiceRequest = z.infer<typeof serviceRequestSchema>;
 
+export const serviceRequestPageSchema = z.object({
+  items: z.array(serviceRequestSchema),
+  total: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+});
+export type ServiceRequestPage = z.infer<typeof serviceRequestPageSchema>;
+
 export const principalSchema = z.object({
   id: z.uuid(),
   role: roleSchema,

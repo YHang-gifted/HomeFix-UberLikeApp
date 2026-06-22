@@ -61,6 +61,37 @@ describe('ApiClient (against in-process server)', () => {
     assert.equal(fetched.id, created.id);
   });
 
+  it('lists the calling customer own service requests', async () => {
+    const client = new ApiClient(baseUrl);
+    await client.login('customer@homefix.test', 'customer-pass');
+
+    await client.createServiceRequest(validRequest());
+    await client.createServiceRequest(validRequest());
+
+    const page = await client.listServiceRequests();
+    assert.equal(page.total, 2);
+    assert.equal(page.items.length, 2);
+    assert.equal(page.offset, 0);
+    for (const item of page.items) {
+      assert.equal(item.customerId, CUSTOMER_ID);
+    }
+  });
+
+  it('paginates the service request list with limit and offset', async () => {
+    const client = new ApiClient(baseUrl);
+    await client.login('customer@homefix.test', 'customer-pass');
+
+    await client.createServiceRequest(validRequest());
+    await client.createServiceRequest(validRequest());
+    await client.createServiceRequest(validRequest());
+
+    const page = await client.listServiceRequests({ limit: 2, offset: 1 });
+    assert.equal(page.total, 3);
+    assert.equal(page.items.length, 2);
+    assert.equal(page.limit, 2);
+    assert.equal(page.offset, 1);
+  });
+
   it('throws ApiError(401) on a wrong password', async () => {
     const client = new ApiClient(baseUrl);
     await assert.rejects(
