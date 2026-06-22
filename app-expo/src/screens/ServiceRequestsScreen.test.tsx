@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import type { ServiceRequest, ServiceRequestPage } from '../../../shared/schemas';
@@ -39,5 +39,18 @@ describe('ServiceRequestsScreen', () => {
     const { findByText } = await render(<ServiceRequestsScreen client={client} />);
 
     await findByText('Could not load your requests.');
+  });
+
+  it('calls onLogout when the log out button is pressed', async () => {
+    const listServiceRequests = jest.fn().mockResolvedValue(makePage([]));
+    const client = { listServiceRequests } as unknown as ApiClient;
+    const onLogout = jest.fn();
+
+    const { getByLabelText } = await render(
+      <ServiceRequestsScreen client={client} onLogout={onLogout} />,
+    );
+    await fireEvent.press(getByLabelText('Log out'));
+
+    expect(onLogout).toHaveBeenCalledTimes(1);
   });
 });

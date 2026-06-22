@@ -10,6 +10,8 @@ export interface ServiceRequestsScreenProps {
   client?: ApiClient;
   /** Called when the user taps "New request". */
   onNewRequest?: () => void;
+  /** Called when the user taps "Log out". */
+  onLogout?: () => void;
   /** Bump this to force a reload (e.g. when the screen regains focus). */
   refreshToken?: number;
 }
@@ -17,6 +19,7 @@ export interface ServiceRequestsScreenProps {
 export function ServiceRequestsScreen({
   client,
   onNewRequest,
+  onLogout,
   refreshToken,
 }: ServiceRequestsScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
@@ -50,16 +53,28 @@ export function ServiceRequestsScreen({
 
   return (
     <View style={styles.root}>
-      <Pressable
-        style={({ pressed }) => [styles.newButton, pressed && styles.newButtonPressed]}
-        onPress={() => {
-          onNewRequest?.();
-        }}
-        accessibilityRole="button"
-        accessibilityLabel="New request"
-      >
-        <Text style={styles.newButtonText}>+ New request</Text>
-      </Pressable>
+      <View style={styles.header}>
+        <Pressable
+          style={({ pressed }) => [styles.newButton, pressed && styles.newButtonPressed]}
+          onPress={() => {
+            onNewRequest?.();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="New request"
+        >
+          <Text style={styles.newButtonText}>+ New request</Text>
+        </Pressable>
+        <Pressable
+          style={styles.logoutButton}
+          onPress={() => {
+            onLogout?.();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Log out"
+        >
+          <Text style={styles.logoutText}>Log out</Text>
+        </Pressable>
+      </View>
 
       {error !== null && (
         <View style={styles.centered}>
@@ -101,8 +116,16 @@ export function ServiceRequestsScreen({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#ffffff' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
   newButton: {
-    margin: 16,
+    flex: 1,
     backgroundColor: '#2563eb',
     borderRadius: 8,
     paddingVertical: 12,
@@ -110,6 +133,8 @@ const styles = StyleSheet.create({
   },
   newButtonPressed: { backgroundColor: '#1d4ed8' },
   newButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
+  logoutButton: { paddingVertical: 12, paddingHorizontal: 4 },
+  logoutText: { color: '#64748b', fontSize: 14, fontWeight: '600' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
   empty: { color: '#64748b', fontSize: 15, textAlign: 'center' },

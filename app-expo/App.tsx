@@ -1,12 +1,15 @@
-import { type ReactElement, useEffect, useState } from 'react';
+import { type ReactElement, createContext, useContext, useEffect, useState } from 'react';
 import { NavigationContainer, useIsFocused } from '@react-navigation/native';
 import {
   createNativeStackNavigator,
   type NativeStackScreenProps,
 } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { clearSession, persistSession, restoreSession } from '../app/src/auth/session';
 import { apiClient } from './src/api';
+import { tokenStore } from './src/tokenStore';
 import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { ServiceRequestsScreen } from './src/screens/ServiceRequestsScreen';
@@ -17,16 +20,25 @@ export type RootStackParamList = {
   CreateRequest: undefined;
 };
 
+interface AuthActions {
+  signIn: (token: string) => void;
+  signOut: () => void;
+}
+
+const AuthContext = createContext<AuthActions>({
+  signIn: () => undefined,
+  signOut: () => undefined,
+});
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-function LoginRoute({
-  navigation,
-}: NativeStackScreenProps<RootStackParamList, 'Login'>): ReactElement {
+function LoginRoute(): ReactElement {
+  const { signIn } = useContext(AuthContext);
   return (
     <LoginScreen
       client={apiClient}
-      onSuccess={() => {
-        navigation.replace('ServiceRequests');
+      onSuccess={(token) => {
+        signIn(token);
       }}
     />
   );
@@ -35,6 +47,7 @@ function LoginRoute({
 function ServiceRequestsRoute({
   navigation,
 }: NativeStackScreenProps<RootStackParamList, 'ServiceRequests'>): ReactElement {
+  const { signOut } = useContext(AuthContext);
   const isFocused = useIsFocused();
   const [refreshToken, setRefreshToken] = useState(0);
 
@@ -50,6 +63,9 @@ function ServiceRequestsRoute({
       refreshToken={refreshToken}
       onNewRequest={() => {
         navigation.navigate('CreateRequest');
+      }}
+      onLogout={() => {
+        signOut();
       }}
     />
   );
@@ -69,22 +85,80 @@ function CreateRequestRoute({
 }
 
 export default function App(): ReactElement {
+  const [booting, setBooting] = useState(true);
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    restoreSession(tokenStore, apiClient)
+      .then((restored) => {
+        if (active) {
+          setSignedIn(restored);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setSignedIn(false);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setBooting(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const actions: AuthActions = {
+    signIn: (token) => {
+      void persistSession(tokenStore, apiClient, token).then(() => {
+        setSignedIn(true);
+      });
+    },
+    signOut: () => {
+      void clearSession(tokenStore, apiClient).then(() => {
+        setSignedIn(false);
+      });
+    },
+  };
+
+  if (booting) {
+    return (
+      <View style={styles.splash}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
   return (
-    <NavigationContainer>
-      <StatusBar style="auto" />
-      <Stack.Navigator>
-        <Stack.Screen name="Login" component={LoginRoute} options={{ title: 'HomeFix' }} />
-        <Stack.Screen
-          name="ServiceRequests"
-          component={ServiceRequestsRoute}
-          options={{ title: 'Your requests' }}
-        />
-        <Stack.Screen
-          name="CreateRequest"
-          component={CreateRequestRoute}
-          options={{ title: 'New request' }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <AuthContext.Provider value={actions}>
+      <NavigationContainer>
+        <StatusBar style="auto" />
+        <Stack.Navigator>
+          {signedIn ? (
+            <>
+              <Stack.Screen
+                name="ServiceRequests"
+                component={ServiceRequestsRoute}
+                options={{ title: 'Your requests' }}
+              />
+              <Stack.Screen
+                name="CreateRequest"
+                component={CreateRequestRoute}
+                options={{ title: 'New request' }}
+              />
+            </>
+          ) : (
+            <Stack.Screen name="Login" component={LoginRoute} options={{ title: 'HomeFix' }} />
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </AuthContext.Provider>
   );
 }
+
+const styles = StyleSheet.create({
+  splash: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
+});
