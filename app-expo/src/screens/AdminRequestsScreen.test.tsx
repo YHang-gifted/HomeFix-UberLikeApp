@@ -95,4 +95,18 @@ describe('AdminRequestsScreen', () => {
 
     await findByText('4.5 ★ (2)');
   });
+
+  it('calls onSelectRequest when a request card is tapped', async () => {
+    const listServiceRequests = jest.fn().mockResolvedValue(makePage([makeRequest()]));
+    const client = baseClient({ listServiceRequests }) as unknown as ApiClient;
+    const onSelectRequest = jest.fn();
+
+    const { findByText, getByLabelText } = await render(
+      <AdminRequestsScreen client={client} onSelectRequest={onSelectRequest} />,
+    );
+    await findByText('Leaking kitchen sink');
+    await fireEvent.press(getByLabelText('View request: Leaking kitchen sink'));
+
+    expect(onSelectRequest).toHaveBeenCalledWith('523e4567-e89b-12d3-a456-426614174000');
+  });
 });

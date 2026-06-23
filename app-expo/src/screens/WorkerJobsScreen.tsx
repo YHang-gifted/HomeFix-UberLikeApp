@@ -14,6 +14,8 @@ export interface WorkerJobsScreenProps {
   client?: ApiClient;
   /** Called when the user taps "Log out". */
   onLogout?: () => void;
+  /** Called with the request id when a card is tapped. */
+  onSelectRequest?: (id: string) => void;
   /** Bump this to force a reload (e.g. when the screen regains focus). */
   refreshToken?: number;
 }
@@ -28,6 +30,7 @@ function ratingText(reviews: WorkerReviews): string {
 export function WorkerJobsScreen({
   client,
   onLogout,
+  onSelectRequest,
   refreshToken,
 }: WorkerJobsScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
@@ -140,7 +143,14 @@ export function WorkerJobsScreen({
           renderItem={({ item }) => {
             const label = workerActionLabel(item.status);
             return (
-              <View style={styles.card}>
+              <Pressable
+                style={styles.card}
+                onPress={() => {
+                  onSelectRequest?.(item.id);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`View job: ${item.description}`}
+              >
                 <View style={styles.cardHeader}>
                   <Text style={styles.category}>{item.category}</Text>
                   <Text style={styles.status}>{item.status}</Text>
@@ -163,7 +173,7 @@ export function WorkerJobsScreen({
                     )}
                   </Pressable>
                 )}
-              </View>
+              </Pressable>
             );
           }}
         />
