@@ -13,11 +13,13 @@ import { tokenStore } from './src/tokenStore';
 import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { ServiceRequestsScreen } from './src/screens/ServiceRequestsScreen';
+import { WorkerJobsScreen } from './src/screens/WorkerJobsScreen';
 
 export type RootStackParamList = {
   Login: undefined;
   ServiceRequests: undefined;
   CreateRequest: undefined;
+  WorkerJobs: undefined;
 };
 
 interface AuthActions {
@@ -84,6 +86,28 @@ function CreateRequestRoute({
   );
 }
 
+function WorkerJobsRoute(): ReactElement {
+  const { signOut } = useContext(AuthContext);
+  const isFocused = useIsFocused();
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  useEffect(() => {
+    if (isFocused) {
+      setRefreshToken((current) => current + 1);
+    }
+  }, [isFocused]);
+
+  return (
+    <WorkerJobsScreen
+      client={apiClient}
+      refreshToken={refreshToken}
+      onLogout={() => {
+        signOut();
+      }}
+    />
+  );
+}
+
 export default function App(): ReactElement {
   const [booting, setBooting] = useState(true);
   const [signedIn, setSignedIn] = useState(false);
@@ -132,12 +156,24 @@ export default function App(): ReactElement {
     );
   }
 
+  const isWorker = apiClient.getPrincipal()?.role === 'worker';
+
   return (
     <AuthContext.Provider value={actions}>
       <NavigationContainer>
         <StatusBar style="auto" />
         <Stack.Navigator>
-          {signedIn ? (
+          {!signedIn && (
+            <Stack.Screen name="Login" component={LoginRoute} options={{ title: 'HomeFix' }} />
+          )}
+          {signedIn && isWorker && (
+            <Stack.Screen
+              name="WorkerJobs"
+              component={WorkerJobsRoute}
+              options={{ title: 'Assigned jobs' }}
+            />
+          )}
+          {signedIn && !isWorker && (
             <>
               <Stack.Screen
                 name="ServiceRequests"
@@ -150,8 +186,6 @@ export default function App(): ReactElement {
                 options={{ title: 'New request' }}
               />
             </>
-          ) : (
-            <Stack.Screen name="Login" component={LoginRoute} options={{ title: 'HomeFix' }} />
           )}
         </Stack.Navigator>
       </NavigationContainer>
