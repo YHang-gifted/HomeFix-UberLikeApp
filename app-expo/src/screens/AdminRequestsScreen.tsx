@@ -2,7 +2,7 @@ import { type ReactElement, useCallback, useEffect, useMemo, useState } from 're
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
-import type { ServiceRequest, WorkerSummary } from '../../../shared/schemas';
+import type { ServiceRequest, WorkerReviews, WorkerSummary } from '../../../shared/schemas';
 import { apiClient } from '../api';
 
 export interface AdminRequestsScreenProps {
@@ -29,6 +29,7 @@ export function AdminRequestsScreen({
   const [error, setError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [ratings, setRatings] = useState<Record<string, WorkerReviews>>({});
 
   useEffect(() => {
     let active = true;
@@ -43,6 +44,23 @@ export function AdminRequestsScreen({
           setItems(page.items);
           setWorkers(workerList);
           setError(null);
+        }
+        try {
+          const summaries = await Promise.all(
+            workerList.map((worker) => activeClient.getWorkerReviews(worker.id)),
+          );
+          if (active) {
+            const byWorker: Record<string, WorkerReviews> = {};
+            summaries.forEach((summary, index) => {
+              const worker = workerList[index];
+              if (worker !== undefined) {
+                byWorker[worker.id] = summary;
+              }
+            });
+            setRatings(byWorker);
+          }
+        } catch {
+          // Ratings are secondary; ignore failures.
         }
       } catch {
         if (active) {
@@ -131,24 +149,37 @@ export function AdminRequestsScreen({
 
               {item.status === 'pending' && (
                 <View style={styles.assignRow}>
-                  {workers.map((worker) => (
-                    <Pressable
-                      key={worker.id}
-                      style={({ pressed }) => [styles.assign, pressed && styles.assignPressed]}
-                      onPress={() => {
-                        void assign(item, worker.id);
-                      }}
-                      disabled={assigningId === item.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Assign to ${worker.email}`}
-                    >
-                      {assigningId === item.id ? (
-                        <ActivityIndicator color="#ffffff" />
-                      ) : (
-                        <Text style={styles.assignText}>Assign to {worker.email}</Text>
-                      )}
-                    </Pressable>
-                  ))}
+                  {workers.map((worker) => {
+                    const summary = ratings[worker.id];
+                    const ratingLabel =
+                      summary === undefined
+                        ? null
+                        : summary.reviewCount === 0
+                          ? 'No ratings yet'
+                          : `${summary.averageRating.toFixed(1)} ★ (${String(summary.reviewCount)})`;
+                    return (
+                      <View key={worker.id} style={styles.assignWorker}>
+                        <Pressable
+                          style={({ pressed }) => [styles.assign, pressed && styles.assignPressed]}
+                          onPress={() => {
+                            void assign(item, worker.id);
+                          }}
+                          disabled={assigningId === item.id}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Assign to ${worker.email}`}
+                        >
+                          {assigningId === item.id ? (
+                            <ActivityIndicator color="#ffffff" />
+                          ) : (
+                            <Text style={styles.assignText}>Assign to {worker.email}</Text>
+                          )}
+                        </Pressable>
+                        {ratingLabel !== null && (
+                          <Text style={styles.workerRating}>{ratingLabel}</Text>
+                        )}
+                      </View>
+                    );
+                  })}
                 </View>
               )}
             </View>
@@ -188,7 +219,9 @@ const styles = StyleSheet.create({
   category: { fontSize: 15, fontWeight: '700', color: '#0f172a', textTransform: 'capitalize' },
   status: { fontSize: 13, color: '#2563eb', textTransform: 'capitalize' },
   description: { fontSize: 14, color: '#334155' },
-  assignRow: { marginTop: 12, gap: 8 },
+  assignRow: { marginTop: 12, gap: 12 },
+  assignWorker: { gap: 4 },
+  workerRating: { fontSize: 12, color: '#f59e0b', fontWeight: '600', textAlign: 'center' },
   assign: {
     backgroundColor: '#2563eb',
     borderRadius: 8,
