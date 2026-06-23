@@ -84,3 +84,29 @@ export const workerSummarySchema = z.object({
 export type WorkerSummary = z.infer<typeof workerSummarySchema>;
 
 export const workerSummaryListSchema = z.array(workerSummarySchema);
+
+export const auditActionSchema = z.enum([
+  'service_request.created',
+  'service_request.assigned',
+  'service_request.status_changed',
+]);
+export type AuditAction = z.infer<typeof auditActionSchema>;
+
+export const auditEventSchema = z.object({
+  id: z.uuid(),
+  occurredAt: z.iso.datetime(),
+  actorId: z.uuid(),
+  actorRole: roleSchema,
+  action: auditActionSchema,
+  resourceId: z.uuid(),
+  details: z.record(z.string(), z.string()).optional(),
+});
+export type AuditEvent = z.infer<typeof auditEventSchema>;
+
+export const auditPageSchema = z.object({
+  items: z.array(auditEventSchema),
+  total: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+});
+export type AuditPage = z.infer<typeof auditPageSchema>;
