@@ -12,6 +12,7 @@ import { apiClient } from './src/api';
 import { tokenStore } from './src/tokenStore';
 import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
+import { RequestDetailScreen } from './src/screens/RequestDetailScreen';
 import { ServiceRequestsScreen } from './src/screens/ServiceRequestsScreen';
 import { WorkerJobsScreen } from './src/screens/WorkerJobsScreen';
 
@@ -19,6 +20,7 @@ export type RootStackParamList = {
   Login: undefined;
   ServiceRequests: undefined;
   CreateRequest: undefined;
+  RequestDetail: { id: string };
   WorkerJobs: undefined;
 };
 
@@ -66,6 +68,9 @@ function ServiceRequestsRoute({
       onNewRequest={() => {
         navigation.navigate('CreateRequest');
       }}
+      onSelectRequest={(id) => {
+        navigation.navigate('RequestDetail', { id });
+      }}
       onLogout={() => {
         signOut();
       }}
@@ -80,6 +85,21 @@ function CreateRequestRoute({
     <CreateRequestScreen
       client={apiClient}
       onCreated={() => {
+        navigation.goBack();
+      }}
+    />
+  );
+}
+
+function RequestDetailRoute({
+  navigation,
+  route,
+}: NativeStackScreenProps<RootStackParamList, 'RequestDetail'>): ReactElement {
+  return (
+    <RequestDetailScreen
+      client={apiClient}
+      requestId={route.params.id}
+      onCancelled={() => {
         navigation.goBack();
       }}
     />
@@ -184,6 +204,11 @@ export default function App(): ReactElement {
                 name="CreateRequest"
                 component={CreateRequestRoute}
                 options={{ title: 'New request' }}
+              />
+              <Stack.Screen
+                name="RequestDetail"
+                component={RequestDetailRoute}
+                options={{ title: 'Request' }}
               />
             </>
           )}
