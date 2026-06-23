@@ -18,6 +18,7 @@ import { clearSession, persistSession, restoreSession } from '../app/src/auth/se
 import { apiClient } from './src/api';
 import { tokenStore } from './src/tokenStore';
 import { AdminRequestsScreen } from './src/screens/AdminRequestsScreen';
+import { AuditLogScreen } from './src/screens/AuditLogScreen';
 import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RequestDetailScreen } from './src/screens/RequestDetailScreen';
@@ -31,6 +32,7 @@ export type RootStackParamList = {
   RequestDetail: { id: string };
   WorkerJobs: undefined;
   AdminRequests: undefined;
+  AuditLog: undefined;
 };
 
 interface AuthActions {
@@ -135,7 +137,9 @@ function WorkerJobsRoute(): ReactElement {
   );
 }
 
-function AdminRequestsRoute(): ReactElement {
+function AdminRequestsRoute({
+  navigation,
+}: NativeStackScreenProps<RootStackParamList, 'AdminRequests'>): ReactElement {
   const { signOut } = useContext(AuthContext);
   const [refreshToken, setRefreshToken] = useState(0);
 
@@ -149,11 +153,26 @@ function AdminRequestsRoute(): ReactElement {
     <AdminRequestsScreen
       client={apiClient}
       refreshToken={refreshToken}
+      onViewAudit={() => {
+        navigation.navigate('AuditLog');
+      }}
       onLogout={() => {
         signOut();
       }}
     />
   );
+}
+
+function AuditLogRoute(): ReactElement {
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshToken((current) => current + 1);
+    }, []),
+  );
+
+  return <AuditLogScreen client={apiClient} refreshToken={refreshToken} />;
 }
 
 export default function App(): ReactElement {
@@ -233,11 +252,18 @@ export default function App(): ReactElement {
             />
           )}
           {signedIn && role === 'admin' && (
-            <Stack.Screen
-              name="AdminRequests"
-              component={AdminRequestsRoute}
-              options={{ title: 'All requests' }}
-            />
+            <>
+              <Stack.Screen
+                name="AdminRequests"
+                component={AdminRequestsRoute}
+                options={{ title: 'All requests' }}
+              />
+              <Stack.Screen
+                name="AuditLog"
+                component={AuditLogRoute}
+                options={{ title: 'Audit log' }}
+              />
+            </>
           )}
           {signedIn && role !== 'worker' && role !== 'admin' && (
             <>

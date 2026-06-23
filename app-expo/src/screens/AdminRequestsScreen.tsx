@@ -10,6 +10,8 @@ export interface AdminRequestsScreenProps {
   client?: ApiClient;
   /** Called when the user taps "Log out". */
   onLogout?: () => void;
+  /** Called when the user taps "Audit log". */
+  onViewAudit?: () => void;
   /** Bump this to force a reload (e.g. when the screen regains focus). */
   refreshToken?: number;
 }
@@ -17,6 +19,7 @@ export interface AdminRequestsScreenProps {
 export function AdminRequestsScreen({
   client,
   onLogout,
+  onViewAudit,
   refreshToken,
 }: AdminRequestsScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
@@ -73,15 +76,26 @@ export function AdminRequestsScreen({
     <View style={styles.root}>
       <View style={styles.header}>
         <Text style={styles.heading}>All requests</Text>
-        <Pressable
-          onPress={() => {
-            onLogout?.();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Log out"
-        >
-          <Text style={styles.logoutText}>Log out</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => {
+              onViewAudit?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Audit log"
+          >
+            <Text style={styles.auditText}>Audit log</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              onLogout?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Log out"
+          >
+            <Text style={styles.logoutText}>Log out</Text>
+          </Pressable>
+        </View>
       </View>
 
       {error !== null && (
@@ -155,6 +169,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   heading: { fontSize: 18, fontWeight: '700', color: '#0f172a' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  auditText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
   logoutText: { color: '#64748b', fontSize: 14, fontWeight: '600' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
