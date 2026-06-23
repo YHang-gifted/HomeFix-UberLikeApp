@@ -1,0 +1,188 @@
+import { type ReactElement, useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import type { ApiClient } from '../../../app/src/services/apiClient';
+import type { ServiceRequest, WorkerSummary } from '../../../shared/schemas';
+import { apiClient } from '../api';
+
+export interface AdminRequestsScreenProps {
+  /** Optional client override (used by tests). Defaults to the app singleton. */
+  client?: ApiClient;
+  /** Called when the user taps "Log out". */
+  onLogout?: () => void;
+  /** Bump this to force a reload (e.g. when the screen regains focus). */
+  refreshToken?: number;
+}
+
+export function AdminRequestsScreen({
+  client,
+  onLogout,
+  refreshToken,
+}: AdminRequestsScreenProps): ReactElement {
+  const activeClient = useMemo(() => client ?? apiClient, [client]);
+
+  const [items, setItems] = useState<ServiceRequest[] | null>(null);
+  const [workers, setWorkers] = useState<WorkerSummary[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setItems(null);
+    setError(null);
+
+    async function load(): Promise<void> {
+      try {
+        const [page, workerList] = await Promise.all([
+          activeClient.listServiceRequests(),
+          activeClient.listWorkers(),
+        ]);
+        if (active) {
+          setItems(page.items);
+          setWorkers(workerList);
+        }
+      } catch {
+        if (active) {
+          setError('Could not load requests.');
+        }
+      }
+    }
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [activeClient, refreshToken, reload]);
+
+  const assign = useCallback(
+    async (request: ServiceRequest, workerId: string): Promise<void> => {
+      setAssigningId(request.id);
+      try {
+        await activeClient.assignWorker(request.id, workerId);
+        setReload((current) => current + 1);
+      } catch {
+        setError('Could not assign the worker. Please try again.');
+      } finally {
+        setAssigningId(null);
+      }
+    },
+    [activeClient],
+  );
+
+  return (
+    <View style={styles.root}>
+      <View style={styles.header}>
+        <Text style={styles.heading}>All requests</Text>
+        <Pressable
+          onPress={() => {
+            onLogout?.();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Log out"
+        >
+          <Text style={styles.logoutText}>Log out</Text>
+        </Pressable>
+      </View>
+
+      {error !== null && (
+        <View style={styles.centered}>
+          <Text style={styles.error}>{error}</Text>
+        </View>
+      )}
+
+      {error === null && items === null && (
+        <View style={styles.centered}>
+          <ActivityIndicator />
+        </View>
+      )}
+
+      {error === null && items !== null && items.length === 0 && (
+        <View style={styles.centered}>
+          <Text style={styles.empty}>There are no requests yet.</Text>
+        </View>
+      )}
+
+      {error === null && items !== null && items.length > 0 && (
+        <FlatList
+          style={styles.list}
+          data={items}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.category}>{item.category}</Text>
+                <Text style={styles.status}>{item.status}</Text>
+              </View>
+              <Text style={styles.description}>{item.description}</Text>
+
+              {item.status === 'pending' && (
+                <View style={styles.assignRow}>
+                  {workers.map((worker) => (
+                    <Pressable
+                      key={worker.id}
+                      style={({ pressed }) => [styles.assign, pressed && styles.assignPressed]}
+                      onPress={() => {
+                        void assign(item, worker.id);
+                      }}
+                      disabled={assigningId === item.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Assign to ${worker.email}`}
+                    >
+                      {assigningId === item.id ? (
+                        <ActivityIndicator color="#ffffff" />
+                      ) : (
+                        <Text style={styles.assignText}>Assign to {worker.email}</Text>
+                      )}
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#ffffff' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  heading: { fontSize: 18, fontWeight: '700', color: '#0f172a' },
+  logoutText: { color: '#64748b', fontSize: 14, fontWeight: '600' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
+  empty: { color: '#64748b', fontSize: 15, textAlign: 'center' },
+  list: { flex: 1 },
+  card: {
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  category: { fontSize: 15, fontWeight: '700', color: '#0f172a', textTransform: 'capitalize' },
+  status: { fontSize: 13, color: '#2563eb', textTransform: 'capitalize' },
+  description: { fontSize: 14, color: '#334155' },
+  assignRow: { marginTop: 12, gap: 8 },
+  assign: {
+    backgroundColor: '#2563eb',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 40,
+  },
+  assignPressed: { backgroundColor: '#1d4ed8' },
+  assignText: { color: '#ffffff', fontSize: 14, fontWeight: '600' },
+});
