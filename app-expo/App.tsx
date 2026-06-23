@@ -17,8 +17,8 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { clearSession, persistSession, restoreSession } from '../app/src/auth/session';
 import { apiClient } from './src/api';
 import { tokenStore } from './src/tokenStore';
-import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
 import { AdminRequestsScreen } from './src/screens/AdminRequestsScreen';
+import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RequestDetailScreen } from './src/screens/RequestDetailScreen';
 import { ServiceRequestsScreen } from './src/screens/ServiceRequestsScreen';
@@ -180,6 +180,17 @@ export default function App(): ReactElement {
       });
     return () => {
       active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    apiClient.setUnauthorizedHandler(() => {
+      void clearSession(tokenStore, apiClient).then(() => {
+        setSignedIn(false);
+      });
+    });
+    return () => {
+      apiClient.setUnauthorizedHandler(undefined);
     };
   }, []);
 
