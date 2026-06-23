@@ -1,7 +1,7 @@
 import { fireEvent, render } from '@testing-library/react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
-import type { ServiceRequest, ServiceRequestPage } from '../../../shared/schemas';
+import type { ServiceRequest, ServiceRequestPage, WorkerReviews } from '../../../shared/schemas';
 import { WorkerJobsScreen } from './WorkerJobsScreen';
 
 const WORKER_ID = '423e4567-e89b-12d3-a456-426614174000';
@@ -24,11 +24,26 @@ function makePage(items: ServiceRequest[]): ServiceRequestPage {
   return { items, total: items.length, limit: 20, offset: 0 };
 }
 
+function makeReviews(overrides: Partial<WorkerReviews> = {}): WorkerReviews {
+  return { workerId: WORKER_ID, reviewCount: 0, averageRating: 0, items: [], ...overrides };
+}
+
+function baseClient(extra: Record<string, unknown>) {
+  return {
+    getPrincipal: jest.fn().mockReturnValue({ id: WORKER_ID, role: 'worker' }),
+    getWorkerReviews: jest.fn().mockResolvedValue(makeReviews()),
+    ...extra,
+  };
+}
+
 describe('WorkerJobsScreen', () => {
   it('renders assigned jobs with the next worker action', async () => {
     const listServiceRequests = jest.fn().mockResolvedValue(makePage([makeJob()]));
     const updateServiceRequestStatus = jest.fn();
-    const client = { listServiceRequests, updateServiceRequestStatus } as unknown as ApiClient;
+    const client = baseClient({
+      listServiceRequests,
+      updateServiceRequestStatus,
+    }) as unknown as ApiClient;
 
     const { findByText } = await render(<WorkerJobsScreen client={client} />);
 
@@ -43,7 +58,10 @@ describe('WorkerJobsScreen', () => {
       .mockResolvedValueOnce(makePage([job]))
       .mockResolvedValueOnce(makePage([{ ...job, status: 'accepted' }]));
     const updateServiceRequestStatus = jest.fn().mockResolvedValue({ ...job, status: 'accepted' });
-    const client = { listServiceRequests, updateServiceRequestStatus } as unknown as ApiClient;
+    const client = baseClient({
+      listServiceRequests,
+      updateServiceRequestStatus,
+    }) as unknown as ApiClient;
 
     const { getByLabelText, findByText } = await render(<WorkerJobsScreen client={client} />);
     await findByText('Accept job');
@@ -51,5 +69,17 @@ describe('WorkerJobsScreen', () => {
 
     await findByText('Start work');
     expect(updateServiceRequestStatus).toHaveBeenCalledWith(job.id, 'accepted');
+  });
+
+  it('shows the worker average rating', async () => {
+    const listServiceRequests = jest.fn().mockResolvedValue(makePage([]));
+    const getWorkerReviews = jest
+      .fn()
+      .mockResolvedValue(makeReviews({ reviewCount: 2, averageRating: 4.5 }));
+    const client = baseClient({ listServiceRequests, getWorkerReviews }) as unknown as ApiClient;
+
+    const { findByText } = await render(<WorkerJobsScreen client={client} />);
+
+    await findByText('4.5 ★ (2 reviews)');
   });
 });
