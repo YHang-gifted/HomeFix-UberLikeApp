@@ -1,6 +1,6 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
-import type { ApiClient } from '../../../app/src/services/apiClient';
+import { ApiError, type ApiClient } from '../../../app/src/services/apiClient';
 import type { ServiceRequest } from '../../../shared/schemas';
 import { RequestDetailScreen } from './RequestDetailScreen';
 
@@ -62,5 +62,40 @@ describe('RequestDetailScreen', () => {
     );
     await findByText('Leaking kitchen sink');
     expect(queryByLabelText('Cancel request')).toBeNull();
+  });
+
+  it('submits a review for a completed request', async () => {
+    const request = makeRequest({ status: 'completed' });
+    const getServiceRequest = jest.fn().mockResolvedValue(request);
+    const createReview = jest
+      .fn()
+      .mockResolvedValue({ id: 'r1', requestId: request.id, rating: 5 });
+    const client = { getServiceRequest, createReview } as unknown as ApiClient;
+
+    const { findByText, getByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+    await findByText('Rate the worker');
+    await fireEvent.press(getByLabelText('Rate 5'));
+    await fireEvent.press(getByLabelText('Submit review'));
+
+    await findByText('Thanks for your review!');
+    expect(createReview).toHaveBeenCalledWith(request.id, { rating: 5 });
+  });
+
+  it('shows an already-reviewed message on a 409', async () => {
+    const request = makeRequest({ status: 'completed' });
+    const getServiceRequest = jest.fn().mockResolvedValue(request);
+    const createReview = jest.fn().mockRejectedValue(new ApiError(409, 'already reviewed'));
+    const client = { getServiceRequest, createReview } as unknown as ApiClient;
+
+    const { findByText, getByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+    await findByText('Rate the worker');
+    await fireEvent.press(getByLabelText('Rate 4'));
+    await fireEvent.press(getByLabelText('Submit review'));
+
+    await findByText('You have already reviewed this request.');
   });
 });

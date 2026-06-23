@@ -1,10 +1,21 @@
 import { type ReactElement, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
+import { isApiError } from '../../../app/src/services/apiClient';
 import { customerCanCancel } from '../../../app/src/features/serviceRequests/customerStatus';
 import type { ServiceRequest } from '../../../shared/schemas';
 import { apiClient } from '../api';
+
+const RATINGS = [1, 2, 3, 4, 5];
 
 export interface RequestDetailScreenProps {
   /** The request to display. */
@@ -25,6 +36,12 @@ export function RequestDetailScreen({
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+
+  const [rating, setRating] = useState<number | null>(null);
+  const [comment, setComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewDone, setReviewDone] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -57,6 +74,32 @@ export function RequestDetailScreen({
     } catch {
       setError('Could not cancel the request. Please try again.');
       setCancelling(false);
+    }
+  }
+
+  async function submitReview(): Promise<void> {
+    if (rating === null) {
+      return;
+    }
+    setSubmittingReview(true);
+    setReviewMessage(null);
+    const trimmed = comment.trim();
+    try {
+      await activeClient.createReview(requestId, {
+        rating,
+        ...(trimmed.length > 0 ? { comment: trimmed } : {}),
+      });
+      setReviewDone(true);
+      setReviewMessage('Thanks for your review!');
+    } catch (submitError) {
+      if (isApiError(submitError) && submitError.status === 409) {
+        setReviewDone(true);
+        setReviewMessage('You have already reviewed this request.');
+      } else {
+        setReviewMessage('Could not submit your review. Please try again.');
+      }
+    } finally {
+      setSubmittingReview(false);
     }
   }
 
@@ -108,6 +151,62 @@ export function RequestDetailScreen({
           )}
         </Pressable>
       )}
+
+      {request.status === 'completed' && (
+        <View style={styles.reviewBox}>
+          <Text style={styles.reviewHeading}>Rate the worker</Text>
+          {!reviewDone && (
+            <>
+              <View style={styles.ratingRow}>
+                {RATINGS.map((value) => {
+                  const selected = rating !== null && value <= rating;
+                  return (
+                    <Pressable
+                      key={value}
+                      onPress={() => {
+                        setRating(value);
+                      }}
+                      disabled={submittingReview}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Rate ${String(value)}`}
+                    >
+                      <Text style={[styles.star, selected && styles.starSelected]}>★</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <TextInput
+                style={styles.commentInput}
+                value={comment}
+                onChangeText={setComment}
+                placeholder="Add a comment (optional)"
+                accessibilityLabel="Review comment"
+                editable={!submittingReview}
+                multiline
+              />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.submit,
+                  (pressed || submittingReview || rating === null) && styles.submitDisabled,
+                ]}
+                onPress={() => {
+                  void submitReview();
+                }}
+                disabled={submittingReview || rating === null}
+                accessibilityRole="button"
+                accessibilityLabel="Submit review"
+              >
+                {submittingReview ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text style={styles.submitText}>Submit review</Text>
+                )}
+              </Pressable>
+            </>
+          )}
+          {reviewMessage !== null && <Text style={styles.reviewMessage}>{reviewMessage}</Text>}
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -133,4 +232,33 @@ const styles = StyleSheet.create({
   },
   cancelPressed: { backgroundColor: '#b91c1c' },
   cancelText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  reviewBox: { marginTop: 32, borderTopWidth: 1, borderTopColor: '#e2e8f0', paddingTop: 20 },
+  reviewHeading: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 12 },
+  ratingRow: { flexDirection: 'row', gap: 6 },
+  star: { fontSize: 32, color: '#cbd5e1' },
+  starSelected: { color: '#f59e0b' },
+  commentInput: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: '#0f172a',
+    marginTop: 12,
+    minHeight: 64,
+    textAlignVertical: 'top',
+  },
+  submit: {
+    marginTop: 16,
+    backgroundColor: '#2563eb',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  submitDisabled: { backgroundColor: '#93c5fd' },
+  submitText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  reviewMessage: { marginTop: 12, fontSize: 14, color: '#0f172a' },
 });
