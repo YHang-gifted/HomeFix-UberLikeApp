@@ -43,6 +43,7 @@ type HttpMethod = 'GET' | 'POST' | 'PATCH';
 export class ApiClient {
   private readonly baseUrl: string;
   private token: string | undefined;
+  private unauthorizedHandler: (() => void) | undefined;
 
   public constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -50,6 +51,15 @@ export class ApiClient {
 
   public setToken(token: string | undefined): void {
     this.token = token;
+  }
+
+  /**
+   * Register a handler invoked when an authenticated request is rejected with
+   * 401 (e.g. an expired token), so the app can sign the user out. Not called
+   * for unauthenticated requests such as login.
+   */
+  public setUnauthorizedHandler(handler: (() => void) | undefined): void {
+    this.unauthorizedHandler = handler;
   }
 
   /** The current principal decoded from the stored JWT, or null if not signed in. */
@@ -136,6 +146,9 @@ export class ApiClient {
     const data: unknown = text.length > 0 ? JSON.parse(text) : undefined;
 
     if (!response.ok) {
+      if (response.status === 401 && authenticated) {
+        this.unauthorizedHandler?.();
+      }
       const errorBody = data as { error?: unknown } | undefined;
       const message =
         typeof errorBody?.error === 'string'
