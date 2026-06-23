@@ -4,8 +4,13 @@ import type {
   ServiceRequest,
   ServiceRequestPage,
   ServiceRequestStatus,
+  WorkerSummary,
 } from '../../../shared/schemas.ts';
-import { serviceRequestPageSchema, serviceRequestSchema } from '../../../shared/schemas.ts';
+import {
+  serviceRequestPageSchema,
+  serviceRequestSchema,
+  workerSummaryListSchema,
+} from '../../../shared/schemas.ts';
 import { getPrincipalFromToken } from '../auth/token.ts';
 
 export class ApiError extends Error {
@@ -94,6 +99,16 @@ export class ApiClient {
     status: ServiceRequestStatus,
   ): Promise<ServiceRequest> {
     const data = await this.send('PATCH', `/service-requests/${id}/status`, { status }, true);
+    return serviceRequestSchema.parse(data);
+  }
+
+  public async listWorkers(): Promise<WorkerSummary[]> {
+    const data = await this.send('GET', '/workers', undefined, true);
+    return workerSummaryListSchema.parse(data);
+  }
+
+  public async assignWorker(id: string, workerId: string): Promise<ServiceRequest> {
+    const data = await this.send('PATCH', `/service-requests/${id}/assignment`, { workerId }, true);
     return serviceRequestSchema.parse(data);
   }
 

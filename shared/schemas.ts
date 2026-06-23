@@ -76,3 +76,11 @@ export const loginInputSchema = z.object({
   password: z.string().min(1),
 });
 export type LoginInput = z.infer<typeof loginInputSchema>;
+
+export const workerSummarySchema = z.object({
+  id: z.uuid(),
+  email: z.email(),
+});
+export type WorkerSummary = z.infer<typeof workerSummarySchema>;
+
+export const workerSummaryListSchema = z.array(workerSummarySchema);

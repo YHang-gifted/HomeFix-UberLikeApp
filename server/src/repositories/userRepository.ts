@@ -22,3 +22,7 @@ seed('423e4567-e89b-12d3-a456-426614174000', 'worker@homefix.test', 'worker', 'w
 export function findUserByEmail(email: string): UserRecord | undefined {
   return users.get(email.toLowerCase());
 }
+
+export function listUsersByRole(role: Role): UserRecord[] {
+  return [...users.values()].filter((user) => user.role === role);
+}
