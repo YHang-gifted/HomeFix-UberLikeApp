@@ -1,4 +1,5 @@
 import type {
+  AuditPage,
   CreateServiceRequestInput,
   Principal,
   ServiceRequest,
@@ -7,6 +8,7 @@ import type {
   WorkerSummary,
 } from '../../../shared/schemas.ts';
 import {
+  auditPageSchema,
   serviceRequestPageSchema,
   serviceRequestSchema,
   workerSummaryListSchema,
@@ -120,6 +122,20 @@ export class ApiClient {
   public async assignWorker(id: string, workerId: string): Promise<ServiceRequest> {
     const data = await this.send('PATCH', `/service-requests/${id}/assignment`, { workerId }, true);
     return serviceRequestSchema.parse(data);
+  }
+
+  public async listAuditEvents(params?: { limit?: number; offset?: number }): Promise<AuditPage> {
+    const query = new URLSearchParams();
+    if (params?.limit !== undefined) {
+      query.set('limit', String(params.limit));
+    }
+    if (params?.offset !== undefined) {
+      query.set('offset', String(params.offset));
+    }
+    const queryString = query.toString();
+    const path = queryString.length > 0 ? `/audit?${queryString}` : '/audit';
+    const data = await this.send('GET', path, undefined, true);
+    return auditPageSchema.parse(data);
   }
 
   private async send(

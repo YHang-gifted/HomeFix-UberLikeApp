@@ -8,6 +8,7 @@ import type {
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
+import { recordAuditEvent } from './auditService.ts';
 
 export interface ServiceRequestPage {
   items: ServiceRequest[];
@@ -43,6 +44,11 @@ export async function createServiceRequest(
     createdAt: new Date().toISOString(),
   };
   await serviceRequestRepository.save(request);
+  await recordAuditEvent({
+    actor: principal,
+    action: 'service_request.created',
+    resourceId: request.id,
+  });
   return request;
 }
 
@@ -101,6 +107,12 @@ export async function assignWorker(
 
   const updated: ServiceRequest = { ...request, workerId, status: 'matched' };
   await serviceRequestRepository.save(updated);
+  await recordAuditEvent({
+    actor: principal,
+    action: 'service_request.assigned',
+    resourceId: id,
+    details: { workerId },
+  });
   return updated;
 }
 
@@ -139,6 +151,12 @@ export async function updateServiceRequestStatus(
 
   const updated: ServiceRequest = { ...request, status: nextStatus };
   await serviceRequestRepository.save(updated);
+  await recordAuditEvent({
+    actor: principal,
+    action: 'service_request.status_changed',
+    resourceId: id,
+    details: { from: request.status, to: nextStatus },
+  });
   return updated;
 }
 
