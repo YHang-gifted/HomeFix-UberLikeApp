@@ -4,6 +4,7 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import { PGlite } from '@electric-sql/pglite';
 
 import { PostgresServiceRequestRepository } from '../server/src/repositories/postgresServiceRequestRepository.ts';
+import { runMigrations } from '../server/src/db/migrate.ts';
 
 const REQUEST_ID = '123e4567-e89b-12d3-a456-426614174000';
 const CUSTOMER_ID = '223e4567-e89b-12d3-a456-426614174000';
@@ -28,10 +29,9 @@ describe('PostgresServiceRequestRepository (PGlite)', () => {
 
   before(async () => {
     db = new PGlite();
-    repo = new PostgresServiceRequestRepository({
-      query: (text, params) => db.query(text, params),
-    });
-    await repo.initSchema();
+    const queryable = { query: (text, params) => db.query(text, params) };
+    repo = new PostgresServiceRequestRepository(queryable);
+    await runMigrations(queryable);
   });
 
   after(async () => {

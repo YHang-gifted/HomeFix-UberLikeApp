@@ -2,12 +2,12 @@ import process from 'node:process';
 
 import { createApp } from './app.ts';
 import { loadEnv } from './config/env.ts';
-import { initServiceRequestStore } from './repositories/serviceRequestRepository.ts';
+import { initDatabase } from './db/migrate.ts';
 import { logger } from './utils/logger.ts';
 
 async function main(): Promise<void> {
   const env = loadEnv();
-  await initServiceRequestStore();
+  await initDatabase();
   const app = createApp();
   app.listen(env.PORT, () => {
     logger.info(`HomeFix server listening on port ${String(env.PORT)}`);

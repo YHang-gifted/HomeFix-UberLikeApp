@@ -45,9 +45,3 @@ export function selectServiceRequestRepository(
 export const serviceRequestRepository: ServiceRequestRepository = selectServiceRequestRepository(
   process.env['DATABASE_URL'],
 );
-
-export async function initServiceRequestStore(): Promise<void> {
-  if (serviceRequestRepository instanceof PostgresServiceRequestRepository) {
-    await serviceRequestRepository.initSchema();
-  }
-}
