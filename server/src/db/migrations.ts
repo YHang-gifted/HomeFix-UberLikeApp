@@ -23,4 +23,18 @@ export const migrations: Migration[] = [
       )
     `,
   },
+  {
+    id: '0002_audit_events',
+    sql: `
+      CREATE TABLE IF NOT EXISTS audit_events (
+        id uuid PRIMARY KEY,
+        occurred_at timestamptz NOT NULL,
+        actor_id uuid NOT NULL,
+        actor_role text NOT NULL,
+        action text NOT NULL,
+        resource_id uuid NOT NULL,
+        details jsonb
+      )
+    `,
+  },
 ];
