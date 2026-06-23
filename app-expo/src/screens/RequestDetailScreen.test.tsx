@@ -1,13 +1,17 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { ApiError, type ApiClient } from '../../../app/src/services/apiClient';
-import type { ServiceRequest } from '../../../shared/schemas';
+import type { Principal, ServiceRequest } from '../../../shared/schemas';
 import { RequestDetailScreen } from './RequestDetailScreen';
+
+const CUSTOMER_ID = '123e4567-e89b-12d3-a456-426614174000';
+const WORKER_ID = '423e4567-e89b-12d3-a456-426614174000';
+const OWNER: Principal = { id: CUSTOMER_ID, role: 'customer' };
 
 function makeRequest(overrides: Partial<ServiceRequest> = {}): ServiceRequest {
   return {
     id: '523e4567-e89b-12d3-a456-426614174000',
-    customerId: '123e4567-e89b-12d3-a456-426614174000',
+    customerId: CUSTOMER_ID,
     category: 'plumbing',
     description: 'Leaking kitchen sink',
     location: { latitude: 25.03, longitude: 121.56 },
@@ -17,12 +21,17 @@ function makeRequest(overrides: Partial<ServiceRequest> = {}): ServiceRequest {
   };
 }
 
+function clientWith(extra: Record<string, unknown>, principal: Principal = OWNER) {
+  return { getPrincipal: jest.fn().mockReturnValue(principal), ...extra } as unknown as ApiClient;
+}
+
 describe('RequestDetailScreen', () => {
-  it('renders the request and offers cancel for a non-terminal request', async () => {
+  it('renders the request and offers cancel for the owner on a non-terminal request', async () => {
     const request = makeRequest({ status: 'pending' });
-    const getServiceRequest = jest.fn().mockResolvedValue(request);
-    const updateServiceRequestStatus = jest.fn();
-    const client = { getServiceRequest, updateServiceRequestStatus } as unknown as ApiClient;
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      updateServiceRequestStatus: jest.fn(),
+    });
 
     const { findByText, getByLabelText } = await render(
       <RequestDetailScreen requestId={request.id} client={client} />,
@@ -34,11 +43,13 @@ describe('RequestDetailScreen', () => {
 
   it('cancels the request and calls onCancelled', async () => {
     const request = makeRequest({ status: 'pending' });
-    const getServiceRequest = jest.fn().mockResolvedValue(request);
     const updateServiceRequestStatus = jest
       .fn()
       .mockResolvedValue({ ...request, status: 'cancelled' });
-    const client = { getServiceRequest, updateServiceRequestStatus } as unknown as ApiClient;
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      updateServiceRequestStatus,
+    });
     const onCancelled = jest.fn();
 
     const { findByText, getByLabelText } = await render(
@@ -54,8 +65,9 @@ describe('RequestDetailScreen', () => {
   });
 
   it('hides cancel for a completed request', async () => {
-    const getServiceRequest = jest.fn().mockResolvedValue(makeRequest({ status: 'completed' }));
-    const client = { getServiceRequest } as unknown as ApiClient;
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(makeRequest({ status: 'completed' })),
+    });
 
     const { findByText, queryByLabelText } = await render(
       <RequestDetailScreen requestId="523e4567-e89b-12d3-a456-426614174000" client={client} />,
@@ -65,27 +77,25 @@ describe('RequestDetailScreen', () => {
   });
 
   it('shows the requested timestamp label and the assigned worker', async () => {
-    const request = makeRequest({
-      status: 'matched',
-      workerId: '423e4567-e89b-12d3-a456-426614174000',
-    });
-    const getServiceRequest = jest.fn().mockResolvedValue(request);
-    const client = { getServiceRequest } as unknown as ApiClient;
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const client = clientWith({ getServiceRequest: jest.fn().mockResolvedValue(request) });
 
     const { findByText } = await render(
       <RequestDetailScreen requestId={request.id} client={client} />,
     );
     await findByText('Requested');
-    await findByText('423e4567-e89b-12d3-a456-426614174000');
+    await findByText(WORKER_ID);
   });
 
   it('submits a review for a completed request', async () => {
     const request = makeRequest({ status: 'completed' });
-    const getServiceRequest = jest.fn().mockResolvedValue(request);
     const createReview = jest
       .fn()
       .mockResolvedValue({ id: 'r1', requestId: request.id, rating: 5 });
-    const client = { getServiceRequest, createReview } as unknown as ApiClient;
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      createReview,
+    });
 
     const { findByText, getByLabelText } = await render(
       <RequestDetailScreen requestId={request.id} client={client} />,
@@ -100,9 +110,11 @@ describe('RequestDetailScreen', () => {
 
   it('shows an already-reviewed message on a 409', async () => {
     const request = makeRequest({ status: 'completed' });
-    const getServiceRequest = jest.fn().mockResolvedValue(request);
     const createReview = jest.fn().mockRejectedValue(new ApiError(409, 'already reviewed'));
-    const client = { getServiceRequest, createReview } as unknown as ApiClient;
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      createReview,
+    });
 
     const { findByText, getByLabelText } = await render(
       <RequestDetailScreen requestId={request.id} client={client} />,
@@ -112,5 +124,20 @@ describe('RequestDetailScreen', () => {
     await fireEvent.press(getByLabelText('Submit review'));
 
     await findByText('You have already reviewed this request.');
+  });
+
+  it('hides owner actions from a non-owner (worker) viewer', async () => {
+    const request = makeRequest({ status: 'completed', workerId: WORKER_ID });
+    const client = clientWith(
+      { getServiceRequest: jest.fn().mockResolvedValue(request) },
+      { id: WORKER_ID, role: 'worker' },
+    );
+
+    const { findByText, queryByText, queryByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+    await findByText('Leaking kitchen sink');
+    expect(queryByText('Rate the worker')).toBeNull();
+    expect(queryByLabelText('Cancel request')).toBeNull();
   });
 });

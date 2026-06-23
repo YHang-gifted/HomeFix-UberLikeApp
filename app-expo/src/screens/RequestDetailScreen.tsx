@@ -32,6 +32,7 @@ export function RequestDetailScreen({
   onCancelled,
 }: RequestDetailScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
+  const principal = useMemo(() => activeClient.getPrincipal(), [activeClient]);
 
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -119,6 +120,9 @@ export function RequestDetailScreen({
     );
   }
 
+  const isOwner =
+    principal !== null && principal.role === 'customer' && principal.id === request.customerId;
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
@@ -144,7 +148,7 @@ export function RequestDetailScreen({
         </>
       )}
 
-      {customerCanCancel(request.status) && (
+      {isOwner && customerCanCancel(request.status) && (
         <Pressable
           style={({ pressed }) => [styles.cancel, (pressed || cancelling) && styles.cancelPressed]}
           onPress={() => {
@@ -162,7 +166,7 @@ export function RequestDetailScreen({
         </Pressable>
       )}
 
-      {request.status === 'completed' && (
+      {isOwner && request.status === 'completed' && (
         <View style={styles.reviewBox}>
           <Text style={styles.reviewHeading}>Rate the worker</Text>
           {!reviewDone && (
