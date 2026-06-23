@@ -110,3 +110,30 @@ export const auditPageSchema = z.object({
   offset: z.number().int().nonnegative(),
 });
 export type AuditPage = z.infer<typeof auditPageSchema>;
+
+export const ratingSchema = z.number().int().min(1).max(5);
+
+export const reviewSchema = z.object({
+  id: z.uuid(),
+  requestId: z.uuid(),
+  customerId: z.uuid(),
+  workerId: z.uuid(),
+  rating: ratingSchema,
+  comment: z.string().min(1).max(1000).optional(),
+  createdAt: z.iso.datetime(),
+});
+export type Review = z.infer<typeof reviewSchema>;
+
+export const createReviewInputSchema = z.object({
+  rating: ratingSchema,
+  comment: z.string().min(1).max(1000).optional(),
+});
+export type CreateReviewInput = z.infer<typeof createReviewInputSchema>;
+
+export const workerReviewsSchema = z.object({
+  workerId: z.uuid(),
+  reviewCount: z.number().int().nonnegative(),
+  averageRating: z.number(),
+  items: z.array(reviewSchema),
+});
+export type WorkerReviews = z.infer<typeof workerReviewsSchema>;
