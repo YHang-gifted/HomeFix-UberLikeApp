@@ -130,9 +130,19 @@ export function RequestDetailScreen({
       <Text style={styles.value}>{request.description}</Text>
 
       <Text style={styles.label}>Location</Text>
-      <Text
-        style={styles.value}
-      >{`${request.location.latitude}, ${request.location.longitude}`}</Text>
+      <Text style={styles.value}>
+        {`${request.location.latitude}, ${request.location.longitude}`}
+      </Text>
+
+      <Text style={styles.label}>Requested</Text>
+      <Text style={styles.value}>{new Date(request.createdAt).toLocaleString()}</Text>
+
+      {request.workerId !== undefined && (
+        <>
+          <Text style={styles.label}>Assigned worker</Text>
+          <Text style={styles.value}>{request.workerId}</Text>
+        </>
+      )}
 
       {customerCanCancel(request.status) && (
         <Pressable
