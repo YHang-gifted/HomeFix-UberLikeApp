@@ -12,6 +12,8 @@ export interface ServiceRequestsScreenProps {
   onNewRequest?: () => void;
   /** Called when the user taps "Log out". */
   onLogout?: () => void;
+  /** Called with the request id when a card is tapped. */
+  onSelectRequest?: (id: string) => void;
   /** Bump this to force a reload (e.g. when the screen regains focus). */
   refreshToken?: number;
 }
@@ -20,6 +22,7 @@ export function ServiceRequestsScreen({
   client,
   onNewRequest,
   onLogout,
+  onSelectRequest,
   refreshToken,
 }: ServiceRequestsScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
@@ -100,13 +103,20 @@ export function ServiceRequestsScreen({
           data={items}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <Pressable
+              style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+              onPress={() => {
+                onSelectRequest?.(item.id);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`View request: ${item.description}`}
+            >
               <View style={styles.cardHeader}>
                 <Text style={styles.category}>{item.category}</Text>
                 <Text style={styles.status}>{item.status}</Text>
               </View>
               <Text style={styles.description}>{item.description}</Text>
-            </View>
+            </Pressable>
           )}
         />
       )}
@@ -147,6 +157,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 12,
   },
+  cardPressed: { backgroundColor: '#f1f5f9' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   category: { fontSize: 15, fontWeight: '700', color: '#0f172a', textTransform: 'capitalize' },
   status: { fontSize: 13, color: '#2563eb', textTransform: 'capitalize' },

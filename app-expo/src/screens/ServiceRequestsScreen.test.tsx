@@ -41,6 +41,21 @@ describe('ServiceRequestsScreen', () => {
     await findByText('Could not load your requests.');
   });
 
+  it('calls onSelectRequest with the id when a card is tapped', async () => {
+    const request = makeRequest();
+    const listServiceRequests = jest.fn().mockResolvedValue(makePage([request]));
+    const client = { listServiceRequests } as unknown as ApiClient;
+    const onSelectRequest = jest.fn();
+
+    const { findByText, getByLabelText } = await render(
+      <ServiceRequestsScreen client={client} onSelectRequest={onSelectRequest} />,
+    );
+    await findByText('Leaking kitchen sink');
+    await fireEvent.press(getByLabelText('View request: Leaking kitchen sink'));
+
+    expect(onSelectRequest).toHaveBeenCalledWith(request.id);
+  });
+
   it('calls onLogout when the log out button is pressed', async () => {
     const listServiceRequests = jest.fn().mockResolvedValue(makePage([]));
     const client = { listServiceRequests } as unknown as ApiClient;
