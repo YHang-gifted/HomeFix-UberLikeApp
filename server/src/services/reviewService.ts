@@ -8,12 +8,7 @@ import type {
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
-import {
-  clearReviews,
-  findReviewByRequestId,
-  findReviewsByWorkerId,
-  saveReview,
-} from '../repositories/reviewRepository.ts';
+import { reviewRepository } from '../repositories/reviewRepository.ts';
 
 /** A customer reviews the worker on their own completed request (one review per request). */
 export async function createReview(
@@ -35,7 +30,7 @@ export async function createReview(
     throw new AppError('This request has no assigned worker to review', 422);
   }
 
-  const existing = await findReviewByRequestId(requestId);
+  const existing = await reviewRepository.findByRequestId(requestId);
   if (existing) {
     throw new AppError('This request has already been reviewed', 409);
   }
@@ -49,13 +44,13 @@ export async function createReview(
     createdAt: new Date().toISOString(),
     ...(input.comment !== undefined ? { comment: input.comment } : {}),
   };
-  await saveReview(review);
+  await reviewRepository.save(review);
   return review;
 }
 
 /** Available to any authenticated user: a worker's reviews and average rating. */
 export async function getWorkerReviews(workerId: string): Promise<WorkerReviews> {
-  const found = await findReviewsByWorkerId(workerId);
+  const found = await reviewRepository.findByWorkerId(workerId);
   const items = [...found].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const reviewCount = items.length;
   const averageRating =
@@ -64,5 +59,5 @@ export async function getWorkerReviews(workerId: string): Promise<WorkerReviews>
 }
 
 export async function resetReviews(): Promise<void> {
-  await clearReviews();
+  await reviewRepository.clear();
 }
