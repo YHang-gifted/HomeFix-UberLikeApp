@@ -1,5 +1,12 @@
-import { type ReactElement, createContext, useContext, useEffect, useState } from 'react';
-import { NavigationContainer, useIsFocused } from '@react-navigation/native';
+import {
+  type ReactElement,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
+import { NavigationContainer, useFocusEffect } from '@react-navigation/native';
 import {
   createNativeStackNavigator,
   type NativeStackScreenProps,
@@ -54,14 +61,13 @@ function ServiceRequestsRoute({
   navigation,
 }: NativeStackScreenProps<RootStackParamList, 'ServiceRequests'>): ReactElement {
   const { signOut } = useContext(AuthContext);
-  const isFocused = useIsFocused();
   const [refreshToken, setRefreshToken] = useState(0);
 
-  useEffect(() => {
-    if (isFocused) {
+  useFocusEffect(
+    useCallback(() => {
       setRefreshToken((current) => current + 1);
-    }
-  }, [isFocused]);
+    }, []),
+  );
 
   return (
     <ServiceRequestsScreen
@@ -110,14 +116,13 @@ function RequestDetailRoute({
 
 function WorkerJobsRoute(): ReactElement {
   const { signOut } = useContext(AuthContext);
-  const isFocused = useIsFocused();
   const [refreshToken, setRefreshToken] = useState(0);
 
-  useEffect(() => {
-    if (isFocused) {
+  useFocusEffect(
+    useCallback(() => {
       setRefreshToken((current) => current + 1);
-    }
-  }, [isFocused]);
+    }, []),
+  );
 
   return (
     <WorkerJobsScreen
@@ -132,14 +137,13 @@ function WorkerJobsRoute(): ReactElement {
 
 function AdminRequestsRoute(): ReactElement {
   const { signOut } = useContext(AuthContext);
-  const isFocused = useIsFocused();
   const [refreshToken, setRefreshToken] = useState(0);
 
-  useEffect(() => {
-    if (isFocused) {
+  useFocusEffect(
+    useCallback(() => {
       setRefreshToken((current) => current + 1);
-    }
-  }, [isFocused]);
+    }, []),
+  );
 
   return (
     <AdminRequestsScreen

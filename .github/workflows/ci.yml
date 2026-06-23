@@ -40,7 +40,7 @@ jobs:
         run: npm run security:audit
 
   app-expo:
-    name: app-expo Tests
+    name: app-expo Checks
     runs-on: ubuntu-latest
 
     steps:
@@ -62,6 +62,14 @@ jobs:
       - name: Install app-expo dependencies
         working-directory: app-expo
         run: npm ci
+
+      - name: Lint app-expo
+        working-directory: app-expo
+        run: npm run lint
+
+      - name: Typecheck app-expo
+        working-directory: app-expo
+        run: npm run typecheck
 
       - name: Test app-expo
         working-directory: app-expo

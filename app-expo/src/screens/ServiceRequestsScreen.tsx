@@ -32,14 +32,13 @@ export function ServiceRequestsScreen({
 
   useEffect(() => {
     let active = true;
-    setItems(null);
-    setError(null);
 
     async function load(): Promise<void> {
       try {
         const page = await activeClient.listServiceRequests();
         if (active) {
           setItems(page.items);
+          setError(null);
         }
       } catch {
         if (active) {
