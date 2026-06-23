@@ -1,16 +1,21 @@
 import type {
   AuditPage,
+  CreateReviewInput,
   CreateServiceRequestInput,
   Principal,
+  Review,
   ServiceRequest,
   ServiceRequestPage,
   ServiceRequestStatus,
+  WorkerReviews,
   WorkerSummary,
 } from '../../../shared/schemas.ts';
 import {
   auditPageSchema,
+  reviewSchema,
   serviceRequestPageSchema,
   serviceRequestSchema,
+  workerReviewsSchema,
   workerSummaryListSchema,
 } from '../../../shared/schemas.ts';
 import { getPrincipalFromToken } from '../auth/token.ts';
@@ -122,6 +127,16 @@ export class ApiClient {
   public async assignWorker(id: string, workerId: string): Promise<ServiceRequest> {
     const data = await this.send('PATCH', `/service-requests/${id}/assignment`, { workerId }, true);
     return serviceRequestSchema.parse(data);
+  }
+
+  public async createReview(requestId: string, input: CreateReviewInput): Promise<Review> {
+    const data = await this.send('POST', `/service-requests/${requestId}/review`, input, true);
+    return reviewSchema.parse(data);
+  }
+
+  public async getWorkerReviews(workerId: string): Promise<WorkerReviews> {
+    const data = await this.send('GET', `/workers/${workerId}/reviews`, undefined, true);
+    return workerReviewsSchema.parse(data);
   }
 
   public async listAuditEvents(params?: { limit?: number; offset?: number }): Promise<AuditPage> {
