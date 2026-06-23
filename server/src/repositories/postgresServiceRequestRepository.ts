@@ -6,20 +6,6 @@ export interface Queryable {
   query(text: string, params?: unknown[]): Promise<{ rows: unknown[] }>;
 }
 
-const CREATE_TABLE = `
-  CREATE TABLE IF NOT EXISTS service_requests (
-    id uuid PRIMARY KEY,
-    customer_id uuid NOT NULL,
-    worker_id uuid,
-    category text NOT NULL,
-    description text NOT NULL,
-    latitude double precision NOT NULL,
-    longitude double precision NOT NULL,
-    status text NOT NULL,
-    created_at timestamptz NOT NULL
-  )
-`;
-
 const UPSERT = `
   INSERT INTO service_requests
     (id, customer_id, worker_id, category, description, latitude, longitude, status, created_at)
@@ -67,10 +53,6 @@ export class PostgresServiceRequestRepository implements ServiceRequestRepositor
 
   public constructor(db: Queryable) {
     this.db = db;
-  }
-
-  public async initSchema(): Promise<void> {
-    await this.db.query(CREATE_TABLE);
   }
 
   public async save(request: ServiceRequest): Promise<void> {
