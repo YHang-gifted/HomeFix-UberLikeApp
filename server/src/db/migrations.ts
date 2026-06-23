@@ -37,4 +37,18 @@ export const migrations: Migration[] = [
       )
     `,
   },
+  {
+    id: '0003_reviews',
+    sql: `
+      CREATE TABLE IF NOT EXISTS reviews (
+        id uuid PRIMARY KEY,
+        request_id uuid NOT NULL,
+        customer_id uuid NOT NULL,
+        worker_id uuid NOT NULL,
+        rating integer NOT NULL,
+        comment text,
+        created_at timestamptz NOT NULL
+      )
+    `,
+  },
 ];
