@@ -6,7 +6,7 @@ import {
   nextWorkerStatus,
   workerActionLabel,
 } from '../../../app/src/features/serviceRequests/workerStatus';
-import type { ServiceRequest } from '../../../shared/schemas';
+import type { ServiceRequest, WorkerReviews } from '../../../shared/schemas';
 import { apiClient } from '../api';
 
 export interface WorkerJobsScreenProps {
@@ -16,6 +16,13 @@ export interface WorkerJobsScreenProps {
   onLogout?: () => void;
   /** Bump this to force a reload (e.g. when the screen regains focus). */
   refreshToken?: number;
+}
+
+function ratingText(reviews: WorkerReviews): string {
+  if (reviews.reviewCount === 0) {
+    return 'No ratings yet';
+  }
+  return `${reviews.averageRating.toFixed(1)} ★ (${String(reviews.reviewCount)} reviews)`;
 }
 
 export function WorkerJobsScreen({
@@ -29,11 +36,12 @@ export function WorkerJobsScreen({
   const [error, setError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<WorkerReviews | null>(null);
 
   useEffect(() => {
     let active = true;
 
-    async function load(): Promise<void> {
+    async function loadJobs(): Promise<void> {
       try {
         const page = await activeClient.listServiceRequests();
         if (active) {
@@ -47,7 +55,23 @@ export function WorkerJobsScreen({
       }
     }
 
-    void load();
+    async function loadRating(): Promise<void> {
+      const principal = activeClient.getPrincipal();
+      if (principal === null) {
+        return;
+      }
+      try {
+        const summary = await activeClient.getWorkerReviews(principal.id);
+        if (active) {
+          setReviews(summary);
+        }
+      } catch {
+        // Rating is secondary; ignore failures.
+      }
+    }
+
+    void loadJobs();
+    void loadRating();
     return () => {
       active = false;
     };
@@ -75,7 +99,10 @@ export function WorkerJobsScreen({
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        <Text style={styles.heading}>Assigned jobs</Text>
+        <View>
+          <Text style={styles.heading}>Assigned jobs</Text>
+          {reviews !== null && <Text style={styles.rating}>{ratingText(reviews)}</Text>}
+        </View>
         <Pressable
           onPress={() => {
             onLogout?.();
@@ -155,6 +182,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   heading: { fontSize: 18, fontWeight: '700', color: '#0f172a' },
+  rating: { fontSize: 13, color: '#f59e0b', fontWeight: '600', marginTop: 2 },
   logoutText: { color: '#64748b', fontSize: 14, fontWeight: '600' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
