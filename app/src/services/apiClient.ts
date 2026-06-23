@@ -3,6 +3,7 @@ import type {
   Principal,
   ServiceRequest,
   ServiceRequestPage,
+  ServiceRequestStatus,
 } from '../../../shared/schemas.ts';
 import { serviceRequestPageSchema, serviceRequestSchema } from '../../../shared/schemas.ts';
 import { getPrincipalFromToken } from '../auth/token.ts';
@@ -86,6 +87,14 @@ export class ApiClient {
     const path = queryString.length > 0 ? `/service-requests?${queryString}` : '/service-requests';
     const data = await this.send('GET', path, undefined, true);
     return serviceRequestPageSchema.parse(data);
+  }
+
+  public async updateServiceRequestStatus(
+    id: string,
+    status: ServiceRequestStatus,
+  ): Promise<ServiceRequest> {
+    const data = await this.send('PATCH', `/service-requests/${id}/status`, { status }, true);
+    return serviceRequestSchema.parse(data);
   }
 
   private async send(

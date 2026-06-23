@@ -41,7 +41,7 @@ describe('GET /service-requests (list)', () => {
   });
 
   async function createFor(customerId) {
-    await globalThis.fetch(`${baseUrl}/service-requests`, {
+    const res = await globalThis.fetch(`${baseUrl}/service-requests`, {
       method: 'POST',
       headers: headers(customerId, 'customer'),
       body: JSON.stringify({
@@ -51,6 +51,16 @@ describe('GET /service-requests (list)', () => {
         location: { latitude: 25.03, longitude: 121.56 },
       }),
     });
+    return res.json();
+  }
+
+  async function assignWorkerTo(requestId, workerId) {
+    const res = await globalThis.fetch(`${baseUrl}/service-requests/${requestId}/assignment`, {
+      method: 'PATCH',
+      headers: headers(ADMIN_ID, 'admin'),
+      body: JSON.stringify({ workerId }),
+    });
+    assert.equal(res.status, 200);
   }
 
   it('returns only the calling customer own requests (200)', async () => {
@@ -96,11 +106,20 @@ describe('GET /service-requests (list)', () => {
     assert.equal(body.offset, 1);
   });
 
-  it('forbids a worker (403)', async () => {
+  it('lets a worker list only the requests assigned to them (200)', async () => {
+    const assigned = await createFor(CUSTOMER_ID);
+    await createFor(CUSTOMER_ID);
+    await assignWorkerTo(assigned.id, WORKER_ID);
+
     const res = await globalThis.fetch(`${baseUrl}/service-requests`, {
       headers: headers(WORKER_ID, 'worker'),
     });
-    assert.equal(res.status, 403);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.total, 1);
+    assert.equal(body.items.length, 1);
+    assert.equal(body.items[0].id, assigned.id);
+    assert.equal(body.items[0].workerId, WORKER_ID);
   });
 
   it('returns 401 without authentication', async () => {

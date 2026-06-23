@@ -72,7 +72,9 @@ export async function listServiceRequests(
     const all = await serviceRequestRepository.findAll();
     scoped = all.filter((request) => request.customerId === principal.id);
   } else {
-    throw new AppError('Not allowed to list service requests', 403);
+    // worker: only the requests assigned to them
+    const all = await serviceRequestRepository.findAll();
+    scoped = all.filter((request) => request.workerId === principal.id);
   }
 
   const sorted = [...scoped].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
