@@ -28,14 +28,13 @@ export function RequestDetailScreen({
 
   useEffect(() => {
     let active = true;
-    setRequest(null);
-    setError(null);
 
     async function load(): Promise<void> {
       try {
         const found = await activeClient.getServiceRequest(requestId);
         if (active) {
           setRequest(found);
+          setError(null);
         }
       } catch {
         if (active) {

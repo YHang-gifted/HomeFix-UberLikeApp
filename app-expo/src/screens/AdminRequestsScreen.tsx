@@ -29,8 +29,6 @@ export function AdminRequestsScreen({
 
   useEffect(() => {
     let active = true;
-    setItems(null);
-    setError(null);
 
     async function load(): Promise<void> {
       try {
@@ -41,6 +39,7 @@ export function AdminRequestsScreen({
         if (active) {
           setItems(page.items);
           setWorkers(workerList);
+          setError(null);
         }
       } catch {
         if (active) {
