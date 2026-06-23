@@ -11,6 +11,7 @@ import { clearSession, persistSession, restoreSession } from '../app/src/auth/se
 import { apiClient } from './src/api';
 import { tokenStore } from './src/tokenStore';
 import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
+import { AdminRequestsScreen } from './src/screens/AdminRequestsScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RequestDetailScreen } from './src/screens/RequestDetailScreen';
 import { ServiceRequestsScreen } from './src/screens/ServiceRequestsScreen';
@@ -22,6 +23,7 @@ export type RootStackParamList = {
   CreateRequest: undefined;
   RequestDetail: { id: string };
   WorkerJobs: undefined;
+  AdminRequests: undefined;
 };
 
 interface AuthActions {
@@ -128,6 +130,28 @@ function WorkerJobsRoute(): ReactElement {
   );
 }
 
+function AdminRequestsRoute(): ReactElement {
+  const { signOut } = useContext(AuthContext);
+  const isFocused = useIsFocused();
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  useEffect(() => {
+    if (isFocused) {
+      setRefreshToken((current) => current + 1);
+    }
+  }, [isFocused]);
+
+  return (
+    <AdminRequestsScreen
+      client={apiClient}
+      refreshToken={refreshToken}
+      onLogout={() => {
+        signOut();
+      }}
+    />
+  );
+}
+
 export default function App(): ReactElement {
   const [booting, setBooting] = useState(true);
   const [signedIn, setSignedIn] = useState(false);
@@ -176,7 +200,7 @@ export default function App(): ReactElement {
     );
   }
 
-  const isWorker = apiClient.getPrincipal()?.role === 'worker';
+  const role = apiClient.getPrincipal()?.role;
 
   return (
     <AuthContext.Provider value={actions}>
@@ -186,14 +210,21 @@ export default function App(): ReactElement {
           {!signedIn && (
             <Stack.Screen name="Login" component={LoginRoute} options={{ title: 'HomeFix' }} />
           )}
-          {signedIn && isWorker && (
+          {signedIn && role === 'worker' && (
             <Stack.Screen
               name="WorkerJobs"
               component={WorkerJobsRoute}
               options={{ title: 'Assigned jobs' }}
             />
           )}
-          {signedIn && !isWorker && (
+          {signedIn && role === 'admin' && (
+            <Stack.Screen
+              name="AdminRequests"
+              component={AdminRequestsRoute}
+              options={{ title: 'All requests' }}
+            />
+          )}
+          {signedIn && role !== 'worker' && role !== 'admin' && (
             <>
               <Stack.Screen
                 name="ServiceRequests"
