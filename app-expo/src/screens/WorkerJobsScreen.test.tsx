@@ -82,4 +82,18 @@ describe('WorkerJobsScreen', () => {
 
     await findByText('4.5 ★ (2 reviews)');
   });
+
+  it('calls onSelectRequest when a job card is tapped', async () => {
+    const listServiceRequests = jest.fn().mockResolvedValue(makePage([makeJob()]));
+    const client = baseClient({ listServiceRequests }) as unknown as ApiClient;
+    const onSelectRequest = jest.fn();
+
+    const { findByText, getByLabelText } = await render(
+      <WorkerJobsScreen client={client} onSelectRequest={onSelectRequest} />,
+    );
+    await findByText('Leaking kitchen sink');
+    await fireEvent.press(getByLabelText('View job: Leaking kitchen sink'));
+
+    expect(onSelectRequest).toHaveBeenCalledWith('523e4567-e89b-12d3-a456-426614174000');
+  });
 });

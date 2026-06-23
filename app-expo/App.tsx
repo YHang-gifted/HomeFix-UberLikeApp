@@ -116,7 +116,9 @@ function RequestDetailRoute({
   );
 }
 
-function WorkerJobsRoute(): ReactElement {
+function WorkerJobsRoute({
+  navigation,
+}: NativeStackScreenProps<RootStackParamList, 'WorkerJobs'>): ReactElement {
   const { signOut } = useContext(AuthContext);
   const [refreshToken, setRefreshToken] = useState(0);
 
@@ -130,6 +132,9 @@ function WorkerJobsRoute(): ReactElement {
     <WorkerJobsScreen
       client={apiClient}
       refreshToken={refreshToken}
+      onSelectRequest={(id) => {
+        navigation.navigate('RequestDetail', { id });
+      }}
       onLogout={() => {
         signOut();
       }}
@@ -153,6 +158,9 @@ function AdminRequestsRoute({
     <AdminRequestsScreen
       client={apiClient}
       refreshToken={refreshToken}
+      onSelectRequest={(id) => {
+        navigation.navigate('RequestDetail', { id });
+      }}
       onViewAudit={() => {
         navigation.navigate('AuditLog');
       }}
@@ -245,11 +253,18 @@ export default function App(): ReactElement {
             <Stack.Screen name="Login" component={LoginRoute} options={{ title: 'HomeFix' }} />
           )}
           {signedIn && role === 'worker' && (
-            <Stack.Screen
-              name="WorkerJobs"
-              component={WorkerJobsRoute}
-              options={{ title: 'Assigned jobs' }}
-            />
+            <>
+              <Stack.Screen
+                name="WorkerJobs"
+                component={WorkerJobsRoute}
+                options={{ title: 'Assigned jobs' }}
+              />
+              <Stack.Screen
+                name="RequestDetail"
+                component={RequestDetailRoute}
+                options={{ title: 'Request' }}
+              />
+            </>
           )}
           {signedIn && role === 'admin' && (
             <>
@@ -262,6 +277,11 @@ export default function App(): ReactElement {
                 name="AuditLog"
                 component={AuditLogRoute}
                 options={{ title: 'Audit log' }}
+              />
+              <Stack.Screen
+                name="RequestDetail"
+                component={RequestDetailRoute}
+                options={{ title: 'Request' }}
               />
             </>
           )}

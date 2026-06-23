@@ -12,6 +12,8 @@ export interface AdminRequestsScreenProps {
   onLogout?: () => void;
   /** Called when the user taps "Audit log". */
   onViewAudit?: () => void;
+  /** Called with the request id when a card is tapped. */
+  onSelectRequest?: (id: string) => void;
   /** Bump this to force a reload (e.g. when the screen regains focus). */
   refreshToken?: number;
 }
@@ -20,6 +22,7 @@ export function AdminRequestsScreen({
   client,
   onLogout,
   onViewAudit,
+  onSelectRequest,
   refreshToken,
 }: AdminRequestsScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
@@ -140,7 +143,14 @@ export function AdminRequestsScreen({
           data={items}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <Pressable
+              style={styles.card}
+              onPress={() => {
+                onSelectRequest?.(item.id);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`View request: ${item.description}`}
+            >
               <View style={styles.cardHeader}>
                 <Text style={styles.category}>{item.category}</Text>
                 <Text style={styles.status}>{item.status}</Text>
@@ -182,7 +192,7 @@ export function AdminRequestsScreen({
                   })}
                 </View>
               )}
-            </View>
+            </Pressable>
           )}
         />
       )}
