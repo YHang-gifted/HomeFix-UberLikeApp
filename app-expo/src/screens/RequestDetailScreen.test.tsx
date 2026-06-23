@@ -64,6 +64,21 @@ describe('RequestDetailScreen', () => {
     expect(queryByLabelText('Cancel request')).toBeNull();
   });
 
+  it('shows the requested timestamp label and the assigned worker', async () => {
+    const request = makeRequest({
+      status: 'matched',
+      workerId: '423e4567-e89b-12d3-a456-426614174000',
+    });
+    const getServiceRequest = jest.fn().mockResolvedValue(request);
+    const client = { getServiceRequest } as unknown as ApiClient;
+
+    const { findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+    await findByText('Requested');
+    await findByText('423e4567-e89b-12d3-a456-426614174000');
+  });
+
   it('submits a review for a completed request', async () => {
     const request = makeRequest({ status: 'completed' });
     const getServiceRequest = jest.fn().mockResolvedValue(request);
