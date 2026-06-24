@@ -1,4 +1,4 @@
-import { type ReactElement, useEffect, useMemo, useState } from 'react';
+import { type ReactElement, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
@@ -40,6 +40,8 @@ export function ServiceRequestsScreen({
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<ServiceRequestStatus | null>(null);
   const [q, setQ] = useState('');
+  const [reload, setReload] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -58,6 +60,10 @@ export function ServiceRequestsScreen({
         if (active) {
           setError('Could not load your requests.');
         }
+      } finally {
+        if (active) {
+          setRefreshing(false);
+        }
       }
     }
 
@@ -65,7 +71,12 @@ export function ServiceRequestsScreen({
     return () => {
       active = false;
     };
-  }, [activeClient, refreshToken, status, q]);
+  }, [activeClient, refreshToken, status, q, reload]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setReload((current) => current + 1);
+  }, []);
 
   return (
     <View style={styles.root}>
@@ -130,9 +141,12 @@ export function ServiceRequestsScreen({
 
       {error === null && items !== null && items.length > 0 && (
         <FlatList
+          testID="request-list"
           style={styles.list}
           data={items}
           keyExtractor={(item) => item.id}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           renderItem={({ item }) => (
             <Pressable
               style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}

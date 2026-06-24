@@ -49,6 +49,7 @@ export function WorkerJobsScreen({
   const [status, setStatus] = useState<ServiceRequestStatus | null>(null);
   const [q, setQ] = useState('');
   const [reload, setReload] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [reviews, setReviews] = useState<WorkerReviews | null>(null);
 
@@ -68,6 +69,10 @@ export function WorkerJobsScreen({
       } catch {
         if (active) {
           setError('Could not load your jobs.');
+        }
+      } finally {
+        if (active) {
+          setRefreshing(false);
         }
       }
     }
@@ -112,6 +117,11 @@ export function WorkerJobsScreen({
     },
     [activeClient],
   );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setReload((current) => current + 1);
+  }, []);
 
   return (
     <View style={styles.root}>
@@ -170,9 +180,12 @@ export function WorkerJobsScreen({
 
       {error === null && items !== null && items.length > 0 && (
         <FlatList
+          testID="jobs-list"
           style={styles.list}
           data={items}
           keyExtractor={(item) => item.id}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           renderItem={({ item }) => {
             const label = workerActionLabel(item.status);
             return (

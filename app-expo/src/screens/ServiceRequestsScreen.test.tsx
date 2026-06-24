@@ -82,6 +82,21 @@ describe('ServiceRequestsScreen', () => {
     });
   });
 
+  it('refetches when the list is pulled to refresh', async () => {
+    const listServiceRequests = jest.fn().mockResolvedValue(makePage([makeRequest()]));
+    const client = { listServiceRequests } as unknown as ApiClient;
+
+    const { findByText, getByTestId } = await render(<ServiceRequestsScreen client={client} />);
+    await findByText('Leaking kitchen sink');
+    expect(listServiceRequests).toHaveBeenCalledTimes(1);
+
+    await fireEvent(getByTestId('request-list'), 'refresh');
+
+    await waitFor(() => {
+      expect(listServiceRequests).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it('refetches with a description keyword when the user types in the search box', async () => {
     const listServiceRequests = jest.fn().mockResolvedValue(makePage([makeRequest()]));
     const client = { listServiceRequests } as unknown as ApiClient;
