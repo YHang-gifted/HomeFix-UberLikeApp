@@ -5,7 +5,7 @@ import type { ApiClient } from '../../../app/src/services/apiClient';
 import type {
   ServiceRequest,
   ServiceRequestStatus,
-  WorkerReviews,
+  WorkerRating,
   WorkerSummary,
 } from '../../../shared/schemas';
 import { SearchBox } from '../components/SearchBox';
@@ -45,7 +45,7 @@ export function AdminRequestsScreen({
   const [reload, setReload] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [assigningId, setAssigningId] = useState<string | null>(null);
-  const [ratings, setRatings] = useState<Record<string, WorkerReviews>>({});
+  const [ratings, setRatings] = useState<Record<string, WorkerRating>>({});
 
   useEffect(() => {
     let active = true;
@@ -65,17 +65,12 @@ export function AdminRequestsScreen({
           setError(null);
         }
         try {
-          const summaries = await Promise.all(
-            workerList.map((worker) => activeClient.getWorkerReviews(worker.id)),
-          );
+          const workerRatings = await activeClient.listWorkerRatings();
           if (active) {
-            const byWorker: Record<string, WorkerReviews> = {};
-            summaries.forEach((summary, index) => {
-              const worker = workerList[index];
-              if (worker !== undefined) {
-                byWorker[worker.id] = summary;
-              }
-            });
+            const byWorker: Record<string, WorkerRating> = {};
+            for (const rating of workerRatings) {
+              byWorker[rating.workerId] = rating;
+            }
             setRatings(byWorker);
           }
         } catch {
