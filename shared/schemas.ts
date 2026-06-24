@@ -150,3 +150,19 @@ export const updateProfileInputSchema = z.object({
   displayName: z.string().min(1).max(120),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileInputSchema>;
+
+export const notificationSchema = z.object({
+  id: z.uuid(),
+  userId: z.uuid(),
+  message: z.string().min(1).max(500),
+  requestId: z.uuid().optional(),
+  read: z.boolean(),
+  createdAt: z.iso.datetime(),
+});
+export type Notification = z.infer<typeof notificationSchema>;
+
+export const notificationListSchema = z.object({
+  items: z.array(notificationSchema),
+  unreadCount: z.number().int().nonnegative(),
+});
+export type NotificationList = z.infer<typeof notificationListSchema>;
