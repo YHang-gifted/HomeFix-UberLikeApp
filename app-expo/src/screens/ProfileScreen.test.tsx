@@ -34,9 +34,7 @@ describe('ProfileScreen', () => {
 
   it('shows the existing phone and saves an edited one', async () => {
     const getMe = jest.fn().mockResolvedValue(makeProfile({ phone: '+1 555 000 1111' }));
-    const updateProfile = jest
-      .fn()
-      .mockResolvedValue(makeProfile({ phone: '+1 (555) 012-3456' }));
+    const updateProfile = jest.fn().mockResolvedValue(makeProfile({ phone: '+1 (555) 012-3456' }));
     const client = { getMe, updateProfile } as unknown as ApiClient;
 
     const { findByText, getByLabelText } = await render(<ProfileScreen client={client} />);
