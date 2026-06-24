@@ -62,7 +62,6 @@ export function RequestDetailScreen({
           const customer = await activeClient.getUser(found.customerId);
           if (active) {
             setCustomerName(customer.displayName);
-            setCustomerPhone(customer.phone ?? null);
           }
         } catch {
           // Fall back to showing the customer id.
@@ -72,11 +71,20 @@ export function RequestDetailScreen({
             const worker = await activeClient.getWorker(found.workerId);
             if (active) {
               setWorkerName(worker.displayName);
-              setWorkerPhone(worker.phone ?? null);
             }
           } catch {
             // Fall back to showing the worker id.
           }
+        }
+        try {
+          // Contact phones are gated server-side to the request's parties.
+          const contacts = await activeClient.getRequestContacts(requestId);
+          if (active) {
+            setCustomerPhone(contacts.customerPhone ?? null);
+            setWorkerPhone(contacts.workerPhone ?? null);
+          }
+        } catch {
+          // Contacts are best-effort; ignore failures.
         }
       } catch {
         if (active) {
