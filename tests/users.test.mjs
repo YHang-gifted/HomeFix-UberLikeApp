@@ -75,4 +75,37 @@ describe('GET /users/:id', () => {
     const res = await fetch(`${baseUrl}/users/${CUSTOMER_ID}`);
     assert.equal(res.status, 401);
   });
+
+  it('resolves a batch of ids in one call, skipping unknown ones', async () => {
+    const unknown = '999e4567-e89b-12d3-a456-426614174000';
+    const ids = `${CUSTOMER_ID},${WORKER_ID},${unknown}`;
+    const res = await fetch(`${baseUrl}/users?ids=${ids}`, {
+      headers: authHeader(WORKER_ID, 'worker'),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.length, 2);
+    const byId = Object.fromEntries(body.map((user) => [user.id, user]));
+    assert.equal(byId[CUSTOMER_ID].displayName, 'Demo Customer');
+    assert.equal(byId[WORKER_ID].displayName, 'Demo Worker');
+    assert.equal(byId[unknown], undefined);
+  });
+
+  it('returns an empty array when no ids are given', async () => {
+    const res = await fetch(`${baseUrl}/users`, { headers: authHeader(WORKER_ID, 'worker') });
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), []);
+  });
+
+  it('returns 422 when a batch id is malformed', async () => {
+    const res = await fetch(`${baseUrl}/users?ids=${CUSTOMER_ID},not-a-uuid`, {
+      headers: authHeader(WORKER_ID, 'worker'),
+    });
+    assert.equal(res.status, 422);
+  });
+
+  it('returns 401 for the batch endpoint without authentication', async () => {
+    const res = await fetch(`${baseUrl}/users?ids=${CUSTOMER_ID}`);
+    assert.equal(res.status, 401);
+  });
 });
