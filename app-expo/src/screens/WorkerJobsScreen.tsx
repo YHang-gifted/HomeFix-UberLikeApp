@@ -11,6 +11,7 @@ import { AlertsButton } from '../components/AlertsButton';
 import { LoadMoreFooter } from '../components/LoadMoreFooter';
 import { SearchBox } from '../components/SearchBox';
 import { StatusFilter } from '../components/StatusFilter';
+import { useCustomerNames } from '../hooks/useCustomerNames';
 import { useServiceRequestPage } from '../hooks/useServiceRequestPage';
 import { apiClient } from '../api';
 
@@ -52,7 +53,6 @@ export function WorkerJobsScreen({
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [reviews, setReviews] = useState<WorkerReviews | null>(null);
-  const [customerNames, setCustomerNames] = useState<Record<string, string>>({});
 
   const onSettled = useCallback(() => {
     setRefreshing(false);
@@ -66,35 +66,8 @@ export function WorkerJobsScreen({
     errorMessage: 'Could not load your jobs.',
     onSettled,
   });
-  const requests = page.items;
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadNames(): Promise<void> {
-      if (requests === null) {
-        return;
-      }
-      try {
-        const ids = [...new Set(requests.map((request) => request.customerId))];
-        const users = await activeClient.listUsers(ids);
-        if (active) {
-          const names: Record<string, string> = {};
-          for (const user of users) {
-            names[user.id] = user.displayName;
-          }
-          setCustomerNames(names);
-        }
-      } catch {
-        // Customer names are secondary; ignore failures.
-      }
-    }
-
-    void loadNames();
-    return () => {
-      active = false;
-    };
-  }, [activeClient, requests]);
+  const customerNames = useCustomerNames(activeClient, page.items);
+  const { reload } = page;
 
   useEffect(() => {
     let active = true;
@@ -130,20 +103,20 @@ export function WorkerJobsScreen({
       setActionError(null);
       try {
         await activeClient.updateServiceRequestStatus(request.id, next);
-        page.reload();
+        reload();
       } catch {
         setActionError('Could not update the job. Please try again.');
       } finally {
         setUpdatingId(null);
       }
     },
-    [activeClient, page.reload],
+    [activeClient, reload],
   );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    page.reload();
-  }, [page.reload]);
+    reload();
+  }, [reload]);
 
   const displayError = page.error ?? actionError;
 
