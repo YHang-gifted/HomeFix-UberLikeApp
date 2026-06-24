@@ -6,6 +6,7 @@ import type {
   NotificationList,
   Principal,
   PublicUser,
+  RequestContacts,
   Review,
   ServiceRequest,
   ServiceRequestPage,
@@ -22,6 +23,7 @@ import {
   notificationSchema,
   publicUserListSchema,
   publicUserSchema,
+  requestContactsSchema,
   reviewSchema,
   serviceRequestPageSchema,
   serviceRequestSchema,
@@ -115,6 +117,11 @@ export class ApiClient {
   public async getServiceRequest(id: string): Promise<ServiceRequest> {
     const data = await this.send('GET', `/service-requests/${id}`, undefined, true);
     return serviceRequestSchema.parse(data);
+  }
+
+  public async getRequestContacts(id: string): Promise<RequestContacts> {
+    const data = await this.send('GET', `/service-requests/${id}/contacts`, undefined, true);
+    return requestContactsSchema.parse(data);
   }
 
   public async listServiceRequests(params?: {

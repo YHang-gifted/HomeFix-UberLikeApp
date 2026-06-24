@@ -84,8 +84,8 @@ describe('RequestDetailScreen', () => {
         id: WORKER_ID,
         email: 'worker@homefix.test',
         displayName: 'Demo Worker',
-        phone: '+1 555 444 5555',
       }),
+      getRequestContacts: jest.fn().mockResolvedValue({ workerPhone: '+1 555 444 5555' }),
     });
 
     const { findByText } = await render(
@@ -106,8 +106,8 @@ describe('RequestDetailScreen', () => {
           id: CUSTOMER_ID,
           displayName: 'Demo Customer',
           role: 'customer',
-          phone: '+1 555 222 3333',
         }),
+        getRequestContacts: jest.fn().mockResolvedValue({ customerPhone: '+1 555 222 3333' }),
       },
       worker,
     );

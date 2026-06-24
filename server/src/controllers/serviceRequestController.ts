@@ -9,6 +9,7 @@ import { AppError } from '../errors/appError.ts';
 import {
   assignWorker,
   createServiceRequest,
+  getRequestContacts,
   getServiceRequestForPrincipal,
   listServiceRequests,
   updateServiceRequestStatus,
@@ -102,6 +103,30 @@ export async function getServiceRequest(
   try {
     const request = await getServiceRequestForPrincipal(idResult.data, principal);
     res.status(200).json(request);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getServiceRequestContacts(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = req.principal;
+  if (!principal) {
+    next(new AppError('Authentication required', 401));
+    return;
+  }
+
+  const idResult = idParamSchema.safeParse(req.params['id']);
+  if (!idResult.success) {
+    next(new AppError('Invalid service request id', 422));
+    return;
+  }
+
+  try {
+    res.status(200).json(await getRequestContacts(idResult.data, principal));
   } catch (error) {
     next(error);
   }

@@ -11,7 +11,6 @@ export function listWorkers(principal: Principal): WorkerSummary[] {
     id: worker.id,
     email: worker.email,
     displayName: worker.displayName,
-    ...(worker.phone !== undefined ? { phone: worker.phone } : {}),
   }));
 }
 
@@ -21,10 +20,5 @@ export function getWorkerById(id: string): WorkerSummary {
   if (!user || user.role !== 'worker') {
     throw new AppError('Worker not found', 404);
   }
-  return {
-    id: user.id,
-    email: user.email,
-    displayName: user.displayName,
-    ...(user.phone !== undefined ? { phone: user.phone } : {}),
-  };
+  return { id: user.id, email: user.email, displayName: user.displayName };
 }

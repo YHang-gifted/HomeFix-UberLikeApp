@@ -3,11 +3,13 @@ import { randomUUID } from 'node:crypto';
 import type {
   CreateServiceRequestInput,
   Principal,
+  RequestContacts,
   ServiceRequest,
   ServiceRequestStatus,
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
+import { findUserById } from '../repositories/userRepository.ts';
 import { recordAuditEvent } from './auditService.ts';
 import { recordNotification } from './notificationService.ts';
 
@@ -178,6 +180,38 @@ export async function updateServiceRequestStatus(
     requestId: id,
   });
   return updated;
+}
+
+/**
+ * Contact phone numbers for the parties of a request, visible only to the
+ * request's own parties: the owning customer, the assigned worker, or an admin.
+ * Keeps contact info scoped to a transaction rather than exposing it globally.
+ */
+export async function getRequestContacts(
+  id: string,
+  principal: Principal,
+): Promise<RequestContacts> {
+  const request = await serviceRequestRepository.findById(id);
+  if (!request) {
+    throw new AppError('Service request not found', 404);
+  }
+
+  const isAdmin = principal.role === 'admin';
+  const isOwnerCustomer = principal.role === 'customer' && principal.id === request.customerId;
+  const isAssignedWorker =
+    principal.role === 'worker' &&
+    request.workerId !== undefined &&
+    principal.id === request.workerId;
+  if (!isAdmin && !isOwnerCustomer && !isAssignedWorker) {
+    throw new AppError('Not allowed to view contacts for this request', 403);
+  }
+
+  const customer = findUserById(request.customerId);
+  const worker = request.workerId === undefined ? undefined : findUserById(request.workerId);
+  return {
+    ...(customer?.phone !== undefined ? { customerPhone: customer.phone } : {}),
+    ...(worker?.phone !== undefined ? { workerPhone: worker.phone } : {}),
+  };
 }
 
 export async function resetServiceRequests(): Promise<void> {
