@@ -14,6 +14,8 @@ export interface WorkerJobsScreenProps {
   client?: ApiClient;
   /** Called when the user taps "Log out". */
   onLogout?: () => void;
+  /** Called when the user taps "Profile". */
+  onViewProfile?: () => void;
   /** Called with the request id when a card is tapped. */
   onSelectRequest?: (id: string) => void;
   /** Bump this to force a reload (e.g. when the screen regains focus). */
@@ -30,6 +32,7 @@ function ratingText(reviews: WorkerReviews): string {
 export function WorkerJobsScreen({
   client,
   onLogout,
+  onViewProfile,
   onSelectRequest,
   refreshToken,
 }: WorkerJobsScreenProps): ReactElement {
@@ -106,15 +109,26 @@ export function WorkerJobsScreen({
           <Text style={styles.heading}>Assigned jobs</Text>
           {reviews !== null && <Text style={styles.rating}>{ratingText(reviews)}</Text>}
         </View>
-        <Pressable
-          onPress={() => {
-            onLogout?.();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Log out"
-        >
-          <Text style={styles.logoutText}>Log out</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => {
+              onViewProfile?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Profile"
+          >
+            <Text style={styles.profileText}>Profile</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              onLogout?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Log out"
+          >
+            <Text style={styles.logoutText}>Log out</Text>
+          </Pressable>
+        </View>
       </View>
 
       {error !== null && (
@@ -193,6 +207,8 @@ const styles = StyleSheet.create({
   },
   heading: { fontSize: 18, fontWeight: '700', color: '#0f172a' },
   rating: { fontSize: 13, color: '#f59e0b', fontWeight: '600', marginTop: 2 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  profileText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
   logoutText: { color: '#64748b', fontSize: 14, fontWeight: '600' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
