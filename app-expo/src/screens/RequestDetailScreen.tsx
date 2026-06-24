@@ -43,6 +43,7 @@ export function RequestDetailScreen({
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewDone, setReviewDone] = useState(false);
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
+  const [workerEmail, setWorkerEmail] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -53,6 +54,16 @@ export function RequestDetailScreen({
         if (active) {
           setRequest(found);
           setError(null);
+        }
+        if (found.workerId !== undefined) {
+          try {
+            const worker = await activeClient.getWorker(found.workerId);
+            if (active) {
+              setWorkerEmail(worker.email);
+            }
+          } catch {
+            // Fall back to showing the worker id.
+          }
         }
       } catch {
         if (active) {
@@ -144,7 +155,7 @@ export function RequestDetailScreen({
       {request.workerId !== undefined && (
         <>
           <Text style={styles.label}>Assigned worker</Text>
-          <Text style={styles.value}>{request.workerId}</Text>
+          <Text style={styles.value}>{workerEmail ?? request.workerId}</Text>
         </>
       )}
 
