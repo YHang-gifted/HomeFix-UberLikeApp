@@ -10,3 +10,23 @@ export function getPublicUserById(id: string): PublicUser {
   }
   return { id: user.id, displayName: user.displayName, role: user.role };
 }
+
+/**
+ * Public summaries for a set of ids, in one call. Unknown ids are skipped (no
+ * error), so a caller can resolve display names for a list of mixed ids.
+ */
+export function getPublicUsersByIds(ids: string[]): PublicUser[] {
+  const seen = new Set<string>();
+  const result: PublicUser[] = [];
+  for (const id of ids) {
+    if (seen.has(id)) {
+      continue;
+    }
+    seen.add(id);
+    const user = findUserById(id);
+    if (user) {
+      result.push({ id: user.id, displayName: user.displayName, role: user.role });
+    }
+  }
+  return result;
+}

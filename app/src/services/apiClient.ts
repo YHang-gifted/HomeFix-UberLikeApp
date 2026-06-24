@@ -20,6 +20,7 @@ import {
   auditPageSchema,
   notificationListSchema,
   notificationSchema,
+  publicUserListSchema,
   publicUserSchema,
   reviewSchema,
   serviceRequestPageSchema,
@@ -162,6 +163,15 @@ export class ApiClient {
   public async getUser(id: string): Promise<PublicUser> {
     const data = await this.send('GET', `/users/${id}`, undefined, true);
     return publicUserSchema.parse(data);
+  }
+
+  public async listUsers(ids: string[]): Promise<PublicUser[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+    const query = new URLSearchParams({ ids: ids.join(',') });
+    const data = await this.send('GET', `/users?${query.toString()}`, undefined, true);
+    return publicUserListSchema.parse(data);
   }
 
   public async assignWorker(id: string, workerId: string): Promise<ServiceRequest> {

@@ -163,6 +163,8 @@ export const publicUserSchema = z.object({
 });
 export type PublicUser = z.infer<typeof publicUserSchema>;
 
+export const publicUserListSchema = z.array(publicUserSchema);
+
 export const updateProfileInputSchema = z.object({
   displayName: z.string().min(1).max(120),
 });
