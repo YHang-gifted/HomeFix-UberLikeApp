@@ -7,6 +7,7 @@ import {
   workerActionLabel,
 } from '../../../app/src/features/serviceRequests/workerStatus';
 import type { ServiceRequest, ServiceRequestStatus, WorkerReviews } from '../../../shared/schemas';
+import { AlertsButton } from '../components/AlertsButton';
 import { StatusFilter } from '../components/StatusFilter';
 import { apiClient } from '../api';
 
@@ -126,15 +127,11 @@ export function WorkerJobsScreen({
           >
             <Text style={styles.profileText}>Profile</Text>
           </Pressable>
-          <Pressable
-            onPress={() => {
-              onViewNotifications?.();
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Notifications"
-          >
-            <Text style={styles.profileText}>Alerts</Text>
-          </Pressable>
+          <AlertsButton
+            client={activeClient}
+            onPress={onViewNotifications}
+            refreshToken={refreshToken}
+          />
           <Pressable
             onPress={() => {
               onLogout?.();

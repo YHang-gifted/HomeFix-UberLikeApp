@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import type { ServiceRequest, ServiceRequestStatus } from '../../../shared/schemas';
+import { AlertsButton } from '../components/AlertsButton';
 import { StatusFilter } from '../components/StatusFilter';
 import { apiClient } from '../api';
 
@@ -86,16 +87,11 @@ export function ServiceRequestsScreen({
         >
           <Text style={styles.profileText}>Profile</Text>
         </Pressable>
-        <Pressable
-          style={styles.logoutButton}
-          onPress={() => {
-            onViewNotifications?.();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Notifications"
-        >
-          <Text style={styles.profileText}>Alerts</Text>
-        </Pressable>
+        <AlertsButton
+          client={activeClient}
+          onPress={onViewNotifications}
+          refreshToken={refreshToken}
+        />
         <Pressable
           style={styles.logoutButton}
           onPress={() => {
