@@ -4,11 +4,13 @@ import type {
   CreateReviewInput,
   Principal,
   Review,
+  WorkerRating,
   WorkerReviews,
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { reviewRepository } from '../repositories/reviewRepository.ts';
+import { listUsersByRole } from '../repositories/userRepository.ts';
 
 /** A customer reviews the worker on their own completed request (one review per request). */
 export async function createReview(
@@ -56,6 +58,26 @@ export async function getWorkerReviews(workerId: string): Promise<WorkerReviews>
   const averageRating =
     reviewCount === 0 ? 0 : items.reduce((sum, review) => sum + review.rating, 0) / reviewCount;
   return { workerId, reviewCount, averageRating, items };
+}
+
+/**
+ * Aggregate rating summary (count + average, no individual reviews) for every
+ * worker. Lets a caller fetch all workers' ratings in one request instead of
+ * one per worker.
+ */
+export async function listWorkerRatings(): Promise<WorkerRating[]> {
+  const workers = listUsersByRole('worker');
+  return Promise.all(
+    workers.map(async (worker): Promise<WorkerRating> => {
+      const reviews = await reviewRepository.findByWorkerId(worker.id);
+      const reviewCount = reviews.length;
+      const averageRating =
+        reviewCount === 0
+          ? 0
+          : reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount;
+      return { workerId: worker.id, reviewCount, averageRating };
+    }),
+  );
 }
 
 export async function resetReviews(): Promise<void> {
