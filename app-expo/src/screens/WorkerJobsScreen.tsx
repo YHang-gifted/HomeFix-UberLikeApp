@@ -8,8 +8,10 @@ import {
 } from '../../../app/src/features/serviceRequests/workerStatus';
 import type { ServiceRequest, ServiceRequestStatus, WorkerReviews } from '../../../shared/schemas';
 import { AlertsButton } from '../components/AlertsButton';
+import { LoadMoreFooter } from '../components/LoadMoreFooter';
 import { SearchBox } from '../components/SearchBox';
 import { StatusFilter } from '../components/StatusFilter';
+import { useServiceRequestPage } from '../hooks/useServiceRequestPage';
 import { apiClient } from '../api';
 
 export interface WorkerJobsScreenProps {
@@ -44,52 +46,58 @@ export function WorkerJobsScreen({
 }: WorkerJobsScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
-  const [items, setItems] = useState<ServiceRequest[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<ServiceRequestStatus | null>(null);
   const [q, setQ] = useState('');
-  const [reload, setReload] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [reviews, setReviews] = useState<WorkerReviews | null>(null);
   const [customerNames, setCustomerNames] = useState<Record<string, string>>({});
+
+  const onSettled = useCallback(() => {
+    setRefreshing(false);
+  }, []);
+
+  const page = useServiceRequestPage({
+    client: activeClient,
+    status,
+    q,
+    refreshToken,
+    errorMessage: 'Could not load your jobs.',
+    onSettled,
+  });
+  const requests = page.items;
 
   useEffect(() => {
     let active = true;
 
-    async function loadJobs(): Promise<void> {
+    async function loadNames(): Promise<void> {
+      if (requests === null) {
+        return;
+      }
       try {
-        const page = await activeClient.listServiceRequests({
-          status: status ?? undefined,
-          q: q.trim() === '' ? undefined : q.trim(),
-        });
+        const ids = [...new Set(requests.map((request) => request.customerId))];
+        const users = await activeClient.listUsers(ids);
         if (active) {
-          setItems(page.items);
-          setError(null);
-        }
-        try {
-          const ids = [...new Set(page.items.map((request) => request.customerId))];
-          const users = await activeClient.listUsers(ids);
-          if (active) {
-            const names: Record<string, string> = {};
-            for (const user of users) {
-              names[user.id] = user.displayName;
-            }
-            setCustomerNames(names);
+          const names: Record<string, string> = {};
+          for (const user of users) {
+            names[user.id] = user.displayName;
           }
-        } catch {
-          // Customer names are secondary; ignore failures.
+          setCustomerNames(names);
         }
       } catch {
-        if (active) {
-          setError('Could not load your jobs.');
-        }
-      } finally {
-        if (active) {
-          setRefreshing(false);
-        }
+        // Customer names are secondary; ignore failures.
       }
     }
+
+    void loadNames();
+    return () => {
+      active = false;
+    };
+  }, [activeClient, requests]);
+
+  useEffect(() => {
+    let active = true;
 
     async function loadRating(): Promise<void> {
       const principal = activeClient.getPrincipal();
@@ -106,12 +114,11 @@ export function WorkerJobsScreen({
       }
     }
 
-    void loadJobs();
     void loadRating();
     return () => {
       active = false;
     };
-  }, [activeClient, refreshToken, reload, status, q]);
+  }, [activeClient, refreshToken]);
 
   const advance = useCallback(
     async (request: ServiceRequest): Promise<void> => {
@@ -120,22 +127,25 @@ export function WorkerJobsScreen({
         return;
       }
       setUpdatingId(request.id);
+      setActionError(null);
       try {
         await activeClient.updateServiceRequestStatus(request.id, next);
-        setReload((current) => current + 1);
+        page.reload();
       } catch {
-        setError('Could not update the job. Please try again.');
+        setActionError('Could not update the job. Please try again.');
       } finally {
         setUpdatingId(null);
       }
     },
-    [activeClient],
+    [activeClient, page.reload],
   );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setReload((current) => current + 1);
-  }, []);
+    page.reload();
+  }, [page.reload]);
+
+  const displayError = page.error ?? actionError;
 
   return (
     <View style={styles.root}>
@@ -174,32 +184,41 @@ export function WorkerJobsScreen({
       <StatusFilter value={status} onChange={setStatus} />
       <SearchBox value={q} onChange={setQ} />
 
-      {error !== null && (
+      {displayError !== null && (
         <View style={styles.centered}>
-          <Text style={styles.error}>{error}</Text>
+          <Text style={styles.error}>{displayError}</Text>
         </View>
       )}
 
-      {error === null && items === null && (
+      {displayError === null && page.items === null && (
         <View style={styles.centered}>
           <ActivityIndicator />
         </View>
       )}
 
-      {error === null && items !== null && items.length === 0 && (
+      {displayError === null && page.items !== null && page.items.length === 0 && (
         <View style={styles.centered}>
           <Text style={styles.empty}>No jobs assigned to you yet.</Text>
         </View>
       )}
 
-      {error === null && items !== null && items.length > 0 && (
+      {displayError === null && page.items !== null && page.items.length > 0 && (
         <FlatList
           testID="jobs-list"
           style={styles.list}
-          data={items}
+          data={page.items}
           keyExtractor={(item) => item.id}
           refreshing={refreshing}
           onRefresh={onRefresh}
+          ListFooterComponent={
+            <LoadMoreFooter
+              visible={page.hasMore}
+              loading={page.loadingMore}
+              onPress={() => {
+                void page.loadMore();
+              }}
+            />
+          }
           renderItem={({ item }) => {
             const label = workerActionLabel(item.status);
             return (

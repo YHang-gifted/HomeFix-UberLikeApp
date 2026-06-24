@@ -8,8 +8,10 @@ import type {
   WorkerRating,
   WorkerSummary,
 } from '../../../shared/schemas';
+import { LoadMoreFooter } from '../components/LoadMoreFooter';
 import { SearchBox } from '../components/SearchBox';
 import { StatusFilter } from '../components/StatusFilter';
+import { useServiceRequestPage } from '../hooks/useServiceRequestPage';
 import { apiClient } from '../api';
 
 export interface AdminRequestsScreenProps {
@@ -37,95 +39,107 @@ export function AdminRequestsScreen({
 }: AdminRequestsScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
-  const [items, setItems] = useState<ServiceRequest[] | null>(null);
   const [workers, setWorkers] = useState<WorkerSummary[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<ServiceRequestStatus | null>(null);
   const [q, setQ] = useState('');
-  const [reload, setReload] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [ratings, setRatings] = useState<Record<string, WorkerRating>>({});
   const [customerNames, setCustomerNames] = useState<Record<string, string>>({});
+
+  const onSettled = useCallback(() => {
+    setRefreshing(false);
+  }, []);
+
+  const page = useServiceRequestPage({
+    client: activeClient,
+    status,
+    q,
+    refreshToken,
+    errorMessage: 'Could not load requests.',
+    onSettled,
+  });
+  const requests = page.items;
 
   useEffect(() => {
     let active = true;
 
-    async function load(): Promise<void> {
+    async function loadWorkers(): Promise<void> {
       try {
-        const [page, workerList] = await Promise.all([
-          activeClient.listServiceRequests({
-            status: status ?? undefined,
-            q: q.trim() === '' ? undefined : q.trim(),
-          }),
+        const [workerList, workerRatings] = await Promise.all([
           activeClient.listWorkers(),
+          activeClient.listWorkerRatings(),
         ]);
         if (active) {
-          setItems(page.items);
           setWorkers(workerList);
-          setError(null);
-        }
-        try {
-          const ids = [...new Set(page.items.map((request) => request.customerId))];
-          const users = await activeClient.listUsers(ids);
-          if (active) {
-            const names: Record<string, string> = {};
-            for (const user of users) {
-              names[user.id] = user.displayName;
-            }
-            setCustomerNames(names);
+          const byWorker: Record<string, WorkerRating> = {};
+          for (const rating of workerRatings) {
+            byWorker[rating.workerId] = rating;
           }
-        } catch {
-          // Customer names are secondary; ignore failures.
-        }
-        try {
-          const workerRatings = await activeClient.listWorkerRatings();
-          if (active) {
-            const byWorker: Record<string, WorkerRating> = {};
-            for (const rating of workerRatings) {
-              byWorker[rating.workerId] = rating;
-            }
-            setRatings(byWorker);
-          }
-        } catch {
-          // Ratings are secondary; ignore failures.
+          setRatings(byWorker);
         }
       } catch {
-        if (active) {
-          setError('Could not load requests.');
-        }
-      } finally {
-        if (active) {
-          setRefreshing(false);
-        }
+        // Workers/ratings are secondary; ignore failures.
       }
     }
 
-    void load();
+    void loadWorkers();
     return () => {
       active = false;
     };
-  }, [activeClient, refreshToken, reload, status, q]);
+  }, [activeClient, refreshToken]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadNames(): Promise<void> {
+      if (requests === null) {
+        return;
+      }
+      try {
+        const ids = [...new Set(requests.map((request) => request.customerId))];
+        const users = await activeClient.listUsers(ids);
+        if (active) {
+          const names: Record<string, string> = {};
+          for (const user of users) {
+            names[user.id] = user.displayName;
+          }
+          setCustomerNames(names);
+        }
+      } catch {
+        // Customer names are secondary; ignore failures.
+      }
+    }
+
+    void loadNames();
+    return () => {
+      active = false;
+    };
+  }, [activeClient, requests]);
 
   const assign = useCallback(
     async (request: ServiceRequest, workerId: string): Promise<void> => {
       setAssigningId(request.id);
+      setActionError(null);
       try {
         await activeClient.assignWorker(request.id, workerId);
-        setReload((current) => current + 1);
+        page.reload();
       } catch {
-        setError('Could not assign the worker. Please try again.');
+        setActionError('Could not assign the worker. Please try again.');
       } finally {
         setAssigningId(null);
       }
     },
-    [activeClient],
+    [activeClient, page.reload],
   );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setReload((current) => current + 1);
-  }, []);
+    page.reload();
+  }, [page.reload]);
+
+  const displayError = page.error ?? actionError;
 
   return (
     <View style={styles.root}>
@@ -165,32 +179,41 @@ export function AdminRequestsScreen({
       <StatusFilter value={status} onChange={setStatus} />
       <SearchBox value={q} onChange={setQ} />
 
-      {error !== null && (
+      {displayError !== null && (
         <View style={styles.centered}>
-          <Text style={styles.error}>{error}</Text>
+          <Text style={styles.error}>{displayError}</Text>
         </View>
       )}
 
-      {error === null && items === null && (
+      {displayError === null && page.items === null && (
         <View style={styles.centered}>
           <ActivityIndicator />
         </View>
       )}
 
-      {error === null && items !== null && items.length === 0 && (
+      {displayError === null && page.items !== null && page.items.length === 0 && (
         <View style={styles.centered}>
           <Text style={styles.empty}>There are no requests yet.</Text>
         </View>
       )}
 
-      {error === null && items !== null && items.length > 0 && (
+      {displayError === null && page.items !== null && page.items.length > 0 && (
         <FlatList
           testID="admin-request-list"
           style={styles.list}
-          data={items}
+          data={page.items}
           keyExtractor={(item) => item.id}
           refreshing={refreshing}
           onRefresh={onRefresh}
+          ListFooterComponent={
+            <LoadMoreFooter
+              visible={page.hasMore}
+              loading={page.loadingMore}
+              onPress={() => {
+                void page.loadMore();
+              }}
+            />
+          }
           renderItem={({ item }) => (
             <Pressable
               style={styles.card}
