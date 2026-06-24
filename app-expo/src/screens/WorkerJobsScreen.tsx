@@ -52,6 +52,7 @@ export function WorkerJobsScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [reviews, setReviews] = useState<WorkerReviews | null>(null);
+  const [customerNames, setCustomerNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let active = true;
@@ -65,6 +66,19 @@ export function WorkerJobsScreen({
         if (active) {
           setItems(page.items);
           setError(null);
+        }
+        try {
+          const ids = [...new Set(page.items.map((request) => request.customerId))];
+          const users = await activeClient.listUsers(ids);
+          if (active) {
+            const names: Record<string, string> = {};
+            for (const user of users) {
+              names[user.id] = user.displayName;
+            }
+            setCustomerNames(names);
+          }
+        } catch {
+          // Customer names are secondary; ignore failures.
         }
       } catch {
         if (active) {
@@ -201,6 +215,9 @@ export function WorkerJobsScreen({
                   <Text style={styles.category}>{item.category}</Text>
                   <Text style={styles.status}>{item.status}</Text>
                 </View>
+                {customerNames[item.customerId] !== undefined && (
+                  <Text style={styles.customer}>Customer: {customerNames[item.customerId]}</Text>
+                )}
                 <Text style={styles.description}>{item.description}</Text>
                 {label !== null && (
                   <Pressable
@@ -257,6 +274,7 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   category: { fontSize: 15, fontWeight: '700', color: '#0f172a', textTransform: 'capitalize' },
   status: { fontSize: 13, color: '#2563eb', textTransform: 'capitalize' },
+  customer: { fontSize: 13, color: '#475569', marginBottom: 6 },
   description: { fontSize: 14, color: '#334155', marginBottom: 12 },
   action: {
     backgroundColor: '#2563eb',
