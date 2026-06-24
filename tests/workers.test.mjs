@@ -41,6 +41,7 @@ describe('GET /workers', () => {
     assert.ok(Array.isArray(body));
     assert.ok(body.some((worker) => worker.id === WORKER_ID));
     assert.ok(body.every((worker) => typeof worker.email === 'string'));
+    assert.ok(body.every((worker) => typeof worker.displayName === 'string'));
     assert.ok(body.every((worker) => worker.passwordHash === undefined));
   });
 
@@ -57,6 +58,7 @@ describe('GET /workers', () => {
     const body = await res.json();
     assert.equal(body.id, WORKER_ID);
     assert.equal(typeof body.email, 'string');
+    assert.equal(body.displayName, 'Demo Worker');
     assert.equal(body.passwordHash, undefined);
   });
 
