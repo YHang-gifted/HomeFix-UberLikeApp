@@ -44,7 +44,9 @@ export function RequestDetailScreen({
   const [reviewDone, setReviewDone] = useState(false);
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
   const [workerName, setWorkerName] = useState<string | null>(null);
+  const [workerPhone, setWorkerPhone] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState<string | null>(null);
+  const [customerPhone, setCustomerPhone] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -60,6 +62,7 @@ export function RequestDetailScreen({
           const customer = await activeClient.getUser(found.customerId);
           if (active) {
             setCustomerName(customer.displayName);
+            setCustomerPhone(customer.phone ?? null);
           }
         } catch {
           // Fall back to showing the customer id.
@@ -69,6 +72,7 @@ export function RequestDetailScreen({
             const worker = await activeClient.getWorker(found.workerId);
             if (active) {
               setWorkerName(worker.displayName);
+              setWorkerPhone(worker.phone ?? null);
             }
           } catch {
             // Fall back to showing the worker id.
@@ -165,6 +169,7 @@ export function RequestDetailScreen({
         <>
           <Text style={styles.label}>Customer</Text>
           <Text style={styles.value}>{customerName ?? request.customerId}</Text>
+          {customerPhone !== null && <Text style={styles.value}>{customerPhone}</Text>}
         </>
       )}
 
@@ -172,6 +177,7 @@ export function RequestDetailScreen({
         <>
           <Text style={styles.label}>Assigned worker</Text>
           <Text style={styles.value}>{workerName ?? request.workerId}</Text>
+          {workerPhone !== null && <Text style={styles.value}>{workerPhone}</Text>}
         </>
       )}
 
