@@ -17,6 +17,8 @@ export interface WorkerJobsScreenProps {
   onLogout?: () => void;
   /** Called when the user taps "Profile". */
   onViewProfile?: () => void;
+  /** Called when the user taps "Alerts". */
+  onViewNotifications?: () => void;
   /** Called with the request id when a card is tapped. */
   onSelectRequest?: (id: string) => void;
   /** Bump this to force a reload (e.g. when the screen regains focus). */
@@ -34,6 +36,7 @@ export function WorkerJobsScreen({
   client,
   onLogout,
   onViewProfile,
+  onViewNotifications,
   onSelectRequest,
   refreshToken,
 }: WorkerJobsScreenProps): ReactElement {
@@ -122,6 +125,15 @@ export function WorkerJobsScreen({
             accessibilityLabel="Profile"
           >
             <Text style={styles.profileText}>Profile</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              onViewNotifications?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+          >
+            <Text style={styles.profileText}>Alerts</Text>
           </Pressable>
           <Pressable
             onPress={() => {
