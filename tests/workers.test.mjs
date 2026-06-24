@@ -81,7 +81,7 @@ describe('GET /workers', () => {
     assert.equal(res.status, 401);
   });
 
-  it('includes the contact phone once the worker sets one', async () => {
+  it('never exposes a contact phone in the worker summary', async () => {
     await fetch(`${baseUrl}/me`, {
       method: 'PATCH',
       headers: { ...authHeader(WORKER_ID, 'worker'), 'content-type': 'application/json' },
@@ -92,6 +92,6 @@ describe('GET /workers', () => {
       headers: authHeader(CUSTOMER_ID, 'customer'),
     });
     const body = await res.json();
-    assert.equal(body.phone, '+1 555 444 5555');
+    assert.equal(body.phone, undefined);
   });
 });

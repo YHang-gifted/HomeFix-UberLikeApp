@@ -2,6 +2,7 @@ import express from 'express';
 
 import {
   getServiceRequest,
+  getServiceRequestContacts,
   getServiceRequests,
   patchServiceRequestAssignment,
   patchServiceRequestStatus,
@@ -13,6 +14,7 @@ export const serviceRequestRouter = express.Router();
 
 serviceRequestRouter.post('/service-requests', authenticate, postServiceRequest);
 serviceRequestRouter.get('/service-requests', authenticate, getServiceRequests);
+serviceRequestRouter.get('/service-requests/:id/contacts', authenticate, getServiceRequestContacts);
 serviceRequestRouter.get('/service-requests/:id', authenticate, getServiceRequest);
 serviceRequestRouter.patch(
   '/service-requests/:id/assignment',

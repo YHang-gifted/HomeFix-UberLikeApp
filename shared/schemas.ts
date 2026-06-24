@@ -79,11 +79,16 @@ export type LoginInput = z.infer<typeof loginInputSchema>;
 
 export const phoneSchema = z.string().regex(/^[+]?[\d ()-]{7,20}$/, 'Enter a valid phone number');
 
+export const requestContactsSchema = z.object({
+  customerPhone: phoneSchema.optional(),
+  workerPhone: phoneSchema.optional(),
+});
+export type RequestContacts = z.infer<typeof requestContactsSchema>;
+
 export const workerSummarySchema = z.object({
   id: z.uuid(),
   email: z.email(),
   displayName: z.string().min(1).max(120),
-  phone: phoneSchema.optional(),
 });
 export type WorkerSummary = z.infer<typeof workerSummarySchema>;
 
@@ -164,7 +169,6 @@ export const publicUserSchema = z.object({
   id: z.uuid(),
   displayName: z.string().min(1).max(120),
   role: roleSchema,
-  phone: phoneSchema.optional(),
 });
 export type PublicUser = z.infer<typeof publicUserSchema>;
 
