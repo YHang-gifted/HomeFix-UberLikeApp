@@ -1,14 +1,14 @@
-import { type ReactElement, useCallback, useEffect, useMemo, useState } from 'react';
+import { type ReactElement, useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
-import type { ServiceRequest, ServiceRequestStatus } from '../../../shared/schemas';
+import type { ServiceRequestStatus } from '../../../shared/schemas';
 import { AlertsButton } from '../components/AlertsButton';
+import { LoadMoreFooter } from '../components/LoadMoreFooter';
 import { SearchBox } from '../components/SearchBox';
 import { StatusFilter } from '../components/StatusFilter';
+import { useServiceRequestPage } from '../hooks/useServiceRequestPage';
 import { apiClient } from '../api';
-
-const PAGE_SIZE = 20;
 
 export interface ServiceRequestsScreenProps {
   /** Optional client override (used by tests). Defaults to the app singleton. */
@@ -38,73 +38,27 @@ export function ServiceRequestsScreen({
 }: ServiceRequestsScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
-  const [items, setItems] = useState<ServiceRequest[] | null>(null);
-  const [total, setTotal] = useState(0);
-  const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<ServiceRequestStatus | null>(null);
   const [q, setQ] = useState('');
-  const [reload, setReload] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
 
-  useEffect(() => {
-    let active = true;
+  const onSettled = useCallback(() => {
+    setRefreshing(false);
+  }, []);
 
-    async function load(): Promise<void> {
-      try {
-        const page = await activeClient.listServiceRequests({
-          status: status ?? undefined,
-          q: q.trim() === '' ? undefined : q.trim(),
-          limit: PAGE_SIZE,
-          offset: 0,
-        });
-        if (active) {
-          setItems(page.items);
-          setTotal(page.total);
-          setError(null);
-        }
-      } catch {
-        if (active) {
-          setError('Could not load your requests.');
-        }
-      } finally {
-        if (active) {
-          setRefreshing(false);
-        }
-      }
-    }
-
-    void load();
-    return () => {
-      active = false;
-    };
-  }, [activeClient, refreshToken, status, q, reload]);
+  const page = useServiceRequestPage({
+    client: activeClient,
+    status,
+    q,
+    refreshToken,
+    errorMessage: 'Could not load your requests.',
+    onSettled,
+  });
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setReload((current) => current + 1);
-  }, []);
-
-  const loadMore = useCallback(async (): Promise<void> => {
-    if (items === null || items.length >= total || loadingMore) {
-      return;
-    }
-    setLoadingMore(true);
-    try {
-      const page = await activeClient.listServiceRequests({
-        status: status ?? undefined,
-        q: q.trim() === '' ? undefined : q.trim(),
-        limit: PAGE_SIZE,
-        offset: items.length,
-      });
-      setItems((current) => [...(current ?? []), ...page.items]);
-      setTotal(page.total);
-    } catch {
-      // Keep the current page on failure; the user can retry.
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [activeClient, items, total, loadingMore, status, q]);
+    page.reload();
+  }, [page.reload]);
 
   return (
     <View style={styles.root}>
@@ -149,29 +103,29 @@ export function ServiceRequestsScreen({
       <StatusFilter value={status} onChange={setStatus} />
       <SearchBox value={q} onChange={setQ} />
 
-      {error !== null && (
+      {page.error !== null && (
         <View style={styles.centered}>
-          <Text style={styles.error}>{error}</Text>
+          <Text style={styles.error}>{page.error}</Text>
         </View>
       )}
 
-      {error === null && items === null && (
+      {page.error === null && page.items === null && (
         <View style={styles.centered}>
           <ActivityIndicator />
         </View>
       )}
 
-      {error === null && items !== null && items.length === 0 && (
+      {page.error === null && page.items !== null && page.items.length === 0 && (
         <View style={styles.centered}>
           <Text style={styles.empty}>You have no service requests yet.</Text>
         </View>
       )}
 
-      {error === null && items !== null && items.length > 0 && (
+      {page.error === null && page.items !== null && page.items.length > 0 && (
         <FlatList
           testID="request-list"
           style={styles.list}
-          data={items}
+          data={page.items}
           keyExtractor={(item) => item.id}
           refreshing={refreshing}
           onRefresh={onRefresh}
@@ -192,23 +146,13 @@ export function ServiceRequestsScreen({
             </Pressable>
           )}
           ListFooterComponent={
-            items.length < total ? (
-              <Pressable
-                style={({ pressed }) => [styles.loadMore, pressed && styles.loadMorePressed]}
-                onPress={() => {
-                  void loadMore();
-                }}
-                disabled={loadingMore}
-                accessibilityRole="button"
-                accessibilityLabel="Load more"
-              >
-                {loadingMore ? (
-                  <ActivityIndicator />
-                ) : (
-                  <Text style={styles.loadMoreText}>Load more</Text>
-                )}
-              </Pressable>
-            ) : null
+            <LoadMoreFooter
+              visible={page.hasMore}
+              loading={page.loadingMore}
+              onPress={() => {
+                void page.loadMore();
+              }}
+            />
           }
         />
       )}
@@ -217,9 +161,6 @@ export function ServiceRequestsScreen({
 }
 
 const styles = StyleSheet.create({
-  loadMore: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', minHeight: 48 },
-  loadMorePressed: { opacity: 0.6 },
-  loadMoreText: { color: '#2563eb', fontSize: 15, fontWeight: '600' },
   root: { flex: 1, backgroundColor: '#ffffff' },
   header: {
     flexDirection: 'row',
