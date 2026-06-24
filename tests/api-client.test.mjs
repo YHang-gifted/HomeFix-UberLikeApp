@@ -103,6 +103,26 @@ describe('ApiClient (against in-process server)', () => {
     assert.equal(completed.total, 0);
   });
 
+  it('filters listServiceRequests by a description keyword (case-insensitive)', async () => {
+    const client = new ApiClient(baseUrl);
+    await client.login('customer@homefix.test', 'customer-pass');
+    await client.createServiceRequest(validRequest());
+    await client.createServiceRequest({
+      ...validRequest(),
+      description: 'Broken ceiling fan in bedroom',
+    });
+
+    const sink = await client.listServiceRequests({ q: 'SINK' });
+    assert.equal(sink.total, 1);
+    assert.equal(sink.items[0].description, 'Leaking kitchen sink');
+
+    const fan = await client.listServiceRequests({ q: 'fan' });
+    assert.equal(fan.total, 1);
+
+    const none = await client.listServiceRequests({ q: 'nonexistent' });
+    assert.equal(none.total, 0);
+  });
+
   it('throws ApiError(401) on a wrong password', async () => {
     const client = new ApiClient(baseUrl);
     await assert.rejects(

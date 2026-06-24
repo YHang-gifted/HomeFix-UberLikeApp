@@ -72,6 +72,7 @@ export async function listServiceRequests(
   limit: number,
   offset: number,
   status?: ServiceRequestStatus,
+  q?: string,
 ): Promise<ServiceRequestPage> {
   let scoped: ServiceRequest[];
   if (principal.role === 'admin') {
@@ -85,8 +86,13 @@ export async function listServiceRequests(
     scoped = all.filter((request) => request.workerId === principal.id);
   }
 
-  const filtered =
+  const byStatus =
     status === undefined ? scoped : scoped.filter((request) => request.status === status);
+  const needle = q?.trim().toLowerCase();
+  const filtered =
+    needle === undefined || needle === ''
+      ? byStatus
+      : byStatus.filter((request) => request.description.toLowerCase().includes(needle));
   const sorted = [...filtered].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const items = sorted.slice(offset, offset + limit);
   return { items, total: sorted.length, limit, offset };

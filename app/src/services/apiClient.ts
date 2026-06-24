@@ -116,6 +116,7 @@ export class ApiClient {
     limit?: number;
     offset?: number;
     status?: ServiceRequestStatus;
+    q?: string;
   }): Promise<ServiceRequestPage> {
     const query = new URLSearchParams();
     if (params?.limit !== undefined) {
@@ -126,6 +127,9 @@ export class ApiClient {
     }
     if (params?.status !== undefined) {
       query.set('status', params.status);
+    }
+    if (params?.q !== undefined && params.q.trim() !== '') {
+      query.set('q', params.q.trim());
     }
     const queryString = query.toString();
     const path = queryString.length > 0 ? `/service-requests?${queryString}` : '/service-requests';

@@ -21,6 +21,7 @@ const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
   status: serviceRequestStatusSchema.optional(),
+  q: z.string().trim().max(100).optional(),
 });
 
 export async function postServiceRequest(
@@ -73,6 +74,7 @@ export async function getServiceRequests(
       parsed.data.limit,
       parsed.data.offset,
       parsed.data.status,
+      parsed.data.q,
     );
     res.status(200).json(page);
   } catch (error) {
