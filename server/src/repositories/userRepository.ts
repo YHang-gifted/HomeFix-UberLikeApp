@@ -1,5 +1,9 @@
+import process from 'node:process';
+
 import type { Role } from '../../../shared/schemas.ts';
 import { hashPassword } from '../auth/passwords.ts';
+import { createPoolQueryable } from '../config/db.ts';
+import { PostgresUserRepository } from './postgresUserRepository.ts';
 
 export interface UserRecord {
   id: string;
@@ -101,4 +105,11 @@ export class InMemoryUserRepository implements UserRepository {
   }
 }
 
-export const userRepository: UserRepository = new InMemoryUserRepository();
+export function selectUserRepository(databaseUrl: string | undefined): UserRepository {
+  if (databaseUrl !== undefined && databaseUrl !== '') {
+    return new PostgresUserRepository(createPoolQueryable(databaseUrl));
+  }
+  return new InMemoryUserRepository();
+}
+
+export const userRepository: UserRepository = selectUserRepository(process.env['DATABASE_URL']);

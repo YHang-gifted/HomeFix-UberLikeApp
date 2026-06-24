@@ -64,4 +64,17 @@ export const migrations: Migration[] = [
       )
     `,
   },
+  {
+    id: '0005_users',
+    sql: `
+      CREATE TABLE IF NOT EXISTS users (
+        id uuid PRIMARY KEY,
+        email text NOT NULL UNIQUE,
+        role text NOT NULL,
+        display_name text NOT NULL,
+        phone text,
+        password_hash text NOT NULL
+      )
+    `,
+  },
 ];
