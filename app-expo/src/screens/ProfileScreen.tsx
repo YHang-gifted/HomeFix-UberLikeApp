@@ -24,6 +24,7 @@ export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -37,6 +38,7 @@ export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
         if (active) {
           setProfile(found);
           setName(found.displayName);
+          setPhone(found.phone ?? '');
           setError(null);
         }
       } catch {
@@ -58,12 +60,17 @@ export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
       setMessage('Display name cannot be empty.');
       return;
     }
+    const trimmedPhone = phone.trim();
     setSaving(true);
     setMessage(null);
     try {
-      const updated = await activeClient.updateProfile({ displayName: trimmed });
+      const updated = await activeClient.updateProfile({
+        displayName: trimmed,
+        phone: trimmedPhone === '' ? undefined : trimmedPhone,
+      });
       setProfile(updated);
       setName(updated.displayName);
+      setPhone(updated.phone ?? '');
       setMessage('Saved');
     } catch (saveError) {
       setMessage(isApiError(saveError) ? saveError.message : 'Could not save. Please try again.');
@@ -102,6 +109,17 @@ export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
         value={name}
         onChangeText={setName}
         accessibilityLabel="Display name"
+        editable={!saving}
+      />
+
+      <Text style={styles.label}>Phone</Text>
+      <TextInput
+        style={styles.input}
+        value={phone}
+        onChangeText={setPhone}
+        accessibilityLabel="Phone"
+        placeholder="Optional"
+        keyboardType="phone-pad"
         editable={!saving}
       />
 
