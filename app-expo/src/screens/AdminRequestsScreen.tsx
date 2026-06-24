@@ -11,6 +11,7 @@ import type {
 import { LoadMoreFooter } from '../components/LoadMoreFooter';
 import { SearchBox } from '../components/SearchBox';
 import { StatusFilter } from '../components/StatusFilter';
+import { useCustomerNames } from '../hooks/useCustomerNames';
 import { useServiceRequestPage } from '../hooks/useServiceRequestPage';
 import { apiClient } from '../api';
 
@@ -46,7 +47,6 @@ export function AdminRequestsScreen({
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [ratings, setRatings] = useState<Record<string, WorkerRating>>({});
-  const [customerNames, setCustomerNames] = useState<Record<string, string>>({});
 
   const onSettled = useCallback(() => {
     setRefreshing(false);
@@ -60,7 +60,8 @@ export function AdminRequestsScreen({
     errorMessage: 'Could not load requests.',
     onSettled,
   });
-  const requests = page.items;
+  const customerNames = useCustomerNames(activeClient, page.items);
+  const { reload } = page;
 
   useEffect(() => {
     let active = true;
@@ -90,54 +91,26 @@ export function AdminRequestsScreen({
     };
   }, [activeClient, refreshToken]);
 
-  useEffect(() => {
-    let active = true;
-
-    async function loadNames(): Promise<void> {
-      if (requests === null) {
-        return;
-      }
-      try {
-        const ids = [...new Set(requests.map((request) => request.customerId))];
-        const users = await activeClient.listUsers(ids);
-        if (active) {
-          const names: Record<string, string> = {};
-          for (const user of users) {
-            names[user.id] = user.displayName;
-          }
-          setCustomerNames(names);
-        }
-      } catch {
-        // Customer names are secondary; ignore failures.
-      }
-    }
-
-    void loadNames();
-    return () => {
-      active = false;
-    };
-  }, [activeClient, requests]);
-
   const assign = useCallback(
     async (request: ServiceRequest, workerId: string): Promise<void> => {
       setAssigningId(request.id);
       setActionError(null);
       try {
         await activeClient.assignWorker(request.id, workerId);
-        page.reload();
+        reload();
       } catch {
         setActionError('Could not assign the worker. Please try again.');
       } finally {
         setAssigningId(null);
       }
     },
-    [activeClient, page.reload],
+    [activeClient, reload],
   );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    page.reload();
-  }, [page.reload]);
+    reload();
+  }, [reload]);
 
   const displayError = page.error ?? actionError;
 

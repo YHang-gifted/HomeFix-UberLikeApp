@@ -55,10 +55,11 @@ export function ServiceRequestsScreen({
     onSettled,
   });
 
+  const { reload } = page;
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    page.reload();
-  }, [page.reload]);
+    reload();
+  }, [reload]);
 
   return (
     <View style={styles.root}>
