@@ -70,6 +70,7 @@ export async function listServiceRequests(
   principal: Principal,
   limit: number,
   offset: number,
+  status?: ServiceRequestStatus,
 ): Promise<ServiceRequestPage> {
   let scoped: ServiceRequest[];
   if (principal.role === 'admin') {
@@ -83,7 +84,9 @@ export async function listServiceRequests(
     scoped = all.filter((request) => request.workerId === principal.id);
   }
 
-  const sorted = [...scoped].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const filtered =
+    status === undefined ? scoped : scoped.filter((request) => request.status === status);
+  const sorted = [...filtered].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const items = sorted.slice(offset, offset + limit);
   return { items, total: sorted.length, limit, offset };
 }

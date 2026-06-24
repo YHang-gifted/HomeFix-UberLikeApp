@@ -20,6 +20,7 @@ const assignBodySchema = z.object({ workerId: z.uuid() });
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
+  status: serviceRequestStatusSchema.optional(),
 });
 
 export async function postServiceRequest(
@@ -67,7 +68,12 @@ export async function getServiceRequests(
   }
 
   try {
-    const page = await listServiceRequests(principal, parsed.data.limit, parsed.data.offset);
+    const page = await listServiceRequests(
+      principal,
+      parsed.data.limit,
+      parsed.data.offset,
+      parsed.data.status,
+    );
     res.status(200).json(page);
   } catch (error) {
     next(error);

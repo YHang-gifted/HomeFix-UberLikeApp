@@ -92,6 +92,17 @@ describe('ApiClient (against in-process server)', () => {
     assert.equal(page.offset, 1);
   });
 
+  it('filters listServiceRequests by status', async () => {
+    const client = new ApiClient(baseUrl);
+    await client.login('customer@homefix.test', 'customer-pass');
+    await client.createServiceRequest(validRequest());
+
+    const pending = await client.listServiceRequests({ status: 'pending' });
+    assert.equal(pending.total, 1);
+    const completed = await client.listServiceRequests({ status: 'completed' });
+    assert.equal(completed.total, 0);
+  });
+
   it('throws ApiError(401) on a wrong password', async () => {
     const client = new ApiClient(baseUrl);
     await assert.rejects(
