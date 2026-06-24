@@ -94,6 +94,28 @@ describe('RequestDetailScreen', () => {
     await findByText('Demo Worker');
   });
 
+  it('shows the ordering customer name to a non-owner (worker/admin)', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const worker: Principal = { id: WORKER_ID, role: 'worker' };
+    const client = clientWith(
+      {
+        getServiceRequest: jest.fn().mockResolvedValue(request),
+        getUser: jest.fn().mockResolvedValue({
+          id: CUSTOMER_ID,
+          displayName: 'Demo Customer',
+          role: 'customer',
+        }),
+      },
+      worker,
+    );
+
+    const { findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+    await findByText('Customer');
+    await findByText('Demo Customer');
+  });
+
   it('submits a review for a completed request', async () => {
     const request = makeRequest({ status: 'completed' });
     const createReview = jest

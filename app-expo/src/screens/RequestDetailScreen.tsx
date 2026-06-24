@@ -44,6 +44,7 @@ export function RequestDetailScreen({
   const [reviewDone, setReviewDone] = useState(false);
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
   const [workerName, setWorkerName] = useState<string | null>(null);
+  const [customerName, setCustomerName] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -54,6 +55,14 @@ export function RequestDetailScreen({
         if (active) {
           setRequest(found);
           setError(null);
+        }
+        try {
+          const customer = await activeClient.getUser(found.customerId);
+          if (active) {
+            setCustomerName(customer.displayName);
+          }
+        } catch {
+          // Fall back to showing the customer id.
         }
         if (found.workerId !== undefined) {
           try {
@@ -151,6 +160,13 @@ export function RequestDetailScreen({
 
       <Text style={styles.label}>Requested</Text>
       <Text style={styles.value}>{new Date(request.createdAt).toLocaleString()}</Text>
+
+      {!isOwner && (
+        <>
+          <Text style={styles.label}>Customer</Text>
+          <Text style={styles.value}>{customerName ?? request.customerId}</Text>
+        </>
+      )}
 
       {request.workerId !== undefined && (
         <>
