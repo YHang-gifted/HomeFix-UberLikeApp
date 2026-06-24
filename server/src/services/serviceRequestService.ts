@@ -9,6 +9,7 @@ import type {
 import { AppError } from '../errors/appError.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { recordAuditEvent } from './auditService.ts';
+import { recordNotification } from './notificationService.ts';
 
 export interface ServiceRequestPage {
   items: ServiceRequest[];
@@ -116,6 +117,11 @@ export async function assignWorker(
     resourceId: id,
     details: { workerId },
   });
+  await recordNotification({
+    userId: workerId,
+    message: 'You were assigned a new request.',
+    requestId: id,
+  });
   return updated;
 }
 
@@ -159,6 +165,11 @@ export async function updateServiceRequestStatus(
     action: 'service_request.status_changed',
     resourceId: id,
     details: { from: request.status, to: nextStatus },
+  });
+  await recordNotification({
+    userId: request.customerId,
+    message: `Your request is now ${nextStatus}.`,
+    requestId: id,
   });
   return updated;
 }

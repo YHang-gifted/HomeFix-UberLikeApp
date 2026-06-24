@@ -2,6 +2,8 @@ import type {
   AuditPage,
   CreateReviewInput,
   CreateServiceRequestInput,
+  Notification,
+  NotificationList,
   Principal,
   Review,
   ServiceRequest,
@@ -14,6 +16,8 @@ import type {
 } from '../../../shared/schemas.ts';
 import {
   auditPageSchema,
+  notificationListSchema,
+  notificationSchema,
   reviewSchema,
   serviceRequestPageSchema,
   serviceRequestSchema,
@@ -160,6 +164,16 @@ export class ApiClient {
   public async getWorkerReviews(workerId: string): Promise<WorkerReviews> {
     const data = await this.send('GET', `/workers/${workerId}/reviews`, undefined, true);
     return workerReviewsSchema.parse(data);
+  }
+
+  public async listNotifications(): Promise<NotificationList> {
+    const data = await this.send('GET', '/notifications', undefined, true);
+    return notificationListSchema.parse(data);
+  }
+
+  public async markNotificationRead(id: string): Promise<Notification> {
+    const data = await this.send('PATCH', `/notifications/${id}/read`, undefined, true);
+    return notificationSchema.parse(data);
   }
 
   public async listAuditEvents(params?: { limit?: number; offset?: number }): Promise<AuditPage> {
