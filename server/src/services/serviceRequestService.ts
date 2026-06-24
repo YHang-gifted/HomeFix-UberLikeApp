@@ -29,6 +29,17 @@ const allowedTransitions: Record<ServiceRequestStatus, ServiceRequestStatus[]> =
   cancelled: [],
 };
 
+/** True if the principal is a party to the request: admin, owning customer, or assigned worker. */
+function isRequestParty(request: ServiceRequest, principal: Principal): boolean {
+  if (principal.role === 'admin') {
+    return true;
+  }
+  if (principal.role === 'customer') {
+    return principal.id === request.customerId;
+  }
+  return request.workerId !== undefined && principal.id === request.workerId;
+}
+
 export async function createServiceRequest(
   input: CreateServiceRequestInput,
   principal: Principal,
@@ -63,7 +74,7 @@ export async function getServiceRequestForPrincipal(
   if (!request) {
     throw new AppError('Service request not found', 404);
   }
-  if (principal.role !== 'admin' && principal.id !== request.customerId) {
+  if (!isRequestParty(request, principal)) {
     throw new AppError('Not allowed to view this service request', 403);
   }
   return request;
@@ -143,16 +154,12 @@ export async function updateServiceRequestStatus(
     throw new AppError('Service request not found', 404);
   }
 
-  const isAdmin = principal.role === 'admin';
-  const isOwnerCustomer = principal.role === 'customer' && principal.id === request.customerId;
-  const isAssignedWorker =
-    principal.role === 'worker' &&
-    request.workerId !== undefined &&
-    principal.id === request.workerId;
-  if (!isAdmin && !isOwnerCustomer && !isAssignedWorker) {
+  if (!isRequestParty(request, principal)) {
     throw new AppError('Not allowed to update this service request', 403);
   }
 
+  const isAdmin = principal.role === 'admin';
+  const isOwnerCustomer = principal.role === 'customer' && principal.id === request.customerId;
   const transitions = allowedTransitions[request.status];
   let permitted: ServiceRequestStatus[];
   if (isAdmin) {
@@ -196,13 +203,7 @@ export async function getRequestContacts(
     throw new AppError('Service request not found', 404);
   }
 
-  const isAdmin = principal.role === 'admin';
-  const isOwnerCustomer = principal.role === 'customer' && principal.id === request.customerId;
-  const isAssignedWorker =
-    principal.role === 'worker' &&
-    request.workerId !== undefined &&
-    principal.id === request.workerId;
-  if (!isAdmin && !isOwnerCustomer && !isAssignedWorker) {
+  if (!isRequestParty(request, principal)) {
     throw new AppError('Not allowed to view contacts for this request', 403);
   }
 

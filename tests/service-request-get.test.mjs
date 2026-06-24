@@ -8,6 +8,7 @@ import { resetServiceRequests } from '../server/src/services/serviceRequestServi
 const CUSTOMER_ID = '123e4567-e89b-12d3-a456-426614174000';
 const OTHER_ID = '223e4567-e89b-12d3-a456-426614174000';
 const ADMIN_ID = '323e4567-e89b-12d3-a456-426614174000';
+const WORKER_ID = '423e4567-e89b-12d3-a456-426614174000';
 
 function headers(id, role = 'customer') {
   return { 'content-type': 'application/json', Authorization: `Bearer ${signToken({ id, role })}` };
@@ -70,6 +71,27 @@ describe('GET /service-requests/:id', () => {
       headers: headers(ADMIN_ID, 'admin'),
     });
     assert.equal(res.status, 200);
+  });
+
+  it('allows the assigned worker to read the request (200)', async () => {
+    const id = await createRequest();
+    await globalThis.fetch(`${baseUrl}/service-requests/${id}/assignment`, {
+      method: 'PATCH',
+      headers: headers(ADMIN_ID, 'admin'),
+      body: JSON.stringify({ workerId: WORKER_ID }),
+    });
+    const res = await globalThis.fetch(`${baseUrl}/service-requests/${id}`, {
+      headers: headers(WORKER_ID, 'worker'),
+    });
+    assert.equal(res.status, 200);
+  });
+
+  it('forbids an unassigned worker (403)', async () => {
+    const id = await createRequest();
+    const res = await globalThis.fetch(`${baseUrl}/service-requests/${id}`, {
+      headers: headers(WORKER_ID, 'worker'),
+    });
+    assert.equal(res.status, 403);
   });
 
   it('forbids a different customer (403)', async () => {
