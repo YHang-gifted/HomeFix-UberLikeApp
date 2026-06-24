@@ -59,6 +59,35 @@ describe('profile (/me)', () => {
     assert.equal(afterBody.displayName, 'Wendy the Welder');
   });
 
+  it('updates and clears the contact phone', async () => {
+    const set = await fetch(`${baseUrl}/me`, {
+      method: 'PATCH',
+      headers: headers(WORKER_ID, 'worker'),
+      body: JSON.stringify({ displayName: 'Demo Worker', phone: '+1 (555) 012-3456' }),
+    });
+    assert.equal(set.status, 200);
+    assert.equal((await set.json()).phone, '+1 (555) 012-3456');
+
+    const persisted = await fetch(`${baseUrl}/me`, { headers: headers(WORKER_ID, 'worker') });
+    assert.equal((await persisted.json()).phone, '+1 (555) 012-3456');
+
+    const cleared = await fetch(`${baseUrl}/me`, {
+      method: 'PATCH',
+      headers: headers(WORKER_ID, 'worker'),
+      body: JSON.stringify({ displayName: 'Demo Worker' }),
+    });
+    assert.equal((await cleared.json()).phone, undefined);
+  });
+
+  it('rejects an invalid phone (422)', async () => {
+    const res = await fetch(`${baseUrl}/me`, {
+      method: 'PATCH',
+      headers: headers(CUSTOMER_ID, 'customer'),
+      body: JSON.stringify({ displayName: 'Demo Customer', phone: 'not-a-phone' }),
+    });
+    assert.equal(res.status, 422);
+  });
+
   it('rejects an empty display name (422)', async () => {
     const res = await fetch(`${baseUrl}/me`, {
       method: 'PATCH',

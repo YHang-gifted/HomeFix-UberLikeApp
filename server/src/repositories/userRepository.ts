@@ -6,6 +6,7 @@ export interface UserRecord {
   email: string;
   role: Role;
   displayName: string;
+  phone?: string;
   passwordHash: string;
 }
 
@@ -56,12 +57,21 @@ export function findUserById(id: string): UserRecord | undefined {
   return [...users.values()].find((user) => user.id === id);
 }
 
-export function updateUserDisplayName(id: string, displayName: string): UserRecord | undefined {
+export function updateUserProfile(
+  id: string,
+  displayName: string,
+  phone: string | undefined,
+): UserRecord | undefined {
   const user = findUserById(id);
   if (!user) {
     return undefined;
   }
   const updated: UserRecord = { ...user, displayName };
+  if (phone === undefined) {
+    delete updated.phone;
+  } else {
+    updated.phone = phone;
+  }
   users.set(user.email.toLowerCase(), updated);
   return updated;
 }
