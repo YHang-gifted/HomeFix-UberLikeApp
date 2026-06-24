@@ -22,6 +22,7 @@ import { AuditLogScreen } from './src/screens/AuditLogScreen';
 import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RequestDetailScreen } from './src/screens/RequestDetailScreen';
+import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ServiceRequestsScreen } from './src/screens/ServiceRequestsScreen';
 import { WorkerJobsScreen } from './src/screens/WorkerJobsScreen';
@@ -35,6 +36,7 @@ export type RootStackParamList = {
   AdminRequests: undefined;
   AuditLog: undefined;
   Profile: undefined;
+  Notifications: undefined;
 };
 
 interface AuthActions {
@@ -79,6 +81,9 @@ function ServiceRequestsRoute({
       refreshToken={refreshToken}
       onViewProfile={() => {
         navigation.navigate('Profile');
+      }}
+      onViewNotifications={() => {
+        navigation.navigate('Notifications');
       }}
       onNewRequest={() => {
         navigation.navigate('CreateRequest');
@@ -140,6 +145,9 @@ function WorkerJobsRoute({
       onViewProfile={() => {
         navigation.navigate('Profile');
       }}
+      onViewNotifications={() => {
+        navigation.navigate('Notifications');
+      }}
       onSelectRequest={(id) => {
         navigation.navigate('RequestDetail', { id });
       }}
@@ -192,6 +200,18 @@ function AuditLogRoute(): ReactElement {
   );
 
   return <AuditLogScreen client={apiClient} refreshToken={refreshToken} />;
+}
+
+function NotificationsRoute(): ReactElement {
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshToken((current) => current + 1);
+    }, []),
+  );
+
+  return <NotificationsScreen client={apiClient} refreshToken={refreshToken} />;
 }
 
 function ProfileRoute(): ReactElement {
@@ -284,6 +304,11 @@ export default function App(): ReactElement {
                 component={ProfileRoute}
                 options={{ title: 'Profile' }}
               />
+              <Stack.Screen
+                name="Notifications"
+                component={NotificationsRoute}
+                options={{ title: 'Notifications' }}
+              />
             </>
           )}
           {signedIn && role === 'admin' && (
@@ -308,6 +333,11 @@ export default function App(): ReactElement {
                 component={ProfileRoute}
                 options={{ title: 'Profile' }}
               />
+              <Stack.Screen
+                name="Notifications"
+                component={NotificationsRoute}
+                options={{ title: 'Notifications' }}
+              />
             </>
           )}
           {signedIn && role !== 'worker' && role !== 'admin' && (
@@ -331,6 +361,11 @@ export default function App(): ReactElement {
                 name="Profile"
                 component={ProfileRoute}
                 options={{ title: 'Profile' }}
+              />
+              <Stack.Screen
+                name="Notifications"
+                component={NotificationsRoute}
+                options={{ title: 'Notifications' }}
               />
             </>
           )}
