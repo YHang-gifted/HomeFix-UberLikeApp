@@ -4,7 +4,7 @@ import type { ApiClient } from '../../../app/src/services/apiClient';
 import type {
   ServiceRequest,
   ServiceRequestPage,
-  WorkerReviews,
+  WorkerRating,
   WorkerSummary,
 } from '../../../shared/schemas';
 import { AdminRequestsScreen } from './AdminRequestsScreen';
@@ -31,14 +31,14 @@ function makePage(items: ServiceRequest[]): ServiceRequestPage {
   return { items, total: items.length, limit: 20, offset: 0 };
 }
 
-function makeReviews(overrides: Partial<WorkerReviews> = {}): WorkerReviews {
-  return { workerId: WORKER_ID, reviewCount: 0, averageRating: 0, items: [], ...overrides };
+function makeRating(overrides: Partial<WorkerRating> = {}): WorkerRating {
+  return { workerId: WORKER_ID, reviewCount: 0, averageRating: 0, ...overrides };
 }
 
 function baseClient(extra: Record<string, unknown>) {
   return {
     listWorkers: jest.fn().mockResolvedValue(WORKERS),
-    getWorkerReviews: jest.fn().mockResolvedValue(makeReviews()),
+    listWorkerRatings: jest.fn().mockResolvedValue([makeRating()]),
     ...extra,
   };
 }
@@ -88,10 +88,10 @@ describe('AdminRequestsScreen', () => {
 
   it('shows the worker rating next to the assign action', async () => {
     const listServiceRequests = jest.fn().mockResolvedValue(makePage([makeRequest()]));
-    const getWorkerReviews = jest
+    const listWorkerRatings = jest
       .fn()
-      .mockResolvedValue(makeReviews({ reviewCount: 2, averageRating: 4.5 }));
-    const client = baseClient({ listServiceRequests, getWorkerReviews }) as unknown as ApiClient;
+      .mockResolvedValue([makeRating({ reviewCount: 2, averageRating: 4.5 })]);
+    const client = baseClient({ listServiceRequests, listWorkerRatings }) as unknown as ApiClient;
 
     const { findByText } = await render(<AdminRequestsScreen client={client} />);
 
