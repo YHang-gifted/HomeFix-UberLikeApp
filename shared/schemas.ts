@@ -148,11 +148,14 @@ export type WorkerRating = z.infer<typeof workerRatingSchema>;
 
 export const workerRatingListSchema = z.array(workerRatingSchema);
 
+export const phoneSchema = z.string().regex(/^[+]?[\d ()-]{7,20}$/, 'Enter a valid phone number');
+
 export const userProfileSchema = z.object({
   id: z.uuid(),
   email: z.email(),
   role: roleSchema,
   displayName: z.string().min(1).max(120),
+  phone: phoneSchema.optional(),
 });
 export type UserProfile = z.infer<typeof userProfileSchema>;
 
@@ -167,6 +170,7 @@ export const publicUserListSchema = z.array(publicUserSchema);
 
 export const updateProfileInputSchema = z.object({
   displayName: z.string().min(1).max(120),
+  phone: phoneSchema.optional(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileInputSchema>;
 
