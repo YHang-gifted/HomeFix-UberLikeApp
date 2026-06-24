@@ -15,7 +15,7 @@ const idsQuerySchema = z
   )
   .pipe(z.array(z.uuid()).max(200));
 
-export function getUsers(req: Request, res: Response, next: NextFunction): void {
+export async function getUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
   const principal = req.principal;
   if (!principal) {
     next(new AppError('Authentication required', 401));
@@ -30,13 +30,13 @@ export function getUsers(req: Request, res: Response, next: NextFunction): void 
   }
 
   try {
-    res.status(200).json(getPublicUsersByIds(idsResult.data));
+    res.status(200).json(await getPublicUsersByIds(idsResult.data));
   } catch (error) {
     next(error);
   }
 }
 
-export function getUser(req: Request, res: Response, next: NextFunction): void {
+export async function getUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   const principal = req.principal;
   if (!principal) {
     next(new AppError('Authentication required', 401));
@@ -50,7 +50,7 @@ export function getUser(req: Request, res: Response, next: NextFunction): void {
   }
 
   try {
-    res.status(200).json(getPublicUserById(idResult.data));
+    res.status(200).json(await getPublicUserById(idResult.data));
   } catch (error) {
     next(error);
   }

@@ -4,20 +4,20 @@ import { updateProfileInputSchema } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { getProfile, updateProfile } from '../services/profileService.ts';
 
-export function getMe(req: Request, res: Response, next: NextFunction): void {
+export async function getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
   const principal = req.principal;
   if (!principal) {
     next(new AppError('Authentication required', 401));
     return;
   }
   try {
-    res.status(200).json(getProfile(principal));
+    res.status(200).json(await getProfile(principal));
   } catch (error) {
     next(error);
   }
 }
 
-export function patchMe(req: Request, res: Response, next: NextFunction): void {
+export async function patchMe(req: Request, res: Response, next: NextFunction): Promise<void> {
   const principal = req.principal;
   if (!principal) {
     next(new AppError('Authentication required', 401));
@@ -29,7 +29,7 @@ export function patchMe(req: Request, res: Response, next: NextFunction): void {
     return;
   }
   try {
-    res.status(200).json(updateProfile(principal, parsed.data));
+    res.status(200).json(await updateProfile(principal, parsed.data));
   } catch (error) {
     next(error);
   }
