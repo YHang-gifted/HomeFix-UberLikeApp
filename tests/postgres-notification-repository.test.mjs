@@ -80,6 +80,27 @@ describe('PostgresNotificationRepository (PGlite)', () => {
     assert.deepEqual(await repo.findByUser(OTHER_USER_ID), []);
   });
 
+  it('markAllRead marks every unread notification for the user and returns the count', async () => {
+    await repo.save(makeNotification());
+    await repo.save(
+      makeNotification({ id: '723e4567-e89b-12d3-a456-426614174000', requestId: undefined }),
+    );
+    await repo.save(
+      makeNotification({ id: '823e4567-e89b-12d3-a456-426614174000', userId: OTHER_USER_ID }),
+    );
+
+    const changed = await repo.markAllRead(USER_ID);
+    assert.equal(changed, 2);
+
+    const list = await repo.findByUser(USER_ID);
+    assert.ok(list.every((item) => item.read === true));
+    const other = await repo.findByUser(OTHER_USER_ID);
+    assert.equal(other[0].read, false);
+
+    // Idempotent: a second call changes nothing.
+    assert.equal(await repo.markAllRead(USER_ID), 0);
+  });
+
   it('clear() empties the table', async () => {
     await repo.save(makeNotification());
     await repo.clear();

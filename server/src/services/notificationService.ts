@@ -41,6 +41,12 @@ export async function markNotificationRead(
   return updated;
 }
 
+/** Mark all of the user's notifications as read, returning the refreshed list. */
+export async function markAllNotificationsRead(principal: Principal): Promise<NotificationList> {
+  await notificationRepository.markAllRead(principal.id);
+  return listNotifications(principal);
+}
+
 export async function resetNotifications(): Promise<void> {
   await notificationRepository.clear();
 }

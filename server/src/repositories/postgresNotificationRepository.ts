@@ -63,6 +63,14 @@ export class PostgresNotificationRepository implements NotificationRepository {
     return row === undefined ? undefined : mapRow(row);
   }
 
+  public async markAllRead(userId: string): Promise<number> {
+    const result = await this.db.query(
+      'UPDATE notifications SET read = true WHERE user_id = $1 AND read = false RETURNING id',
+      [userId],
+    );
+    return result.rows.length;
+  }
+
   public async clear(): Promise<void> {
     await this.db.query('DELETE FROM notifications');
   }

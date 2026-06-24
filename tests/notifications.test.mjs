@@ -104,6 +104,40 @@ describe('notifications', () => {
     assert.equal(after.unreadCount, 0);
   });
 
+  it('marks all of the user notifications as read', async () => {
+    await createAndAssign();
+    await createAndAssign();
+    const before = await (
+      await fetch(`${baseUrl}/notifications`, { headers: headers(WORKER_ID, 'worker') })
+    ).json();
+    assert.equal(before.unreadCount, 2);
+
+    const res = await fetch(`${baseUrl}/notifications/read-all`, {
+      method: 'PATCH',
+      headers: headers(WORKER_ID, 'worker'),
+    });
+    assert.equal(res.status, 200);
+    const updated = await res.json();
+    assert.equal(updated.unreadCount, 0);
+    assert.equal(updated.items.length, 2);
+    assert.ok(updated.items.every((item) => item.read === true));
+
+    // Another user's notifications are untouched.
+    const created = await createAndAssign();
+    const customerList = await (
+      await fetch(`${baseUrl}/service-requests/${created.id}/status`, {
+        method: 'PATCH',
+        headers: headers(WORKER_ID, 'worker'),
+        body: JSON.stringify({ status: 'accepted' }),
+      })
+    ).json();
+    void customerList;
+    const customer = await (
+      await fetch(`${baseUrl}/notifications`, { headers: headers(CUSTOMER_ID, 'customer') })
+    ).json();
+    assert.equal(customer.unreadCount, 1);
+  });
+
   it('returns 404 when marking another user notification', async () => {
     await createAndAssign();
     const list = await (
