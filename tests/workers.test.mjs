@@ -80,4 +80,18 @@ describe('GET /workers', () => {
     const res = await fetch(`${baseUrl}/workers`);
     assert.equal(res.status, 401);
   });
+
+  it('includes the contact phone once the worker sets one', async () => {
+    await fetch(`${baseUrl}/me`, {
+      method: 'PATCH',
+      headers: { ...authHeader(WORKER_ID, 'worker'), 'content-type': 'application/json' },
+      body: JSON.stringify({ displayName: 'Demo Worker', phone: '+1 555 444 5555' }),
+    });
+
+    const res = await fetch(`${baseUrl}/workers/${WORKER_ID}`, {
+      headers: authHeader(CUSTOMER_ID, 'customer'),
+    });
+    const body = await res.json();
+    assert.equal(body.phone, '+1 555 444 5555');
+  });
 });

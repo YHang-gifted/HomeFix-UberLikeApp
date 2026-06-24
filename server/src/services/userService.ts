@@ -8,7 +8,12 @@ export function getPublicUserById(id: string): PublicUser {
   if (!user) {
     throw new AppError('User not found', 404);
   }
-  return { id: user.id, displayName: user.displayName, role: user.role };
+  return {
+    id: user.id,
+    displayName: user.displayName,
+    role: user.role,
+    ...(user.phone !== undefined ? { phone: user.phone } : {}),
+  };
 }
 
 /**
@@ -25,7 +30,12 @@ export function getPublicUsersByIds(ids: string[]): PublicUser[] {
     seen.add(id);
     const user = findUserById(id);
     if (user) {
-      result.push({ id: user.id, displayName: user.displayName, role: user.role });
+      result.push({
+        id: user.id,
+        displayName: user.displayName,
+        role: user.role,
+        ...(user.phone !== undefined ? { phone: user.phone } : {}),
+      });
     }
   }
   return result;
