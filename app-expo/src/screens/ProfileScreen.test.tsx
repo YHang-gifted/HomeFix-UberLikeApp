@@ -29,7 +29,26 @@ describe('ProfileScreen', () => {
     await fireEvent.press(getByLabelText('Save profile'));
 
     await findByText('Saved');
-    expect(updateProfile).toHaveBeenCalledWith({ displayName: 'New Name' });
+    expect(updateProfile).toHaveBeenCalledWith({ displayName: 'New Name', phone: undefined });
+  });
+
+  it('shows the existing phone and saves an edited one', async () => {
+    const getMe = jest.fn().mockResolvedValue(makeProfile({ phone: '+1 555 000 1111' }));
+    const updateProfile = jest.fn().mockResolvedValue(makeProfile({ phone: '+1 (555) 012-3456' }));
+    const client = { getMe, updateProfile } as unknown as ApiClient;
+
+    const { findByText, getByLabelText } = await render(<ProfileScreen client={client} />);
+    await findByText('customer@homefix.test');
+    expect(getByLabelText('Phone').props.value).toBe('+1 555 000 1111');
+
+    await fireEvent.changeText(getByLabelText('Phone'), '+1 (555) 012-3456');
+    await fireEvent.press(getByLabelText('Save profile'));
+
+    await findByText('Saved');
+    expect(updateProfile).toHaveBeenCalledWith({
+      displayName: 'Demo Customer',
+      phone: '+1 (555) 012-3456',
+    });
   });
 
   it('rejects an empty display name without calling the API', async () => {
