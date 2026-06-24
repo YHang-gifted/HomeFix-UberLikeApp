@@ -137,3 +137,16 @@ export const workerReviewsSchema = z.object({
   items: z.array(reviewSchema),
 });
 export type WorkerReviews = z.infer<typeof workerReviewsSchema>;
+
+export const userProfileSchema = z.object({
+  id: z.uuid(),
+  email: z.email(),
+  role: roleSchema,
+  displayName: z.string().min(1).max(120),
+});
+export type UserProfile = z.infer<typeof userProfileSchema>;
+
+export const updateProfileInputSchema = z.object({
+  displayName: z.string().min(1).max(120),
+});
+export type UpdateProfileInput = z.infer<typeof updateProfileInputSchema>;

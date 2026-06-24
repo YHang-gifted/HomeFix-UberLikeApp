@@ -7,6 +7,8 @@ import type {
   ServiceRequest,
   ServiceRequestPage,
   ServiceRequestStatus,
+  UpdateProfileInput,
+  UserProfile,
   WorkerReviews,
   WorkerSummary,
 } from '../../../shared/schemas.ts';
@@ -15,6 +17,7 @@ import {
   reviewSchema,
   serviceRequestPageSchema,
   serviceRequestSchema,
+  userProfileSchema,
   workerReviewsSchema,
   workerSummaryListSchema,
   workerSummarySchema,
@@ -83,6 +86,16 @@ export class ApiClient {
     }
     this.token = body.token;
     return body.token;
+  }
+
+  public async getMe(): Promise<UserProfile> {
+    const data = await this.send('GET', '/me', undefined, true);
+    return userProfileSchema.parse(data);
+  }
+
+  public async updateProfile(input: UpdateProfileInput): Promise<UserProfile> {
+    const data = await this.send('PATCH', '/me', input, true);
+    return userProfileSchema.parse(data);
   }
 
   public async createServiceRequest(input: CreateServiceRequestInput): Promise<ServiceRequest> {
