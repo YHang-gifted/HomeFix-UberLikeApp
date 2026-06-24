@@ -122,6 +122,37 @@ describe('GET /service-requests (list)', () => {
     assert.equal(body.items[0].workerId, WORKER_ID);
   });
 
+  it('filters the list by status', async () => {
+    const a = await createFor(CUSTOMER_ID);
+    await createFor(CUSTOMER_ID);
+    await globalThis.fetch(`${baseUrl}/service-requests/${a.id}/status`, {
+      method: 'PATCH',
+      headers: headers(CUSTOMER_ID, 'customer'),
+      body: JSON.stringify({ status: 'cancelled' }),
+    });
+
+    const pending = await globalThis.fetch(`${baseUrl}/service-requests?status=pending`, {
+      headers: headers(CUSTOMER_ID),
+    });
+    const pendingBody = await pending.json();
+    assert.equal(pendingBody.total, 1);
+    assert.ok(pendingBody.items.every((item) => item.status === 'pending'));
+
+    const cancelled = await globalThis.fetch(`${baseUrl}/service-requests?status=cancelled`, {
+      headers: headers(CUSTOMER_ID),
+    });
+    const cancelledBody = await cancelled.json();
+    assert.equal(cancelledBody.total, 1);
+    assert.equal(cancelledBody.items[0].id, a.id);
+  });
+
+  it('rejects an invalid status filter (422)', async () => {
+    const res = await globalThis.fetch(`${baseUrl}/service-requests?status=bogus`, {
+      headers: headers(CUSTOMER_ID),
+    });
+    assert.equal(res.status, 422);
+  });
+
   it('returns 401 without authentication', async () => {
     const res = await globalThis.fetch(`${baseUrl}/service-requests`);
     assert.equal(res.status, 401);
