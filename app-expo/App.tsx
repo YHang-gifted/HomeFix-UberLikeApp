@@ -22,6 +22,7 @@ import { AuditLogScreen } from './src/screens/AuditLogScreen';
 import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RequestDetailScreen } from './src/screens/RequestDetailScreen';
+import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ServiceRequestsScreen } from './src/screens/ServiceRequestsScreen';
 import { WorkerJobsScreen } from './src/screens/WorkerJobsScreen';
 
@@ -33,6 +34,7 @@ export type RootStackParamList = {
   WorkerJobs: undefined;
   AdminRequests: undefined;
   AuditLog: undefined;
+  Profile: undefined;
 };
 
 interface AuthActions {
@@ -75,6 +77,9 @@ function ServiceRequestsRoute({
     <ServiceRequestsScreen
       client={apiClient}
       refreshToken={refreshToken}
+      onViewProfile={() => {
+        navigation.navigate('Profile');
+      }}
       onNewRequest={() => {
         navigation.navigate('CreateRequest');
       }}
@@ -132,6 +137,9 @@ function WorkerJobsRoute({
     <WorkerJobsScreen
       client={apiClient}
       refreshToken={refreshToken}
+      onViewProfile={() => {
+        navigation.navigate('Profile');
+      }}
       onSelectRequest={(id) => {
         navigation.navigate('RequestDetail', { id });
       }}
@@ -158,6 +166,9 @@ function AdminRequestsRoute({
     <AdminRequestsScreen
       client={apiClient}
       refreshToken={refreshToken}
+      onViewProfile={() => {
+        navigation.navigate('Profile');
+      }}
       onSelectRequest={(id) => {
         navigation.navigate('RequestDetail', { id });
       }}
@@ -181,6 +192,10 @@ function AuditLogRoute(): ReactElement {
   );
 
   return <AuditLogScreen client={apiClient} refreshToken={refreshToken} />;
+}
+
+function ProfileRoute(): ReactElement {
+  return <ProfileScreen client={apiClient} />;
 }
 
 export default function App(): ReactElement {
@@ -264,6 +279,11 @@ export default function App(): ReactElement {
                 component={RequestDetailRoute}
                 options={{ title: 'Request' }}
               />
+              <Stack.Screen
+                name="Profile"
+                component={ProfileRoute}
+                options={{ title: 'Profile' }}
+              />
             </>
           )}
           {signedIn && role === 'admin' && (
@@ -283,6 +303,11 @@ export default function App(): ReactElement {
                 component={RequestDetailRoute}
                 options={{ title: 'Request' }}
               />
+              <Stack.Screen
+                name="Profile"
+                component={ProfileRoute}
+                options={{ title: 'Profile' }}
+              />
             </>
           )}
           {signedIn && role !== 'worker' && role !== 'admin' && (
@@ -301,6 +326,11 @@ export default function App(): ReactElement {
                 name="RequestDetail"
                 component={RequestDetailRoute}
                 options={{ title: 'Request' }}
+              />
+              <Stack.Screen
+                name="Profile"
+                component={ProfileRoute}
+                options={{ title: 'Profile' }}
               />
             </>
           )}

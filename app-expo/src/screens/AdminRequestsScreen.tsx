@@ -10,6 +10,8 @@ export interface AdminRequestsScreenProps {
   client?: ApiClient;
   /** Called when the user taps "Log out". */
   onLogout?: () => void;
+  /** Called when the user taps "Profile". */
+  onViewProfile?: () => void;
   /** Called when the user taps "Audit log". */
   onViewAudit?: () => void;
   /** Called with the request id when a card is tapped. */
@@ -22,6 +24,7 @@ export function AdminRequestsScreen({
   client,
   onLogout,
   onViewAudit,
+  onViewProfile,
   onSelectRequest,
   refreshToken,
 }: AdminRequestsScreenProps): ReactElement {
@@ -98,6 +101,15 @@ export function AdminRequestsScreen({
       <View style={styles.header}>
         <Text style={styles.heading}>All requests</Text>
         <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => {
+              onViewProfile?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Profile"
+          >
+            <Text style={styles.profileText}>Profile</Text>
+          </Pressable>
           <Pressable
             onPress={() => {
               onViewAudit?.();
@@ -212,6 +224,7 @@ const styles = StyleSheet.create({
   heading: { fontSize: 18, fontWeight: '700', color: '#0f172a' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   auditText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
+  profileText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
   logoutText: { color: '#64748b', fontSize: 14, fontWeight: '600' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },

@@ -12,6 +12,8 @@ export interface ServiceRequestsScreenProps {
   onNewRequest?: () => void;
   /** Called when the user taps "Log out". */
   onLogout?: () => void;
+  /** Called when the user taps "Profile". */
+  onViewProfile?: () => void;
   /** Called with the request id when a card is tapped. */
   onSelectRequest?: (id: string) => void;
   /** Bump this to force a reload (e.g. when the screen regains focus). */
@@ -22,6 +24,7 @@ export function ServiceRequestsScreen({
   client,
   onNewRequest,
   onLogout,
+  onViewProfile,
   onSelectRequest,
   refreshToken,
 }: ServiceRequestsScreenProps): ReactElement {
@@ -65,6 +68,16 @@ export function ServiceRequestsScreen({
           accessibilityLabel="New request"
         >
           <Text style={styles.newButtonText}>+ New request</Text>
+        </Pressable>
+        <Pressable
+          style={styles.logoutButton}
+          onPress={() => {
+            onViewProfile?.();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Profile"
+        >
+          <Text style={styles.profileText}>Profile</Text>
         </Pressable>
         <Pressable
           style={styles.logoutButton}
@@ -143,6 +156,7 @@ const styles = StyleSheet.create({
   newButtonPressed: { backgroundColor: '#1d4ed8' },
   newButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
   logoutButton: { paddingVertical: 12, paddingHorizontal: 4 },
+  profileText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
   logoutText: { color: '#64748b', fontSize: 14, fontWeight: '600' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
