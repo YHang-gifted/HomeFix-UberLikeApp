@@ -147,6 +147,13 @@ export const userProfileSchema = z.object({
 });
 export type UserProfile = z.infer<typeof userProfileSchema>;
 
+export const publicUserSchema = z.object({
+  id: z.uuid(),
+  displayName: z.string().min(1).max(120),
+  role: roleSchema,
+});
+export type PublicUser = z.infer<typeof publicUserSchema>;
+
 export const updateProfileInputSchema = z.object({
   displayName: z.string().min(1).max(120),
 });

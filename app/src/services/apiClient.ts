@@ -5,6 +5,7 @@ import type {
   Notification,
   NotificationList,
   Principal,
+  PublicUser,
   Review,
   ServiceRequest,
   ServiceRequestPage,
@@ -18,6 +19,7 @@ import {
   auditPageSchema,
   notificationListSchema,
   notificationSchema,
+  publicUserSchema,
   reviewSchema,
   serviceRequestPageSchema,
   serviceRequestSchema,
@@ -153,6 +155,11 @@ export class ApiClient {
   public async getWorker(id: string): Promise<WorkerSummary> {
     const data = await this.send('GET', `/workers/${id}`, undefined, true);
     return workerSummarySchema.parse(data);
+  }
+
+  public async getUser(id: string): Promise<PublicUser> {
+    const data = await this.send('GET', `/users/${id}`, undefined, true);
+    return publicUserSchema.parse(data);
   }
 
   public async assignWorker(id: string, workerId: string): Promise<ServiceRequest> {

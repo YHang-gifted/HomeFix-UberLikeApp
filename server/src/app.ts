@@ -10,6 +10,7 @@ import { notificationRouter } from './routes/notification.ts';
 import { profileRouter } from './routes/profile.ts';
 import { reviewRouter } from './routes/review.ts';
 import { serviceRequestRouter } from './routes/serviceRequest.ts';
+import { userRouter } from './routes/user.ts';
 import { workerRouter } from './routes/worker.ts';
 
 export function createApp(): Express {
@@ -20,6 +21,7 @@ export function createApp(): Express {
   app.use(authRouter);
   app.use(profileRouter);
   app.use(serviceRequestRouter);
+  app.use(userRouter);
   app.use(workerRouter);
   app.use(reviewRouter);
   app.use(notificationRouter);
