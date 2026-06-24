@@ -80,6 +80,7 @@ export type LoginInput = z.infer<typeof loginInputSchema>;
 export const workerSummarySchema = z.object({
   id: z.uuid(),
   email: z.email(),
+  displayName: z.string().min(1).max(120),
 });
 export type WorkerSummary = z.infer<typeof workerSummarySchema>;
 

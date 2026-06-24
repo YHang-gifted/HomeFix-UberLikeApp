@@ -67,5 +67,6 @@ describe('ApiClient workers + assignment (against in-process server)', () => {
     const worker = await admin.getWorker(WORKER_ID);
     assert.equal(worker.id, WORKER_ID);
     assert.equal(worker.email, 'worker@homefix.test');
+    assert.equal(worker.displayName, 'Demo Worker');
   });
 });
