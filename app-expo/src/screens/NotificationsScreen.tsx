@@ -57,6 +57,15 @@ export function NotificationsScreen({
     }
   }
 
+  async function markAll(): Promise<void> {
+    try {
+      await activeClient.markAllNotificationsRead();
+      setReload((current) => current + 1);
+    } catch {
+      // Ignore; the next reload will reflect the true state.
+    }
+  }
+
   if (error !== null) {
     return (
       <View style={styles.centered}>
@@ -86,7 +95,22 @@ export function NotificationsScreen({
       style={styles.list}
       data={list.items}
       keyExtractor={(item) => item.id}
-      ListHeaderComponent={<Text style={styles.unread}>Unread: {String(list.unreadCount)}</Text>}
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <Text style={styles.unread}>Unread: {String(list.unreadCount)}</Text>
+          {list.unreadCount > 0 && (
+            <Pressable
+              onPress={() => {
+                void markAll();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Mark all read"
+            >
+              <Text style={styles.markAll}>Mark all read</Text>
+            </Pressable>
+          )}
+        </View>
+      }
       renderItem={({ item }) => (
         <Pressable
           style={[styles.row, !item.read && styles.rowUnread]}
@@ -109,7 +133,9 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
   empty: { color: '#64748b', fontSize: 15, textAlign: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   unread: { fontSize: 13, fontWeight: '600', color: '#64748b', padding: 16 },
+  markAll: { fontSize: 13, fontWeight: '600', color: '#2563eb', padding: 16 },
   row: {
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',

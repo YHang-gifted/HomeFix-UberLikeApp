@@ -47,4 +47,25 @@ describe('NotificationsScreen', () => {
       expect(markNotificationRead).toHaveBeenCalledWith(notification.id);
     });
   });
+
+  it('marks all read when the header button is tapped', async () => {
+    const notification = makeNotification();
+    const listNotifications = jest
+      .fn()
+      .mockResolvedValueOnce(makeList([notification]))
+      .mockResolvedValueOnce(makeList([{ ...notification, read: true }]));
+    const markAllNotificationsRead = jest
+      .fn()
+      .mockResolvedValue(makeList([{ ...notification, read: true }]));
+    const client = { listNotifications, markAllNotificationsRead } as unknown as ApiClient;
+
+    const { findByText, getByLabelText } = await render(<NotificationsScreen client={client} />);
+    await findByText('Unread: 1');
+    await fireEvent.press(getByLabelText('Mark all read'));
+
+    await waitFor(() => {
+      expect(markAllNotificationsRead).toHaveBeenCalledTimes(1);
+    });
+    await findByText('Unread: 0');
+  });
 });
