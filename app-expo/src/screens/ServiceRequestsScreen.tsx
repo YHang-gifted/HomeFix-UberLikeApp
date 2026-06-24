@@ -2,7 +2,8 @@ import { type ReactElement, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
-import type { ServiceRequest } from '../../../shared/schemas';
+import type { ServiceRequest, ServiceRequestStatus } from '../../../shared/schemas';
+import { StatusFilter } from '../components/StatusFilter';
 import { apiClient } from '../api';
 
 export interface ServiceRequestsScreenProps {
@@ -32,13 +33,16 @@ export function ServiceRequestsScreen({
 
   const [items, setItems] = useState<ServiceRequest[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<ServiceRequestStatus | null>(null);
 
   useEffect(() => {
     let active = true;
 
     async function load(): Promise<void> {
       try {
-        const page = await activeClient.listServiceRequests();
+        const page = await activeClient.listServiceRequests(
+          status !== null ? { status } : undefined,
+        );
         if (active) {
           setItems(page.items);
           setError(null);
@@ -54,7 +58,7 @@ export function ServiceRequestsScreen({
     return () => {
       active = false;
     };
-  }, [activeClient, refreshToken]);
+  }, [activeClient, refreshToken, status]);
 
   return (
     <View style={styles.root}>
@@ -90,6 +94,8 @@ export function ServiceRequestsScreen({
           <Text style={styles.logoutText}>Log out</Text>
         </Pressable>
       </View>
+
+      <StatusFilter value={status} onChange={setStatus} />
 
       {error !== null && (
         <View style={styles.centered}>

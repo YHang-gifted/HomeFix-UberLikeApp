@@ -6,7 +6,8 @@ import {
   nextWorkerStatus,
   workerActionLabel,
 } from '../../../app/src/features/serviceRequests/workerStatus';
-import type { ServiceRequest, WorkerReviews } from '../../../shared/schemas';
+import type { ServiceRequest, ServiceRequestStatus, WorkerReviews } from '../../../shared/schemas';
+import { StatusFilter } from '../components/StatusFilter';
 import { apiClient } from '../api';
 
 export interface WorkerJobsScreenProps {
@@ -40,6 +41,7 @@ export function WorkerJobsScreen({
 
   const [items, setItems] = useState<ServiceRequest[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<ServiceRequestStatus | null>(null);
   const [reload, setReload] = useState(0);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [reviews, setReviews] = useState<WorkerReviews | null>(null);
@@ -49,7 +51,9 @@ export function WorkerJobsScreen({
 
     async function loadJobs(): Promise<void> {
       try {
-        const page = await activeClient.listServiceRequests();
+        const page = await activeClient.listServiceRequests(
+          status !== null ? { status } : undefined,
+        );
         if (active) {
           setItems(page.items);
           setError(null);
@@ -81,7 +85,7 @@ export function WorkerJobsScreen({
     return () => {
       active = false;
     };
-  }, [activeClient, refreshToken, reload]);
+  }, [activeClient, refreshToken, reload, status]);
 
   const advance = useCallback(
     async (request: ServiceRequest): Promise<void> => {
@@ -130,6 +134,8 @@ export function WorkerJobsScreen({
           </Pressable>
         </View>
       </View>
+
+      <StatusFilter value={status} onChange={setStatus} />
 
       {error !== null && (
         <View style={styles.centered}>
