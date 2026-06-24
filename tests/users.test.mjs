@@ -108,4 +108,24 @@ describe('GET /users/:id', () => {
     const res = await fetch(`${baseUrl}/users?ids=${CUSTOMER_ID}`);
     assert.equal(res.status, 401);
   });
+
+  it('includes the contact phone in the summary once the user sets one', async () => {
+    await fetch(`${baseUrl}/me`, {
+      method: 'PATCH',
+      headers: { ...authHeader(CUSTOMER_ID, 'customer'), 'content-type': 'application/json' },
+      body: JSON.stringify({ displayName: 'Demo Customer', phone: '+1 555 222 3333' }),
+    });
+
+    const single = await (
+      await fetch(`${baseUrl}/users/${CUSTOMER_ID}`, { headers: authHeader(WORKER_ID, 'worker') })
+    ).json();
+    assert.equal(single.phone, '+1 555 222 3333');
+
+    const batch = await (
+      await fetch(`${baseUrl}/users?ids=${CUSTOMER_ID}`, {
+        headers: authHeader(WORKER_ID, 'worker'),
+      })
+    ).json();
+    assert.equal(batch[0].phone, '+1 555 222 3333');
+  });
 });
