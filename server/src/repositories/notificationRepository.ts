@@ -8,6 +8,8 @@ export interface NotificationRepository {
   save(notification: Notification): Promise<void>;
   findByUser(userId: string): Promise<Notification[]>;
   markRead(id: string, userId: string): Promise<Notification | undefined>;
+  /** Mark every unread notification owned by the user as read; returns how many changed. */
+  markAllRead(userId: string): Promise<number>;
   clear(): Promise<void>;
 }
 
@@ -33,6 +35,17 @@ export class InMemoryNotificationRepository implements NotificationRepository {
     const updated: Notification = { ...existing, read: true };
     this.notifications.set(id, updated);
     return Promise.resolve(updated);
+  }
+
+  public markAllRead(userId: string): Promise<number> {
+    let changed = 0;
+    for (const [id, notification] of this.notifications) {
+      if (notification.userId === userId && !notification.read) {
+        this.notifications.set(id, { ...notification, read: true });
+        changed += 1;
+      }
+    }
+    return Promise.resolve(changed);
   }
 
   public clear(): Promise<void> {

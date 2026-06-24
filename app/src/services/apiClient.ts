@@ -180,6 +180,11 @@ export class ApiClient {
     return notificationSchema.parse(data);
   }
 
+  public async markAllNotificationsRead(): Promise<NotificationList> {
+    const data = await this.send('PATCH', '/notifications/read-all', undefined, true);
+    return notificationListSchema.parse(data);
+  }
+
   public async listAuditEvents(params?: { limit?: number; offset?: number }): Promise<AuditPage> {
     const query = new URLSearchParams();
     if (params?.limit !== undefined) {
