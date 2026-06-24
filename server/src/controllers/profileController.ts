@@ -2,12 +2,12 @@ import type { NextFunction, Request, Response } from 'express';
 
 import { updateProfileInputSchema } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
+import { requirePrincipal } from '../middlewares/auth.ts';
 import { getProfile, updateProfile } from '../services/profileService.ts';
 
 export async function getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
   try {
@@ -18,9 +18,8 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
 }
 
 export async function patchMe(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
   const parsed = updateProfileInputSchema.safeParse(req.body);

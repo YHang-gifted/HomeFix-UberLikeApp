@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 
 import { AppError } from '../errors/appError.ts';
+import { requirePrincipal } from '../middlewares/auth.ts';
 import { getPublicUserById, getPublicUsersByIds } from '../services/userService.ts';
 
 const idSchema = z.uuid();
@@ -16,9 +17,8 @@ const idsQuerySchema = z
   .pipe(z.array(z.uuid()).max(200));
 
 export async function getUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
 
@@ -37,9 +37,8 @@ export async function getUsers(req: Request, res: Response, next: NextFunction):
 }
 
 export async function getUser(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
 
