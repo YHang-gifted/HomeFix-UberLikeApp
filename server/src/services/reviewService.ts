@@ -10,7 +10,7 @@ import type {
 import { AppError } from '../errors/appError.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { reviewRepository } from '../repositories/reviewRepository.ts';
-import { listUsersByRole } from '../repositories/userRepository.ts';
+import { userRepository } from '../repositories/userRepository.ts';
 
 /** A customer reviews the worker on their own completed request (one review per request). */
 export async function createReview(
@@ -66,7 +66,7 @@ export async function getWorkerReviews(workerId: string): Promise<WorkerReviews>
  * one per worker.
  */
 export async function listWorkerRatings(): Promise<WorkerRating[]> {
-  const workers = listUsersByRole('worker');
+  const workers = await userRepository.listByRole('worker');
   return Promise.all(
     workers.map(async (worker): Promise<WorkerRating> => {
       const reviews = await reviewRepository.findByWorkerId(worker.id);

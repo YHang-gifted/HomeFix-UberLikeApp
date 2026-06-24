@@ -4,7 +4,7 @@ import { loginInputSchema } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { login } from '../services/authService.ts';
 
-export function postLogin(req: Request, res: Response, next: NextFunction): void {
+export async function postLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
   const body: unknown = req.body;
   const parsed = loginInputSchema.safeParse(body);
   if (!parsed.success) {
@@ -13,7 +13,7 @@ export function postLogin(req: Request, res: Response, next: NextFunction): void
   }
 
   try {
-    const result = login(parsed.data);
+    const result = await login(parsed.data);
     res.status(200).json({ token: result.token });
   } catch (error) {
     next(error);

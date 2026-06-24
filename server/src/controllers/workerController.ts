@@ -6,7 +6,7 @@ import { getWorkerById, listWorkers } from '../services/workerService.ts';
 
 const idSchema = z.uuid();
 
-export function getWorkers(req: Request, res: Response, next: NextFunction): void {
+export async function getWorkers(req: Request, res: Response, next: NextFunction): Promise<void> {
   const principal = req.principal;
   if (!principal) {
     next(new AppError('Authentication required', 401));
@@ -14,13 +14,13 @@ export function getWorkers(req: Request, res: Response, next: NextFunction): voi
   }
 
   try {
-    res.status(200).json(listWorkers(principal));
+    res.status(200).json(await listWorkers(principal));
   } catch (error) {
     next(error);
   }
 }
 
-export function getWorker(req: Request, res: Response, next: NextFunction): void {
+export async function getWorker(req: Request, res: Response, next: NextFunction): Promise<void> {
   const principal = req.principal;
   if (!principal) {
     next(new AppError('Authentication required', 401));
@@ -34,7 +34,7 @@ export function getWorker(req: Request, res: Response, next: NextFunction): void
   }
 
   try {
-    res.status(200).json(getWorkerById(idResult.data));
+    res.status(200).json(await getWorkerById(idResult.data));
   } catch (error) {
     next(error);
   }

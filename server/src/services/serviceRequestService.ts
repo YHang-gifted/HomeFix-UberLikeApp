@@ -9,7 +9,7 @@ import type {
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
-import { findUserById } from '../repositories/userRepository.ts';
+import { userRepository } from '../repositories/userRepository.ts';
 import { recordAuditEvent } from './auditService.ts';
 import { recordNotification } from './notificationService.ts';
 
@@ -207,8 +207,9 @@ export async function getRequestContacts(
     throw new AppError('Not allowed to view contacts for this request', 403);
   }
 
-  const customer = findUserById(request.customerId);
-  const worker = request.workerId === undefined ? undefined : findUserById(request.workerId);
+  const customer = await userRepository.findById(request.customerId);
+  const worker =
+    request.workerId === undefined ? undefined : await userRepository.findById(request.workerId);
   return {
     ...(customer?.phone !== undefined ? { customerPhone: customer.phone } : {}),
     ...(worker?.phone !== undefined ? { workerPhone: worker.phone } : {}),

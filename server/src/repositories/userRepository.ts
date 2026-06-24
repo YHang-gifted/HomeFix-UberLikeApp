@@ -10,68 +10,95 @@ export interface UserRecord {
   passwordHash: string;
 }
 
-const users = new Map<string, UserRecord>();
-
-function seed(id: string, email: string, role: Role, displayName: string, password: string): void {
-  users.set(email.toLowerCase(), {
-    id,
-    email,
-    role,
-    displayName,
-    passwordHash: hashPassword(password),
-  });
+export interface UserRepository {
+  findByEmail(email: string): Promise<UserRecord | undefined>;
+  listByRole(role: Role): Promise<UserRecord[]>;
+  findById(id: string): Promise<UserRecord | undefined>;
+  updateProfile(
+    id: string,
+    displayName: string,
+    phone: string | undefined,
+  ): Promise<UserRecord | undefined>;
 }
 
-// Demo seed users for local development only. Replace with a real user store.
-seed(
-  '123e4567-e89b-12d3-a456-426614174000',
-  'customer@homefix.test',
-  'customer',
-  'Demo Customer',
-  'customer-pass',
-);
-seed(
-  '323e4567-e89b-12d3-a456-426614174000',
-  'admin@homefix.test',
-  'admin',
-  'Demo Admin',
-  'admin-pass',
-);
-seed(
-  '423e4567-e89b-12d3-a456-426614174000',
-  'worker@homefix.test',
-  'worker',
-  'Demo Worker',
-  'worker-pass',
-);
-
-export function findUserByEmail(email: string): UserRecord | undefined {
-  return users.get(email.toLowerCase());
+/** Demo seed users for local development only. Replace with a real user store. */
+export interface DemoUserSeed {
+  id: string;
+  email: string;
+  role: Role;
+  displayName: string;
+  password: string;
 }
 
-export function listUsersByRole(role: Role): UserRecord[] {
-  return [...users.values()].filter((user) => user.role === role);
-}
+export const DEMO_USERS: readonly DemoUserSeed[] = [
+  {
+    id: '123e4567-e89b-12d3-a456-426614174000',
+    email: 'customer@homefix.test',
+    role: 'customer',
+    displayName: 'Demo Customer',
+    password: 'customer-pass',
+  },
+  {
+    id: '323e4567-e89b-12d3-a456-426614174000',
+    email: 'admin@homefix.test',
+    role: 'admin',
+    displayName: 'Demo Admin',
+    password: 'admin-pass',
+  },
+  {
+    id: '423e4567-e89b-12d3-a456-426614174000',
+    email: 'worker@homefix.test',
+    role: 'worker',
+    displayName: 'Demo Worker',
+    password: 'worker-pass',
+  },
+];
 
-export function findUserById(id: string): UserRecord | undefined {
-  return [...users.values()].find((user) => user.id === id);
-}
+export class InMemoryUserRepository implements UserRepository {
+  private readonly users = new Map<string, UserRecord>();
 
-export function updateUserProfile(
-  id: string,
-  displayName: string,
-  phone: string | undefined,
-): UserRecord | undefined {
-  const user = findUserById(id);
-  if (!user) {
-    return undefined;
+  public constructor() {
+    for (const seed of DEMO_USERS) {
+      this.users.set(seed.email.toLowerCase(), {
+        id: seed.id,
+        email: seed.email,
+        role: seed.role,
+        displayName: seed.displayName,
+        passwordHash: hashPassword(seed.password),
+      });
+    }
   }
-  const updated: UserRecord = { ...user, displayName };
-  if (phone === undefined) {
-    delete updated.phone;
-  } else {
-    updated.phone = phone;
+
+  public findByEmail(email: string): Promise<UserRecord | undefined> {
+    return Promise.resolve(this.users.get(email.toLowerCase()));
   }
-  users.set(user.email.toLowerCase(), updated);
-  return updated;
+
+  public listByRole(role: Role): Promise<UserRecord[]> {
+    return Promise.resolve([...this.users.values()].filter((user) => user.role === role));
+  }
+
+  public findById(id: string): Promise<UserRecord | undefined> {
+    return Promise.resolve([...this.users.values()].find((user) => user.id === id));
+  }
+
+  public updateProfile(
+    id: string,
+    displayName: string,
+    phone: string | undefined,
+  ): Promise<UserRecord | undefined> {
+    const user = [...this.users.values()].find((candidate) => candidate.id === id);
+    if (!user) {
+      return Promise.resolve(undefined);
+    }
+    const updated: UserRecord = { ...user, displayName };
+    if (phone === undefined) {
+      delete updated.phone;
+    } else {
+      updated.phone = phone;
+    }
+    this.users.set(user.email.toLowerCase(), updated);
+    return Promise.resolve(updated);
+  }
 }
+
+export const userRepository: UserRepository = new InMemoryUserRepository();
