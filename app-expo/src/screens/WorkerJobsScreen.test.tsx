@@ -32,6 +32,7 @@ function baseClient(extra: Record<string, unknown>) {
   return {
     getPrincipal: jest.fn().mockReturnValue({ id: WORKER_ID, role: 'worker' }),
     getWorkerReviews: jest.fn().mockResolvedValue(makeReviews()),
+    listUsers: jest.fn().mockResolvedValue([]),
     ...extra,
   };
 }

@@ -46,6 +46,7 @@ export function AdminRequestsScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [ratings, setRatings] = useState<Record<string, WorkerRating>>({});
+  const [customerNames, setCustomerNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let active = true;
@@ -63,6 +64,19 @@ export function AdminRequestsScreen({
           setItems(page.items);
           setWorkers(workerList);
           setError(null);
+        }
+        try {
+          const ids = [...new Set(page.items.map((request) => request.customerId))];
+          const users = await activeClient.listUsers(ids);
+          if (active) {
+            const names: Record<string, string> = {};
+            for (const user of users) {
+              names[user.id] = user.displayName;
+            }
+            setCustomerNames(names);
+          }
+        } catch {
+          // Customer names are secondary; ignore failures.
         }
         try {
           const workerRatings = await activeClient.listWorkerRatings();
@@ -190,6 +204,9 @@ export function AdminRequestsScreen({
                 <Text style={styles.category}>{item.category}</Text>
                 <Text style={styles.status}>{item.status}</Text>
               </View>
+              {customerNames[item.customerId] !== undefined && (
+                <Text style={styles.customer}>Customer: {customerNames[item.customerId]}</Text>
+              )}
               <Text style={styles.description}>{item.description}</Text>
 
               {item.status === 'pending' && (
@@ -264,6 +281,7 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   category: { fontSize: 15, fontWeight: '700', color: '#0f172a', textTransform: 'capitalize' },
   status: { fontSize: 13, color: '#2563eb', textTransform: 'capitalize' },
+  customer: { fontSize: 13, color: '#475569', marginBottom: 6 },
   description: { fontSize: 14, color: '#334155' },
   assignRow: { marginTop: 12, gap: 12 },
   assignWorker: { gap: 4 },

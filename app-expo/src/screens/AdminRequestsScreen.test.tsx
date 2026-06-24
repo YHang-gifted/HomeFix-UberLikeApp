@@ -39,6 +39,7 @@ function baseClient(extra: Record<string, unknown>) {
   return {
     listWorkers: jest.fn().mockResolvedValue(WORKERS),
     listWorkerRatings: jest.fn().mockResolvedValue([makeRating()]),
+    listUsers: jest.fn().mockResolvedValue([]),
     ...extra,
   };
 }
@@ -96,6 +97,22 @@ describe('AdminRequestsScreen', () => {
     const { findByText } = await render(<AdminRequestsScreen client={client} />);
 
     await findByText('4.5 ★ (2)');
+  });
+
+  it('shows the ordering customer name on each request card', async () => {
+    const listServiceRequests = jest.fn().mockResolvedValue(makePage([makeRequest()]));
+    const listUsers = jest.fn().mockResolvedValue([
+      {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        displayName: 'Demo Customer',
+        role: 'customer',
+      },
+    ]);
+    const client = baseClient({ listServiceRequests, listUsers }) as unknown as ApiClient;
+
+    const { findByText } = await render(<AdminRequestsScreen client={client} />);
+
+    await findByText('Customer: Demo Customer');
   });
 
   it('calls onSelectRequest when a request card is tapped', async () => {
