@@ -4,6 +4,7 @@ import { createPoolQueryable } from '../config/db.ts';
 import type { Queryable } from './queryable.ts';
 import type { Migration } from './migrations.ts';
 import { migrations as defaultMigrations } from './migrations.ts';
+import { seedDemoUsers } from './seedUsers.ts';
 
 const CREATE_MIGRATIONS_TABLE = `
   CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -46,5 +47,7 @@ export async function initDatabase(): Promise<void> {
   if (databaseUrl === undefined || databaseUrl === '') {
     return;
   }
-  await runMigrations(createPoolQueryable(databaseUrl));
+  const db = createPoolQueryable(databaseUrl);
+  await runMigrations(db);
+  await seedDemoUsers(db);
 }
