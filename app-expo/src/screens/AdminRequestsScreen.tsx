@@ -43,6 +43,7 @@ export function AdminRequestsScreen({
   const [status, setStatus] = useState<ServiceRequestStatus | null>(null);
   const [q, setQ] = useState('');
   const [reload, setReload] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [ratings, setRatings] = useState<Record<string, WorkerReviews>>({});
 
@@ -84,6 +85,10 @@ export function AdminRequestsScreen({
         if (active) {
           setError('Could not load requests.');
         }
+      } finally {
+        if (active) {
+          setRefreshing(false);
+        }
       }
     }
 
@@ -107,6 +112,11 @@ export function AdminRequestsScreen({
     },
     [activeClient],
   );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setReload((current) => current + 1);
+  }, []);
 
   return (
     <View style={styles.root}>
@@ -166,9 +176,12 @@ export function AdminRequestsScreen({
 
       {error === null && items !== null && items.length > 0 && (
         <FlatList
+          testID="admin-request-list"
           style={styles.list}
           data={items}
           keyExtractor={(item) => item.id}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           renderItem={({ item }) => (
             <Pressable
               style={styles.card}
