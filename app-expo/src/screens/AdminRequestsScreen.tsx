@@ -197,12 +197,12 @@ export function AdminRequestsScreen({
                           }}
                           disabled={assigningId === item.id}
                           accessibilityRole="button"
-                          accessibilityLabel={`Assign to ${worker.email}`}
+                          accessibilityLabel={`Assign to ${worker.displayName}`}
                         >
                           {assigningId === item.id ? (
                             <ActivityIndicator color="#ffffff" />
                           ) : (
-                            <Text style={styles.assignText}>Assign to {worker.email}</Text>
+                            <Text style={styles.assignText}>Assign to {worker.displayName}</Text>
                           )}
                         </Pressable>
                         {ratingLabel !== null && (
