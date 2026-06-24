@@ -139,6 +139,15 @@ export const workerReviewsSchema = z.object({
 });
 export type WorkerReviews = z.infer<typeof workerReviewsSchema>;
 
+export const workerRatingSchema = z.object({
+  workerId: z.uuid(),
+  reviewCount: z.number().int().nonnegative(),
+  averageRating: z.number(),
+});
+export type WorkerRating = z.infer<typeof workerRatingSchema>;
+
+export const workerRatingListSchema = z.array(workerRatingSchema);
+
 export const userProfileSchema = z.object({
   id: z.uuid(),
   email: z.email(),

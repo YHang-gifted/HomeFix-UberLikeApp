@@ -12,6 +12,7 @@ import type {
   ServiceRequestStatus,
   UpdateProfileInput,
   UserProfile,
+  WorkerRating,
   WorkerReviews,
   WorkerSummary,
 } from '../../../shared/schemas.ts';
@@ -24,6 +25,7 @@ import {
   serviceRequestPageSchema,
   serviceRequestSchema,
   userProfileSchema,
+  workerRatingListSchema,
   workerReviewsSchema,
   workerSummaryListSchema,
   workerSummarySchema,
@@ -175,6 +177,11 @@ export class ApiClient {
   public async getWorkerReviews(workerId: string): Promise<WorkerReviews> {
     const data = await this.send('GET', `/workers/${workerId}/reviews`, undefined, true);
     return workerReviewsSchema.parse(data);
+  }
+
+  public async listWorkerRatings(): Promise<WorkerRating[]> {
+    const data = await this.send('GET', '/worker-ratings', undefined, true);
+    return workerRatingListSchema.parse(data);
   }
 
   public async listNotifications(): Promise<NotificationList> {

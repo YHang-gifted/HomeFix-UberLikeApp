@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { createReviewInputSchema } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
-import { createReview, getWorkerReviews } from '../services/reviewService.ts';
+import { createReview, getWorkerReviews, listWorkerRatings } from '../services/reviewService.ts';
 
 const idSchema = z.uuid();
 
@@ -54,6 +54,24 @@ export async function getReviewsForWorker(
   try {
     const reviews = await getWorkerReviews(idResult.data);
     res.status(200).json(reviews);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getWorkerRatings(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = req.principal;
+  if (!principal) {
+    next(new AppError('Authentication required', 401));
+    return;
+  }
+
+  try {
+    res.status(200).json(await listWorkerRatings());
   } catch (error) {
     next(error);
   }
