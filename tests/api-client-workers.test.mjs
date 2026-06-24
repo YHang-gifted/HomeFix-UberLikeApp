@@ -60,4 +60,12 @@ describe('ApiClient workers + assignment (against in-process server)', () => {
     assert.equal(assigned.status, 'matched');
     assert.equal(assigned.workerId, WORKER_ID);
   });
+
+  it('fetches a single worker by id', async () => {
+    const admin = new ApiClient(baseUrl);
+    await admin.login('admin@homefix.test', 'admin-pass');
+    const worker = await admin.getWorker(WORKER_ID);
+    assert.equal(worker.id, WORKER_ID);
+    assert.equal(worker.email, 'worker@homefix.test');
+  });
 });
