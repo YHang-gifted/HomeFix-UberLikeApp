@@ -51,4 +51,17 @@ export const migrations: Migration[] = [
       )
     `,
   },
+  {
+    id: '0004_notifications',
+    sql: `
+      CREATE TABLE IF NOT EXISTS notifications (
+        id uuid PRIMARY KEY,
+        user_id uuid NOT NULL,
+        message text NOT NULL,
+        request_id uuid,
+        read boolean NOT NULL,
+        created_at timestamptz NOT NULL
+      )
+    `,
+  },
 ];

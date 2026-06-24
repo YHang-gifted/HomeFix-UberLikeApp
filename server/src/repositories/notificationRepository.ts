@@ -1,4 +1,8 @@
+import process from 'node:process';
+
 import type { Notification } from '../../../shared/schemas.ts';
+import { createPoolQueryable } from '../config/db.ts';
+import { PostgresNotificationRepository } from './postgresNotificationRepository.ts';
 
 export interface NotificationRepository {
   save(notification: Notification): Promise<void>;
@@ -37,4 +41,15 @@ export class InMemoryNotificationRepository implements NotificationRepository {
   }
 }
 
-export const notificationRepository: NotificationRepository = new InMemoryNotificationRepository();
+export function selectNotificationRepository(
+  databaseUrl: string | undefined,
+): NotificationRepository {
+  if (databaseUrl !== undefined && databaseUrl !== '') {
+    return new PostgresNotificationRepository(createPoolQueryable(databaseUrl));
+  }
+  return new InMemoryNotificationRepository();
+}
+
+export const notificationRepository: NotificationRepository = selectNotificationRepository(
+  process.env['DATABASE_URL'],
+);
