@@ -6,6 +6,7 @@ import { errorHandler, notFoundHandler } from './middlewares/errorHandler.ts';
 import { auditRouter } from './routes/audit.ts';
 import { authRouter } from './routes/auth.ts';
 import { healthRouter } from './routes/health.ts';
+import { profileRouter } from './routes/profile.ts';
 import { reviewRouter } from './routes/review.ts';
 import { serviceRequestRouter } from './routes/serviceRequest.ts';
 import { workerRouter } from './routes/worker.ts';
@@ -16,6 +17,7 @@ export function createApp(): Express {
   app.use(express.json());
   app.use(healthRouter);
   app.use(authRouter);
+  app.use(profileRouter);
   app.use(serviceRequestRouter);
   app.use(workerRouter);
   app.use(reviewRouter);
