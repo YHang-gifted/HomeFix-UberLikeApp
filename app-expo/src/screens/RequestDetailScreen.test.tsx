@@ -76,18 +76,22 @@ describe('RequestDetailScreen', () => {
     expect(queryByLabelText('Cancel request')).toBeNull();
   });
 
-  it('shows the requested timestamp label and the assigned worker email', async () => {
+  it('shows the requested timestamp label and the assigned worker name', async () => {
     const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
     const client = clientWith({
       getServiceRequest: jest.fn().mockResolvedValue(request),
-      getWorker: jest.fn().mockResolvedValue({ id: WORKER_ID, email: 'worker@homefix.test' }),
+      getWorker: jest.fn().mockResolvedValue({
+        id: WORKER_ID,
+        email: 'worker@homefix.test',
+        displayName: 'Demo Worker',
+      }),
     });
 
     const { findByText } = await render(
       <RequestDetailScreen requestId={request.id} client={client} />,
     );
     await findByText('Requested');
-    await findByText('worker@homefix.test');
+    await findByText('Demo Worker');
   });
 
   it('submits a review for a completed request', async () => {

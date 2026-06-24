@@ -10,7 +10,9 @@ import type {
 import { AdminRequestsScreen } from './AdminRequestsScreen';
 
 const WORKER_ID = '423e4567-e89b-12d3-a456-426614174000';
-const WORKERS: WorkerSummary[] = [{ id: WORKER_ID, email: 'worker@homefix.test' }];
+const WORKERS: WorkerSummary[] = [
+  { id: WORKER_ID, email: 'worker@homefix.test', displayName: 'Demo Worker' },
+];
 
 function makeRequest(overrides: Partial<ServiceRequest> = {}): ServiceRequest {
   return {
@@ -50,7 +52,7 @@ describe('AdminRequestsScreen', () => {
     const { findByText, getByLabelText } = await render(<AdminRequestsScreen client={client} />);
 
     await findByText('Leaking kitchen sink');
-    getByLabelText('Assign to worker@homefix.test');
+    getByLabelText('Assign to Demo Worker');
   });
 
   it('assigns a worker when the action is pressed', async () => {
@@ -66,7 +68,7 @@ describe('AdminRequestsScreen', () => {
 
     const { findByText, getByLabelText } = await render(<AdminRequestsScreen client={client} />);
     await findByText('Leaking kitchen sink');
-    await fireEvent.press(getByLabelText('Assign to worker@homefix.test'));
+    await fireEvent.press(getByLabelText('Assign to Demo Worker'));
 
     await waitFor(() => {
       expect(assignWorker).toHaveBeenCalledWith(request.id, WORKER_ID);
@@ -81,7 +83,7 @@ describe('AdminRequestsScreen', () => {
 
     const { findByText, queryByLabelText } = await render(<AdminRequestsScreen client={client} />);
     await findByText('Leaking kitchen sink');
-    expect(queryByLabelText('Assign to worker@homefix.test')).toBeNull();
+    expect(queryByLabelText('Assign to Demo Worker')).toBeNull();
   });
 
   it('shows the worker rating next to the assign action', async () => {
