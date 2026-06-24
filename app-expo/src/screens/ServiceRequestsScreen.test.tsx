@@ -78,7 +78,12 @@ describe('ServiceRequestsScreen', () => {
     await fireEvent.press(getByLabelText('Filter pending'));
 
     await waitFor(() => {
-      expect(listServiceRequests).toHaveBeenCalledWith({ status: 'pending', q: undefined });
+      expect(listServiceRequests).toHaveBeenCalledWith({
+        status: 'pending',
+        q: undefined,
+        limit: 20,
+        offset: 0,
+      });
     });
   });
 
@@ -106,7 +111,45 @@ describe('ServiceRequestsScreen', () => {
     await fireEvent.changeText(getByLabelText('Search description'), 'sink');
 
     await waitFor(() => {
-      expect(listServiceRequests).toHaveBeenCalledWith({ status: undefined, q: 'sink' });
+      expect(listServiceRequests).toHaveBeenCalledWith({
+        status: undefined,
+        q: 'sink',
+        limit: 20,
+        offset: 0,
+      });
+    });
+  });
+
+  it('loads the next page when "Load more" is pressed', async () => {
+    const first = makeRequest({
+      id: '123e4567-e89b-12d3-a456-426614174001',
+      description: 'First job',
+    });
+    const second = makeRequest({
+      id: '123e4567-e89b-12d3-a456-426614174002',
+      description: 'Second job',
+    });
+    const listServiceRequests = jest
+      .fn()
+      .mockResolvedValueOnce({ items: [first], total: 2, limit: 20, offset: 0 })
+      .mockResolvedValueOnce({ items: [second], total: 2, limit: 20, offset: 1 });
+    const client = { listServiceRequests } as unknown as ApiClient;
+
+    const { findByText, getByLabelText, queryByLabelText } = await render(
+      <ServiceRequestsScreen client={client} />,
+    );
+    await findByText('First job');
+    await fireEvent.press(getByLabelText('Load more'));
+
+    await findByText('Second job');
+    expect(listServiceRequests).toHaveBeenNthCalledWith(2, {
+      status: undefined,
+      q: undefined,
+      limit: 20,
+      offset: 1,
+    });
+    await waitFor(() => {
+      expect(queryByLabelText('Load more')).toBeNull();
     });
   });
 });

@@ -8,6 +8,8 @@ import { SearchBox } from '../components/SearchBox';
 import { StatusFilter } from '../components/StatusFilter';
 import { apiClient } from '../api';
 
+const PAGE_SIZE = 20;
+
 export interface ServiceRequestsScreenProps {
   /** Optional client override (used by tests). Defaults to the app singleton. */
   client?: ApiClient;
@@ -37,11 +39,13 @@ export function ServiceRequestsScreen({
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
   const [items, setItems] = useState<ServiceRequest[] | null>(null);
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<ServiceRequestStatus | null>(null);
   const [q, setQ] = useState('');
   const [reload, setReload] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -51,9 +55,12 @@ export function ServiceRequestsScreen({
         const page = await activeClient.listServiceRequests({
           status: status ?? undefined,
           q: q.trim() === '' ? undefined : q.trim(),
+          limit: PAGE_SIZE,
+          offset: 0,
         });
         if (active) {
           setItems(page.items);
+          setTotal(page.total);
           setError(null);
         }
       } catch {
@@ -77,6 +84,27 @@ export function ServiceRequestsScreen({
     setRefreshing(true);
     setReload((current) => current + 1);
   }, []);
+
+  const loadMore = useCallback(async (): Promise<void> => {
+    if (items === null || items.length >= total || loadingMore) {
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      const page = await activeClient.listServiceRequests({
+        status: status ?? undefined,
+        q: q.trim() === '' ? undefined : q.trim(),
+        limit: PAGE_SIZE,
+        offset: items.length,
+      });
+      setItems((current) => [...(current ?? []), ...page.items]);
+      setTotal(page.total);
+    } catch {
+      // Keep the current page on failure; the user can retry.
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [activeClient, items, total, loadingMore, status, q]);
 
   return (
     <View style={styles.root}>
@@ -163,6 +191,25 @@ export function ServiceRequestsScreen({
               <Text style={styles.description}>{item.description}</Text>
             </Pressable>
           )}
+          ListFooterComponent={
+            items.length < total ? (
+              <Pressable
+                style={({ pressed }) => [styles.loadMore, pressed && styles.loadMorePressed]}
+                onPress={() => {
+                  void loadMore();
+                }}
+                disabled={loadingMore}
+                accessibilityRole="button"
+                accessibilityLabel="Load more"
+              >
+                {loadingMore ? (
+                  <ActivityIndicator />
+                ) : (
+                  <Text style={styles.loadMoreText}>Load more</Text>
+                )}
+              </Pressable>
+            ) : null
+          }
         />
       )}
     </View>
@@ -170,6 +217,9 @@ export function ServiceRequestsScreen({
 }
 
 const styles = StyleSheet.create({
+  loadMore: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', minHeight: 48 },
+  loadMorePressed: { opacity: 0.6 },
+  loadMoreText: { color: '#2563eb', fontSize: 15, fontWeight: '600' },
   root: { flex: 1, backgroundColor: '#ffffff' },
   header: {
     flexDirection: 'row',
