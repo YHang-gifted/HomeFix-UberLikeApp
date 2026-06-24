@@ -84,6 +84,7 @@ describe('RequestDetailScreen', () => {
         id: WORKER_ID,
         email: 'worker@homefix.test',
         displayName: 'Demo Worker',
+        phone: '+1 555 444 5555',
       }),
     });
 
@@ -92,6 +93,7 @@ describe('RequestDetailScreen', () => {
     );
     await findByText('Requested');
     await findByText('Demo Worker');
+    await findByText('+1 555 444 5555');
   });
 
   it('shows the ordering customer name to a non-owner (worker/admin)', async () => {
@@ -104,6 +106,7 @@ describe('RequestDetailScreen', () => {
           id: CUSTOMER_ID,
           displayName: 'Demo Customer',
           role: 'customer',
+          phone: '+1 555 222 3333',
         }),
       },
       worker,
@@ -114,6 +117,7 @@ describe('RequestDetailScreen', () => {
     );
     await findByText('Customer');
     await findByText('Demo Customer');
+    await findByText('+1 555 222 3333');
   });
 
   it('submits a review for a completed request', async () => {
