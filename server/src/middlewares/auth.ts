@@ -23,3 +23,17 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
   req.principal = principal;
   next();
 }
+
+/**
+ * Returns the authenticated principal, or calls `next` with a 401 and returns
+ * undefined. Lets handlers behind `authenticate` satisfy the optional
+ * `req.principal` type without repeating the guard.
+ */
+export function requirePrincipal(req: Request, next: NextFunction): Principal | undefined {
+  const principal = req.principal;
+  if (!principal) {
+    next(new AppError('Authentication required', 401));
+    return undefined;
+  }
+  return principal;
+}

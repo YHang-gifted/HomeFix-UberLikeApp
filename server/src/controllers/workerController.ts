@@ -2,14 +2,14 @@ import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 
 import { AppError } from '../errors/appError.ts';
+import { requirePrincipal } from '../middlewares/auth.ts';
 import { getWorkerById, listWorkers } from '../services/workerService.ts';
 
 const idSchema = z.uuid();
 
 export async function getWorkers(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
 
@@ -21,9 +21,8 @@ export async function getWorkers(req: Request, res: Response, next: NextFunction
 }
 
 export async function getWorker(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
 

@@ -30,7 +30,7 @@ const allowedTransitions: Record<ServiceRequestStatus, ServiceRequestStatus[]> =
 };
 
 /** True if the principal is a party to the request: admin, owning customer, or assigned worker. */
-function isRequestParty(request: ServiceRequest, principal: Principal): boolean {
+export function isRequestParty(request: ServiceRequest, principal: Principal): boolean {
   if (principal.role === 'admin') {
     return true;
   }

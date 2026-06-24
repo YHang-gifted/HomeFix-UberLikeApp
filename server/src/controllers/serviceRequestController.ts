@@ -3,9 +3,11 @@ import { z } from 'zod';
 
 import {
   createServiceRequestInputSchema,
+  paginationQuerySchema,
   serviceRequestStatusSchema,
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
+import { requirePrincipal } from '../middlewares/auth.ts';
 import {
   assignWorker,
   createServiceRequest,
@@ -18,9 +20,7 @@ import {
 const idParamSchema = z.uuid();
 const statusBodySchema = z.object({ status: serviceRequestStatusSchema });
 const assignBodySchema = z.object({ workerId: z.uuid() });
-const listQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  offset: z.coerce.number().int().min(0).default(0),
+const listQuerySchema = paginationQuerySchema.extend({
   status: serviceRequestStatusSchema.optional(),
   q: z.string().trim().max(100).optional(),
 });
@@ -30,9 +30,8 @@ export async function postServiceRequest(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
 
@@ -56,9 +55,8 @@ export async function getServiceRequests(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
 
@@ -88,9 +86,8 @@ export async function getServiceRequest(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
 
@@ -113,9 +110,8 @@ export async function getServiceRequestContacts(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
 
@@ -137,9 +133,8 @@ export async function patchServiceRequestAssignment(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
 
@@ -169,9 +164,8 @@ export async function patchServiceRequestStatus(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
 

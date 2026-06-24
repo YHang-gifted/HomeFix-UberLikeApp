@@ -3,14 +3,14 @@ import { z } from 'zod';
 
 import { createReviewInputSchema } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
+import { requirePrincipal } from '../middlewares/auth.ts';
 import { createReview, getWorkerReviews, listWorkerRatings } from '../services/reviewService.ts';
 
 const idSchema = z.uuid();
 
 export async function postReview(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
 
@@ -39,9 +39,8 @@ export async function getReviewsForWorker(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
 
@@ -64,9 +63,8 @@ export async function getWorkerRatings(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
 

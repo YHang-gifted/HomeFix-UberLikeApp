@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 
 import { AppError } from '../errors/appError.ts';
+import { requirePrincipal } from '../middlewares/auth.ts';
 import {
   listNotifications,
   markAllNotificationsRead,
@@ -15,9 +16,8 @@ export async function getNotifications(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
   try {
@@ -32,9 +32,8 @@ export async function patchNotificationRead(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
   const idResult = idSchema.safeParse(req.params['id']);
@@ -54,9 +53,8 @@ export async function patchNotificationsReadAll(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const principal = req.principal;
+  const principal = requirePrincipal(req, next);
   if (!principal) {
-    next(new AppError('Authentication required', 401));
     return;
   }
   try {
