@@ -8,6 +8,7 @@ import type {
   WorkerReviews,
   WorkerSummary,
 } from '../../../shared/schemas';
+import { SearchBox } from '../components/SearchBox';
 import { StatusFilter } from '../components/StatusFilter';
 import { apiClient } from '../api';
 
@@ -40,6 +41,7 @@ export function AdminRequestsScreen({
   const [workers, setWorkers] = useState<WorkerSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<ServiceRequestStatus | null>(null);
+  const [q, setQ] = useState('');
   const [reload, setReload] = useState(0);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [ratings, setRatings] = useState<Record<string, WorkerReviews>>({});
@@ -50,7 +52,10 @@ export function AdminRequestsScreen({
     async function load(): Promise<void> {
       try {
         const [page, workerList] = await Promise.all([
-          activeClient.listServiceRequests(status !== null ? { status } : undefined),
+          activeClient.listServiceRequests({
+            status: status ?? undefined,
+            q: q.trim() === '' ? undefined : q.trim(),
+          }),
           activeClient.listWorkers(),
         ]);
         if (active) {
@@ -86,7 +91,7 @@ export function AdminRequestsScreen({
     return () => {
       active = false;
     };
-  }, [activeClient, refreshToken, reload, status]);
+  }, [activeClient, refreshToken, reload, status, q]);
 
   const assign = useCallback(
     async (request: ServiceRequest, workerId: string): Promise<void> => {
@@ -139,6 +144,7 @@ export function AdminRequestsScreen({
       </View>
 
       <StatusFilter value={status} onChange={setStatus} />
+      <SearchBox value={q} onChange={setQ} />
 
       {error !== null && (
         <View style={styles.centered}>

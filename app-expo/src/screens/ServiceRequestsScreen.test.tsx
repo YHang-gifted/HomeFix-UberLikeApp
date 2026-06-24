@@ -78,7 +78,20 @@ describe('ServiceRequestsScreen', () => {
     await fireEvent.press(getByLabelText('Filter pending'));
 
     await waitFor(() => {
-      expect(listServiceRequests).toHaveBeenCalledWith({ status: 'pending' });
+      expect(listServiceRequests).toHaveBeenCalledWith({ status: 'pending', q: undefined });
+    });
+  });
+
+  it('refetches with a description keyword when the user types in the search box', async () => {
+    const listServiceRequests = jest.fn().mockResolvedValue(makePage([makeRequest()]));
+    const client = { listServiceRequests } as unknown as ApiClient;
+
+    const { findByText, getByLabelText } = await render(<ServiceRequestsScreen client={client} />);
+    await findByText('Leaking kitchen sink');
+    await fireEvent.changeText(getByLabelText('Search description'), 'sink');
+
+    await waitFor(() => {
+      expect(listServiceRequests).toHaveBeenCalledWith({ status: undefined, q: 'sink' });
     });
   });
 });

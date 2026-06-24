@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import type { ServiceRequest, ServiceRequestStatus } from '../../../shared/schemas';
 import { AlertsButton } from '../components/AlertsButton';
+import { SearchBox } from '../components/SearchBox';
 import { StatusFilter } from '../components/StatusFilter';
 import { apiClient } from '../api';
 
@@ -38,15 +39,17 @@ export function ServiceRequestsScreen({
   const [items, setItems] = useState<ServiceRequest[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<ServiceRequestStatus | null>(null);
+  const [q, setQ] = useState('');
 
   useEffect(() => {
     let active = true;
 
     async function load(): Promise<void> {
       try {
-        const page = await activeClient.listServiceRequests(
-          status !== null ? { status } : undefined,
-        );
+        const page = await activeClient.listServiceRequests({
+          status: status ?? undefined,
+          q: q.trim() === '' ? undefined : q.trim(),
+        });
         if (active) {
           setItems(page.items);
           setError(null);
@@ -62,7 +65,7 @@ export function ServiceRequestsScreen({
     return () => {
       active = false;
     };
-  }, [activeClient, refreshToken, status]);
+  }, [activeClient, refreshToken, status, q]);
 
   return (
     <View style={styles.root}>
@@ -105,6 +108,7 @@ export function ServiceRequestsScreen({
       </View>
 
       <StatusFilter value={status} onChange={setStatus} />
+      <SearchBox value={q} onChange={setQ} />
 
       {error !== null && (
         <View style={styles.centered}>
