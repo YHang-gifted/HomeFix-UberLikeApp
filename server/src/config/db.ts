@@ -1,6 +1,6 @@
 import pg from 'pg';
 
-import type { Queryable } from '../repositories/postgresServiceRequestRepository.ts';
+import type { Queryable } from '../db/queryable.ts';
 
 export function createPoolQueryable(connectionString: string): Queryable {
   const pool = new pg.Pool({ connectionString });

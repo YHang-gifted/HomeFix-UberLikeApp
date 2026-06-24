@@ -1,7 +1,7 @@
 import type { Review } from '../../../shared/schemas.ts';
 import { reviewSchema } from '../../../shared/schemas.ts';
 import type { ReviewRepository } from './reviewRepository.ts';
-import type { Queryable } from './postgresServiceRequestRepository.ts';
+import type { Queryable } from '../db/queryable.ts';
 
 const INSERT = `
   INSERT INTO reviews

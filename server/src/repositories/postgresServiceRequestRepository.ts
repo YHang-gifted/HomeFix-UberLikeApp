@@ -1,10 +1,7 @@
 import type { ServiceRequest } from '../../../shared/schemas.ts';
 import { serviceRequestSchema } from '../../../shared/schemas.ts';
 import type { ServiceRequestRepository } from './serviceRequestRepository.ts';
-
-export interface Queryable {
-  query(text: string, params?: unknown[]): Promise<{ rows: unknown[] }>;
-}
+import type { Queryable } from '../db/queryable.ts';
 
 const UPSERT = `
   INSERT INTO service_requests

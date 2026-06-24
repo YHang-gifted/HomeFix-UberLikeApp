@@ -1,7 +1,7 @@
 import type { AuditEvent } from '../../../shared/schemas.ts';
 import { auditEventSchema } from '../../../shared/schemas.ts';
 import type { AuditRepository } from './auditRepository.ts';
-import type { Queryable } from './postgresServiceRequestRepository.ts';
+import type { Queryable } from '../db/queryable.ts';
 
 const INSERT = `
   INSERT INTO audit_events

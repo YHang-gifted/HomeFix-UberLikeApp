@@ -1,7 +1,7 @@
 import process from 'node:process';
 
 import { createPoolQueryable } from '../config/db.ts';
-import type { Queryable } from '../repositories/postgresServiceRequestRepository.ts';
+import type { Queryable } from './queryable.ts';
 import type { Migration } from './migrations.ts';
 import { migrations as defaultMigrations } from './migrations.ts';
 
