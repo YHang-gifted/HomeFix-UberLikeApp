@@ -26,3 +26,7 @@ export function findUserByEmail(email: string): UserRecord | undefined {
 export function listUsersByRole(role: Role): UserRecord[] {
   return [...users.values()].filter((user) => user.role === role);
 }
+
+export function findUserById(id: string): UserRecord | undefined {
+  return [...users.values()].find((user) => user.id === id);
+}

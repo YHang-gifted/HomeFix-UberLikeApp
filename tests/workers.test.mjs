@@ -49,6 +49,31 @@ describe('GET /workers', () => {
     assert.equal(res.status, 403);
   });
 
+  it('returns a single worker by id to any authenticated user (200)', async () => {
+    const res = await fetch(`${baseUrl}/workers/${WORKER_ID}`, {
+      headers: authHeader(CUSTOMER_ID, 'customer'),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.id, WORKER_ID);
+    assert.equal(typeof body.email, 'string');
+    assert.equal(body.passwordHash, undefined);
+  });
+
+  it('returns 404 for an unknown worker id', async () => {
+    const res = await fetch(`${baseUrl}/workers/999e4567-e89b-12d3-a456-426614174000`, {
+      headers: authHeader(CUSTOMER_ID, 'customer'),
+    });
+    assert.equal(res.status, 404);
+  });
+
+  it('returns 404 for a non-worker id', async () => {
+    const res = await fetch(`${baseUrl}/workers/${ADMIN_ID}`, {
+      headers: authHeader(CUSTOMER_ID, 'customer'),
+    });
+    assert.equal(res.status, 404);
+  });
+
   it('returns 401 without authentication', async () => {
     const res = await fetch(`${baseUrl}/workers`);
     assert.equal(res.status, 401);

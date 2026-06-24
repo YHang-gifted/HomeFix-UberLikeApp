@@ -17,6 +17,7 @@ import {
   serviceRequestSchema,
   workerReviewsSchema,
   workerSummaryListSchema,
+  workerSummarySchema,
 } from '../../../shared/schemas.ts';
 import { getPrincipalFromToken } from '../auth/token.ts';
 
@@ -122,6 +123,11 @@ export class ApiClient {
   public async listWorkers(): Promise<WorkerSummary[]> {
     const data = await this.send('GET', '/workers', undefined, true);
     return workerSummaryListSchema.parse(data);
+  }
+
+  public async getWorker(id: string): Promise<WorkerSummary> {
+    const data = await this.send('GET', `/workers/${id}`, undefined, true);
+    return workerSummarySchema.parse(data);
   }
 
   public async assignWorker(id: string, workerId: string): Promise<ServiceRequest> {
