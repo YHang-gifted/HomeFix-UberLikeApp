@@ -108,7 +108,58 @@ describe('RequestDetailScreen', () => {
     await waitFor(() => {
       expect(onCancelled).toHaveBeenCalledTimes(1);
     });
-    expect(updateServiceRequestStatus).toHaveBeenCalledWith(request.id, 'cancelled');
+    expect(updateServiceRequestStatus).toHaveBeenCalledWith(request.id, 'cancelled', undefined);
+  });
+
+  it('passes a cancellation reason when one is entered', async () => {
+    const request = makeRequest({ status: 'pending' });
+    const updateServiceRequestStatus = jest
+      .fn()
+      .mockResolvedValue({ ...request, status: 'cancelled' });
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      updateServiceRequestStatus,
+    });
+
+    const { findByText, getByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+    await findByText('Leaking kitchen sink');
+    await fireEvent.changeText(getByLabelText('Cancellation reason'), '  Booked someone else  ');
+    await fireEvent.press(getByLabelText('Cancel request'));
+
+    await waitFor(() => {
+      expect(updateServiceRequestStatus).toHaveBeenCalledWith(
+        request.id,
+        'cancelled',
+        'Booked someone else',
+      );
+    });
+  });
+
+  it('appends the cancellation reason to the timeline label', async () => {
+    const request = makeRequest({ status: 'cancelled' });
+    const history = [
+      {
+        id: '623e4567-e89b-12d3-a456-426614174003',
+        occurredAt: '2026-06-22T02:00:00.000Z',
+        actorId: CUSTOMER_ID,
+        actorRole: 'customer',
+        action: 'service_request.status_changed',
+        resourceId: request.id,
+        details: { from: 'pending', to: 'cancelled', reason: 'Booked someone else' },
+      },
+    ];
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      getRequestHistory: jest.fn().mockResolvedValue(history),
+    });
+
+    const { findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    await findByText('Status changed to cancelled — Booked someone else');
   });
 
   it('hides cancel for a completed request', async () => {

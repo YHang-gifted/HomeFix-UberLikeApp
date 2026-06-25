@@ -26,7 +26,9 @@ function historyLabel(event: AuditEvent): string {
     return 'Worker assigned';
   }
   const to = event.details?.['to'];
-  return to !== undefined ? `Status changed to ${to}` : 'Status changed';
+  const reason = event.details?.['reason'];
+  const base = to !== undefined ? `Status changed to ${to}` : 'Status changed';
+  return reason !== undefined ? `${base} — ${reason}` : base;
 }
 
 export interface RequestDetailScreenProps {
@@ -49,6 +51,7 @@ export function RequestDetailScreen({
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   const [rating, setRating] = useState<number | null>(null);
   const [comment, setComment] = useState('');
@@ -122,8 +125,13 @@ export function RequestDetailScreen({
 
   async function cancel(): Promise<void> {
     setCancelling(true);
+    const trimmedReason = cancelReason.trim();
     try {
-      await activeClient.updateServiceRequestStatus(requestId, 'cancelled');
+      await activeClient.updateServiceRequestStatus(
+        requestId,
+        'cancelled',
+        trimmedReason.length > 0 ? trimmedReason : undefined,
+      );
       onCancelled?.();
     } catch {
       setError('Could not cancel the request. Please try again.');
@@ -244,21 +252,36 @@ export function RequestDetailScreen({
       )}
 
       {isOwner && customerCanCancel(request.status) && (
-        <Pressable
-          style={({ pressed }) => [styles.cancel, (pressed || cancelling) && styles.cancelPressed]}
-          onPress={() => {
-            void cancel();
-          }}
-          disabled={cancelling}
-          accessibilityRole="button"
-          accessibilityLabel="Cancel request"
-        >
-          {cancelling ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text style={styles.cancelText}>Cancel request</Text>
-          )}
-        </Pressable>
+        <>
+          <Text style={styles.label}>Cancellation reason</Text>
+          <TextInput
+            style={styles.reasonInput}
+            value={cancelReason}
+            onChangeText={setCancelReason}
+            placeholder="Why are you cancelling? (optional)"
+            accessibilityLabel="Cancellation reason"
+            editable={!cancelling}
+            multiline
+          />
+          <Pressable
+            style={({ pressed }) => [
+              styles.cancel,
+              (pressed || cancelling) && styles.cancelPressed,
+            ]}
+            onPress={() => {
+              void cancel();
+            }}
+            disabled={cancelling}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel request"
+          >
+            {cancelling ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.cancelText}>Cancel request</Text>
+            )}
+          </Pressable>
+        </>
       )}
 
       {isOwner && request.status === 'completed' && (
@@ -343,8 +366,20 @@ const styles = StyleSheet.create({
   },
   historyText: { fontSize: 14, color: '#0f172a' },
   historyTime: { fontSize: 12, color: '#94a3b8' },
+  reasonInput: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: '#0f172a',
+    marginTop: 4,
+    minHeight: 64,
+    textAlignVertical: 'top',
+  },
   cancel: {
-    marginTop: 32,
+    marginTop: 16,
     backgroundColor: '#dc2626',
     borderRadius: 8,
     paddingVertical: 14,
