@@ -53,6 +53,41 @@ describe('RequestDetailScreen', () => {
     getByLabelText('Request photo');
   });
 
+  it('shows the activity timeline from the request history', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const history = [
+      {
+        id: '623e4567-e89b-12d3-a456-426614174001',
+        occurredAt: '2026-06-22T00:00:00.000Z',
+        actorId: CUSTOMER_ID,
+        actorRole: 'customer',
+        action: 'service_request.created',
+        resourceId: request.id,
+      },
+      {
+        id: '623e4567-e89b-12d3-a456-426614174002',
+        occurredAt: '2026-06-22T01:00:00.000Z',
+        actorId: WORKER_ID,
+        actorRole: 'worker',
+        action: 'service_request.status_changed',
+        resourceId: request.id,
+        details: { from: 'matched', to: 'accepted' },
+      },
+    ];
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      getRequestHistory: jest.fn().mockResolvedValue(history),
+    });
+
+    const { findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    await findByText('Activity');
+    await findByText('Request created');
+    await findByText('Status changed to accepted');
+  });
+
   it('cancels the request and calls onCancelled', async () => {
     const request = makeRequest({ status: 'pending' });
     const updateServiceRequestStatus = jest

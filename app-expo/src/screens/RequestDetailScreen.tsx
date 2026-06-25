@@ -13,10 +13,21 @@ import {
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import { isApiError } from '../../../app/src/services/apiClient';
 import { customerCanCancel } from '../../../app/src/features/serviceRequests/customerStatus';
-import type { ServiceRequest } from '../../../shared/schemas';
+import type { AuditEvent, ServiceRequest } from '../../../shared/schemas';
 import { apiClient } from '../api';
 
 const RATINGS = [1, 2, 3, 4, 5];
+
+function historyLabel(event: AuditEvent): string {
+  if (event.action === 'service_request.created') {
+    return 'Request created';
+  }
+  if (event.action === 'service_request.assigned') {
+    return 'Worker assigned';
+  }
+  const to = event.details?.['to'];
+  return to !== undefined ? `Status changed to ${to}` : 'Status changed';
+}
 
 export interface RequestDetailScreenProps {
   /** The request to display. */
@@ -44,6 +55,7 @@ export function RequestDetailScreen({
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewDone, setReviewDone] = useState(false);
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
+  const [history, setHistory] = useState<AuditEvent[] | null>(null);
   const [workerName, setWorkerName] = useState<string | null>(null);
   const [workerPhone, setWorkerPhone] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState<string | null>(null);
@@ -86,6 +98,14 @@ export function RequestDetailScreen({
           }
         } catch {
           // Contacts are best-effort; ignore failures.
+        }
+        try {
+          const events = await activeClient.getRequestHistory(requestId);
+          if (active) {
+            setHistory(events);
+          }
+        } catch {
+          // History is best-effort; ignore failures.
         }
       } catch {
         if (active) {
@@ -211,6 +231,18 @@ export function RequestDetailScreen({
         </>
       )}
 
+      {history !== null && history.length > 0 && (
+        <>
+          <Text style={styles.label}>Activity</Text>
+          {history.map((event) => (
+            <View key={event.id} style={styles.historyRow}>
+              <Text style={styles.historyText}>{historyLabel(event)}</Text>
+              <Text style={styles.historyTime}>{new Date(event.occurredAt).toLocaleString()}</Text>
+            </View>
+          ))}
+        </>
+      )}
+
       {isOwner && customerCanCancel(request.status) && (
         <Pressable
           style={({ pressed }) => [styles.cancel, (pressed || cancelling) && styles.cancelPressed]}
@@ -301,6 +333,16 @@ const styles = StyleSheet.create({
   photoRow: { marginTop: 8 },
   photoRowContent: { gap: 8 },
   photo: { width: 120, height: 120, borderRadius: 8, backgroundColor: '#e2e8f0' },
+  historyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  historyText: { fontSize: 14, color: '#0f172a' },
+  historyTime: { fontSize: 12, color: '#94a3b8' },
   cancel: {
     marginTop: 32,
     backgroundColor: '#dc2626',
