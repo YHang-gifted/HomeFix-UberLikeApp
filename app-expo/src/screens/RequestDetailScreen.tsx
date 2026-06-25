@@ -1,6 +1,7 @@
 import { type ReactElement, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -165,6 +166,27 @@ export function RequestDetailScreen({
       <Text style={styles.label}>Description</Text>
       <Text style={styles.value}>{request.description}</Text>
 
+      {request.photoUrls !== undefined && request.photoUrls.length > 0 && (
+        <>
+          <Text style={styles.label}>Photos</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.photoRow}
+            contentContainerStyle={styles.photoRowContent}
+          >
+            {request.photoUrls.map((url) => (
+              <Image
+                key={url}
+                source={{ uri: url }}
+                style={styles.photo}
+                accessibilityLabel="Request photo"
+              />
+            ))}
+          </ScrollView>
+        </>
+      )}
+
       <Text style={styles.label}>Location</Text>
       <Text style={styles.value}>
         {`${request.location.latitude}, ${request.location.longitude}`}
@@ -276,6 +298,9 @@ const styles = StyleSheet.create({
   status: { fontSize: 14, color: '#2563eb', textTransform: 'capitalize' },
   label: { fontSize: 13, fontWeight: '600', color: '#64748b', marginTop: 20, marginBottom: 4 },
   value: { fontSize: 16, color: '#0f172a' },
+  photoRow: { marginTop: 8 },
+  photoRowContent: { gap: 8 },
+  photo: { width: 120, height: 120, borderRadius: 8, backgroundColor: '#e2e8f0' },
   cancel: {
     marginTop: 32,
     backgroundColor: '#dc2626',
