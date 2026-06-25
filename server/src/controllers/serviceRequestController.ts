@@ -12,6 +12,7 @@ import {
   assignWorker,
   createServiceRequest,
   getRequestContacts,
+  getRequestHistory,
   getServiceRequestForPrincipal,
   listServiceRequests,
   updateServiceRequestStatus,
@@ -123,6 +124,29 @@ export async function getServiceRequestContacts(
 
   try {
     res.status(200).json(await getRequestContacts(idResult.data, principal));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getServiceRequestHistory(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  const idResult = idParamSchema.safeParse(req.params['id']);
+  if (!idResult.success) {
+    next(new AppError('Invalid service request id', 422));
+    return;
+  }
+
+  try {
+    res.status(200).json(await getRequestHistory(idResult.data, principal));
   } catch (error) {
     next(error);
   }

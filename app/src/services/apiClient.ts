@@ -1,4 +1,5 @@
 import type {
+  AuditEvent,
   AuditPage,
   CreateReviewInput,
   CreateServiceRequestInput,
@@ -24,6 +25,7 @@ import {
   publicUserListSchema,
   publicUserSchema,
   requestContactsSchema,
+  requestHistorySchema,
   reviewSchema,
   serviceRequestPageSchema,
   serviceRequestSchema,
@@ -122,6 +124,11 @@ export class ApiClient {
   public async getRequestContacts(id: string): Promise<RequestContacts> {
     const data = await this.send('GET', `/service-requests/${id}/contacts`, undefined, true);
     return requestContactsSchema.parse(data);
+  }
+
+  public async getRequestHistory(id: string): Promise<AuditEvent[]> {
+    const data = await this.send('GET', `/service-requests/${id}/history`, undefined, true);
+    return requestHistorySchema.parse(data);
   }
 
   public async listServiceRequests(params?: {

@@ -57,6 +57,13 @@ export class PostgresAuditRepository implements AuditRepository {
     return result.rows.map(mapRow);
   }
 
+  public async findByResource(resourceId: string): Promise<AuditEvent[]> {
+    const result = await this.db.query('SELECT * FROM audit_events WHERE resource_id = $1', [
+      resourceId,
+    ]);
+    return result.rows.map(mapRow);
+  }
+
   public async clear(): Promise<void> {
     await this.db.query('DELETE FROM audit_events');
   }
