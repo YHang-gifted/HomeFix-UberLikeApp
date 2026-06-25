@@ -36,6 +36,7 @@ export function CreateRequestScreen({ client, onCreated }: CreateRequestScreenPr
   const [description, setDescription] = useState('');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
+  const [photoUrlsText, setPhotoUrlsText] = useState('');
   const [errors, setErrors] = useState<CreateRequestFieldErrors>({});
   const [banner, setBanner] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -56,6 +57,11 @@ export function CreateRequestScreen({ client, onCreated }: CreateRequestScreenPr
       return;
     }
 
+    const photoUrls = photoUrlsText
+      .split(/[\n,]/)
+      .map((url) => url.trim())
+      .filter((url) => url.length > 0);
+
     setSubmitting(true);
     try {
       const created = await activeClient.createServiceRequest({
@@ -63,6 +69,7 @@ export function CreateRequestScreen({ client, onCreated }: CreateRequestScreenPr
         category: category as ServiceCategory,
         description: description.trim(),
         location: { latitude: Number(latitude), longitude: Number(longitude) },
+        ...(photoUrls.length > 0 ? { photoUrls } : {}),
       });
       setBanner('Request created');
       onCreated?.(created);
@@ -133,6 +140,19 @@ export function CreateRequestScreen({ client, onCreated }: CreateRequestScreenPr
         editable={!submitting}
       />
       {errors.longitude !== undefined && <Text style={styles.error}>{errors.longitude}</Text>}
+
+      <Text style={styles.label}>Photo URLs</Text>
+      <TextInput
+        style={[styles.input, styles.multiline]}
+        value={photoUrlsText}
+        onChangeText={setPhotoUrlsText}
+        placeholder="One URL per line (optional, up to 5)"
+        accessibilityLabel="Photo URLs"
+        autoCapitalize="none"
+        autoCorrect={false}
+        multiline
+        editable={!submitting}
+      />
 
       <Pressable
         style={({ pressed }) => [styles.button, (pressed || submitting) && styles.buttonPressed]}

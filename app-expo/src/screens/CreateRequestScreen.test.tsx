@@ -57,4 +57,31 @@ describe('CreateRequestScreen', () => {
     });
     expect(onCreated).toHaveBeenCalledWith(created);
   });
+
+  it('includes photo URLs (one per line) when provided', async () => {
+    const created = makeRequest();
+    const createServiceRequest = jest.fn().mockResolvedValue(created);
+    const getPrincipal = jest.fn().mockReturnValue({ id: CUSTOMER_ID, role: 'customer' });
+    const client = { createServiceRequest, getPrincipal } as unknown as ApiClient;
+
+    const { getByLabelText, findByText } = await render(<CreateRequestScreen client={client} />);
+    await fireEvent.press(getByLabelText('Category plumbing'));
+    await fireEvent.changeText(getByLabelText('Description'), 'Leaking kitchen sink');
+    await fireEvent.changeText(getByLabelText('Latitude'), '25.03');
+    await fireEvent.changeText(getByLabelText('Longitude'), '121.56');
+    await fireEvent.changeText(
+      getByLabelText('Photo URLs'),
+      'https://example.com/a.jpg\nhttps://example.com/b.jpg',
+    );
+    await fireEvent.press(getByLabelText('Create request'));
+
+    await findByText('Request created');
+    expect(createServiceRequest).toHaveBeenCalledWith({
+      customerId: CUSTOMER_ID,
+      category: 'plumbing',
+      description: 'Leaking kitchen sink',
+      location: { latitude: 25.03, longitude: 121.56 },
+      photoUrls: ['https://example.com/a.jpg', 'https://example.com/b.jpg'],
+    });
+  });
 });

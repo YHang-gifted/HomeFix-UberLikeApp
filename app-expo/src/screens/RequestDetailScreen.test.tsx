@@ -41,6 +41,18 @@ describe('RequestDetailScreen', () => {
     getByLabelText('Cancel request');
   });
 
+  it('shows photos when the request has photo URLs', async () => {
+    const request = makeRequest({ photoUrls: ['https://example.com/a.jpg'] });
+    const client = clientWith({ getServiceRequest: jest.fn().mockResolvedValue(request) });
+
+    const { findByText, getByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    await findByText('Photos');
+    getByLabelText('Request photo');
+  });
+
   it('cancels the request and calls onCancelled', async () => {
     const request = makeRequest({ status: 'pending' });
     const updateServiceRequestStatus = jest
