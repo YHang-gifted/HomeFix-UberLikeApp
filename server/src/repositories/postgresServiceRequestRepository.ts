@@ -5,8 +5,8 @@ import type { Queryable } from '../db/queryable.ts';
 
 const UPSERT = `
   INSERT INTO service_requests
-    (id, customer_id, worker_id, category, description, latitude, longitude, status, created_at)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    (id, customer_id, worker_id, category, description, latitude, longitude, status, created_at, photo_urls)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
   ON CONFLICT (id) DO UPDATE SET
     customer_id = EXCLUDED.customer_id,
     worker_id = EXCLUDED.worker_id,
@@ -15,7 +15,8 @@ const UPSERT = `
     latitude = EXCLUDED.latitude,
     longitude = EXCLUDED.longitude,
     status = EXCLUDED.status,
-    created_at = EXCLUDED.created_at
+    created_at = EXCLUDED.created_at,
+    photo_urls = EXCLUDED.photo_urls
 `;
 
 interface ServiceRequestRow {
@@ -28,6 +29,7 @@ interface ServiceRequestRow {
   longitude: number;
   status: string;
   created_at: string | Date;
+  photo_urls: unknown;
 }
 
 function mapRow(row: unknown): ServiceRequest {
@@ -41,6 +43,7 @@ function mapRow(row: unknown): ServiceRequest {
     location: { latitude: r.latitude, longitude: r.longitude },
     status: r.status,
     createdAt: new Date(r.created_at).toISOString(),
+    photoUrls: Array.isArray(r.photo_urls) ? r.photo_urls : [],
   };
   return serviceRequestSchema.parse(candidate);
 }
@@ -63,6 +66,7 @@ export class PostgresServiceRequestRepository implements ServiceRequestRepositor
       request.location.longitude,
       request.status,
       request.createdAt,
+      JSON.stringify(request.photoUrls ?? []),
     ]);
   }
 
