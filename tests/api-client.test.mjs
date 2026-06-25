@@ -59,6 +59,38 @@ describe('ApiClient (against in-process server)', () => {
 
     const fetched = await client.getServiceRequest(created.id);
     assert.equal(fetched.id, created.id);
+    assert.deepEqual(fetched.photoUrls, []);
+  });
+
+  it('creates a request with photo URLs and reads them back', async () => {
+    const client = new ApiClient(baseUrl);
+    await client.login('customer@homefix.test', 'customer-pass');
+    const urls = ['https://example.com/a.jpg', 'https://example.com/b.jpg'];
+
+    const created = await client.createServiceRequest({ ...validRequest(), photoUrls: urls });
+    assert.deepEqual(created.photoUrls, urls);
+
+    const fetched = await client.getServiceRequest(created.id);
+    assert.deepEqual(fetched.photoUrls, urls);
+  });
+
+  it('rejects more than five photo URLs (422)', async () => {
+    const client = new ApiClient(baseUrl);
+    await client.login('customer@homefix.test', 'customer-pass');
+    const tooMany = Array.from({ length: 6 }, (_, i) => `https://example.com/${String(i)}.jpg`);
+    await assert.rejects(
+      () => client.createServiceRequest({ ...validRequest(), photoUrls: tooMany }),
+      (error) => error instanceof ApiError && error.status === 422,
+    );
+  });
+
+  it('rejects a malformed photo URL (422)', async () => {
+    const client = new ApiClient(baseUrl);
+    await client.login('customer@homefix.test', 'customer-pass');
+    await assert.rejects(
+      () => client.createServiceRequest({ ...validRequest(), photoUrls: ['not-a-url'] }),
+      (error) => error instanceof ApiError && error.status === 422,
+    );
   });
 
   it('lists the calling customer own service requests', async () => {

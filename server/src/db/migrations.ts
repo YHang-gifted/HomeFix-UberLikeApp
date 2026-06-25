@@ -77,4 +77,11 @@ export const migrations: Migration[] = [
       )
     `,
   },
+  {
+    id: '0006_service_request_photos',
+    sql: `
+      ALTER TABLE service_requests
+        ADD COLUMN IF NOT EXISTS photo_urls jsonb NOT NULL DEFAULT '[]'::jsonb
+    `,
+  },
 ];

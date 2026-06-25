@@ -56,6 +56,7 @@ export async function createServiceRequest(
     location: input.location,
     status: 'pending',
     createdAt: new Date().toISOString(),
+    photoUrls: input.photoUrls ?? [],
   };
   await serviceRequestRepository.save(request);
   await recordAuditEvent({

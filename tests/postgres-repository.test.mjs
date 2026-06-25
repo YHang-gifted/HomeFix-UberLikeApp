@@ -50,6 +50,14 @@ describe('PostgresServiceRequestRepository (PGlite)', () => {
     assert.equal(found?.customerId, CUSTOMER_ID);
     assert.equal(found?.status, 'pending');
     assert.equal(found?.location.latitude, 25.03);
+    assert.deepEqual(found?.photoUrls, []);
+  });
+
+  it('round-trips photo URLs through the jsonb column', async () => {
+    const urls = ['https://example.com/a.jpg', 'https://example.com/b.jpg'];
+    await repo.save(makeRequest({ photoUrls: urls }));
+    const found = await repo.findById(REQUEST_ID);
+    assert.deepEqual(found?.photoUrls, urls);
   });
 
   it('returns undefined for a missing id', async () => {

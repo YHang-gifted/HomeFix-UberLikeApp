@@ -42,6 +42,7 @@ export const createServiceRequestInputSchema = z.object({
   category: serviceCategorySchema,
   description: z.string().min(1).max(2000),
   location: coordinatesSchema,
+  photoUrls: z.array(z.url()).max(5).optional(),
 });
 export type CreateServiceRequestInput = z.infer<typeof createServiceRequestInputSchema>;
 
@@ -54,6 +55,7 @@ export const serviceRequestSchema = z.object({
   location: coordinatesSchema,
   status: serviceRequestStatusSchema,
   createdAt: z.iso.datetime(),
+  photoUrls: z.array(z.url()).max(5).optional(),
 });
 export type ServiceRequest = z.infer<typeof serviceRequestSchema>;
 
