@@ -7,6 +7,7 @@ import { AlertsButton } from '../components/AlertsButton';
 import { LoadMoreFooter } from '../components/LoadMoreFooter';
 import { SearchBox } from '../components/SearchBox';
 import { StatusFilter } from '../components/StatusFilter';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useServiceRequestPage } from '../hooks/useServiceRequestPage';
 import { apiClient } from '../api';
 
@@ -39,8 +40,9 @@ export function ServiceRequestsScreen({
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
   const [status, setStatus] = useState<ServiceRequestStatus | null>(null);
-  const [q, setQ] = useState('');
+  const [searchText, setSearchText] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const q = useDebouncedValue(searchText, 300);
 
   const onSettled = useCallback(() => {
     setRefreshing(false);
@@ -102,7 +104,7 @@ export function ServiceRequestsScreen({
       </View>
 
       <StatusFilter value={status} onChange={setStatus} />
-      <SearchBox value={q} onChange={setQ} />
+      <SearchBox value={searchText} onChange={setSearchText} />
 
       {page.error !== null && (
         <View style={styles.centered}>

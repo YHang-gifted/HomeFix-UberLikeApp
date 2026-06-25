@@ -12,6 +12,7 @@ import { LoadMoreFooter } from '../components/LoadMoreFooter';
 import { SearchBox } from '../components/SearchBox';
 import { StatusFilter } from '../components/StatusFilter';
 import { useCustomerNames } from '../hooks/useCustomerNames';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useServiceRequestPage } from '../hooks/useServiceRequestPage';
 import { apiClient } from '../api';
 
@@ -48,7 +49,8 @@ export function WorkerJobsScreen({
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
   const [status, setStatus] = useState<ServiceRequestStatus | null>(null);
-  const [q, setQ] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const q = useDebouncedValue(searchText, 300);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -155,7 +157,7 @@ export function WorkerJobsScreen({
       </View>
 
       <StatusFilter value={status} onChange={setStatus} />
-      <SearchBox value={q} onChange={setQ} />
+      <SearchBox value={searchText} onChange={setSearchText} />
 
       {displayError !== null && (
         <View style={styles.centered}>
