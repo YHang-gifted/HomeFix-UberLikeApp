@@ -237,9 +237,7 @@ export function RequestDetailScreen({
           {history.map((event) => (
             <View key={event.id} style={styles.historyRow}>
               <Text style={styles.historyText}>{historyLabel(event)}</Text>
-              <Text style={styles.historyTime}>
-                {new Date(event.occurredAt).toLocaleString()}
-              </Text>
+              <Text style={styles.historyTime}>{new Date(event.occurredAt).toLocaleString()}</Text>
             </View>
           ))}
         </>
