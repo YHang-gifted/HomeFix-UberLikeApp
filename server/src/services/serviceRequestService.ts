@@ -150,6 +150,7 @@ export async function updateServiceRequestStatus(
   id: string,
   nextStatus: ServiceRequestStatus,
   principal: Principal,
+  reason?: string,
 ): Promise<ServiceRequest> {
   const request = await serviceRequestRepository.findById(id);
   if (!request) {
@@ -181,7 +182,11 @@ export async function updateServiceRequestStatus(
     actor: principal,
     action: 'service_request.status_changed',
     resourceId: id,
-    details: { from: request.status, to: nextStatus },
+    details: {
+      from: request.status,
+      to: nextStatus,
+      ...(reason !== undefined ? { reason } : {}),
+    },
   });
   await recordNotification({
     userId: request.customerId,
