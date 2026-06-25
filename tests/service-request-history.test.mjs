@@ -120,4 +120,32 @@ describe('GET /service-requests/:id/history', () => {
     const res = await fetch(`${baseUrl}/service-requests/${created.id}/history`);
     assert.equal(res.status, 401);
   });
+
+  it('records a cancellation reason in the status-change history', async () => {
+    const created = await (
+      await fetch(`${baseUrl}/service-requests`, {
+        method: 'POST',
+        headers: headers(CUSTOMER_ID, 'customer'),
+        body: JSON.stringify({
+          customerId: CUSTOMER_ID,
+          category: 'plumbing',
+          description: 'Leaking kitchen sink',
+          location: { latitude: 25.03, longitude: 121.56 },
+        }),
+      })
+    ).json();
+    await fetch(`${baseUrl}/service-requests/${created.id}/status`, {
+      method: 'PATCH',
+      headers: headers(CUSTOMER_ID, 'customer'),
+      body: JSON.stringify({ status: 'cancelled', reason: 'Booked someone else' }),
+    });
+
+    const body = await (
+      await fetch(`${baseUrl}/service-requests/${created.id}/history`, {
+        headers: headers(CUSTOMER_ID, 'customer'),
+      })
+    ).json();
+    const cancel = body.find((event) => event.details?.to === 'cancelled');
+    assert.equal(cancel.details.reason, 'Booked someone else');
+  });
 });

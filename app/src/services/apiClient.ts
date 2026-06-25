@@ -159,8 +159,10 @@ export class ApiClient {
   public async updateServiceRequestStatus(
     id: string,
     status: ServiceRequestStatus,
+    reason?: string,
   ): Promise<ServiceRequest> {
-    const data = await this.send('PATCH', `/service-requests/${id}/status`, { status }, true);
+    const body = { status, ...(reason !== undefined ? { reason } : {}) };
+    const data = await this.send('PATCH', `/service-requests/${id}/status`, body, true);
     return serviceRequestSchema.parse(data);
   }
 

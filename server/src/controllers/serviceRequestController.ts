@@ -19,7 +19,10 @@ import {
 } from '../services/serviceRequestService.ts';
 
 const idParamSchema = z.uuid();
-const statusBodySchema = z.object({ status: serviceRequestStatusSchema });
+const statusBodySchema = z.object({
+  status: serviceRequestStatusSchema,
+  reason: z.string().trim().min(1).max(500).optional(),
+});
 const assignBodySchema = z.object({ workerId: z.uuid() });
 const listQuerySchema = paginationQuerySchema.extend({
   status: serviceRequestStatusSchema.optional(),
@@ -207,7 +210,12 @@ export async function patchServiceRequestStatus(
   }
 
   try {
-    const updated = await updateServiceRequestStatus(idResult.data, parsed.data.status, principal);
+    const updated = await updateServiceRequestStatus(
+      idResult.data,
+      parsed.data.status,
+      principal,
+      parsed.data.reason,
+    );
     res.status(200).json(updated);
   } catch (error) {
     next(error);
