@@ -7,6 +7,7 @@ import { PostgresAuditRepository } from './postgresAuditRepository.ts';
 export interface AuditRepository {
   append(event: AuditEvent): Promise<void>;
   findAll(): Promise<AuditEvent[]>;
+  findByResource(resourceId: string): Promise<AuditEvent[]>;
   clear(): Promise<void>;
 }
 
@@ -20,6 +21,10 @@ export class InMemoryAuditRepository implements AuditRepository {
 
   public findAll(): Promise<AuditEvent[]> {
     return Promise.resolve([...this.events]);
+  }
+
+  public findByResource(resourceId: string): Promise<AuditEvent[]> {
+    return Promise.resolve(this.events.filter((event) => event.resourceId === resourceId));
   }
 
   public clear(): Promise<void> {

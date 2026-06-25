@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type {
+  AuditEvent,
   CreateServiceRequestInput,
   Principal,
   RequestContacts,
@@ -10,7 +11,7 @@ import type {
 import { AppError } from '../errors/appError.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { userRepository } from '../repositories/userRepository.ts';
-import { recordAuditEvent } from './auditService.ts';
+import { listEventsForResource, recordAuditEvent } from './auditService.ts';
 import { recordNotification } from './notificationService.ts';
 
 export interface ServiceRequestPage {
@@ -215,6 +216,21 @@ export async function getRequestContacts(
     ...(customer?.phone !== undefined ? { customerPhone: customer.phone } : {}),
     ...(worker?.phone !== undefined ? { workerPhone: worker.phone } : {}),
   };
+}
+
+/**
+ * The status/audit history for a request (created → assigned → status changes),
+ * oldest first. Visible only to the request's parties.
+ */
+export async function getRequestHistory(id: string, principal: Principal): Promise<AuditEvent[]> {
+  const request = await serviceRequestRepository.findById(id);
+  if (!request) {
+    throw new AppError('Service request not found', 404);
+  }
+  if (!isRequestParty(request, principal)) {
+    throw new AppError('Not allowed to view this request history', 403);
+  }
+  return listEventsForResource(id);
 }
 
 export async function resetServiceRequests(): Promise<void> {

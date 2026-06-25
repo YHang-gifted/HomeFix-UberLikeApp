@@ -45,6 +45,12 @@ export async function listAuditEvents(
   return { items, total: all.length, limit, offset };
 }
 
+/** Audit events for a single resource (e.g. a request), oldest first. No auth — callers gate access. */
+export async function listEventsForResource(resourceId: string): Promise<AuditEvent[]> {
+  const events = await auditRepository.findByResource(resourceId);
+  return [...events].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
+}
+
 export async function resetAuditEvents(): Promise<void> {
   await auditRepository.clear();
 }
