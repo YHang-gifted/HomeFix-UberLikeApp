@@ -1,4 +1,8 @@
+import process from 'node:process';
+
 import type { Message } from '../../../shared/schemas.ts';
+import { createPoolQueryable } from '../config/db.ts';
+import { PostgresMessageRepository } from './postgresMessageRepository.ts';
 
 /** Messages exchanged between a request's parties, scoped per request. */
 export interface MessageRepository {
@@ -28,6 +32,13 @@ export class InMemoryMessageRepository implements MessageRepository {
   }
 }
 
-// In-memory only for now; slice 58b adds PostgresMessageRepository + a
-// DATABASE_URL-based selector + migration, mirroring the other domains.
-export const messageRepository: MessageRepository = new InMemoryMessageRepository();
+export function selectMessageRepository(databaseUrl: string | undefined): MessageRepository {
+  if (databaseUrl !== undefined && databaseUrl !== '') {
+    return new PostgresMessageRepository(createPoolQueryable(databaseUrl));
+  }
+  return new InMemoryMessageRepository();
+}
+
+export const messageRepository: MessageRepository = selectMessageRepository(
+  process.env['DATABASE_URL'],
+);
