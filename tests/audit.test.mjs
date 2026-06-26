@@ -90,6 +90,7 @@ describe('audit log', () => {
     assert.ok(assigned);
     assert.equal(assigned.actorRole, 'admin');
     assert.equal(assigned.details.workerId, WORKER_ID);
+    assert.equal(assigned.details.workerName, 'Demo Worker');
 
     const changed = page.items.find((e) => e.action === 'service_request.status_changed');
     assert.ok(changed);

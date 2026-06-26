@@ -132,11 +132,17 @@ export async function assignWorker(
 
   const updated: ServiceRequest = { ...request, workerId, status: 'matched' };
   await serviceRequestRepository.save(updated);
+  // Snapshot the worker's name into the audit trail so the history reads
+  // "Worker assigned: <name>" without a later lookup (and survives renames).
+  const worker = await userRepository.findById(workerId);
   await recordAuditEvent({
     actor: principal,
     action: 'service_request.assigned',
     resourceId: id,
-    details: { workerId },
+    details: {
+      workerId,
+      ...(worker?.displayName !== undefined ? { workerName: worker.displayName } : {}),
+    },
   });
   await recordNotification({
     userId: workerId,
