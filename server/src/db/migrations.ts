@@ -84,4 +84,14 @@ export const migrations: Migration[] = [
         ADD COLUMN IF NOT EXISTS photo_urls jsonb NOT NULL DEFAULT '[]'::jsonb
     `,
   },
+  {
+    id: '0007_favorites',
+    sql: `
+      CREATE TABLE IF NOT EXISTS favorites (
+        customer_id uuid NOT NULL,
+        worker_id uuid NOT NULL,
+        PRIMARY KEY (customer_id, worker_id)
+      )
+    `,
+  },
 ];
