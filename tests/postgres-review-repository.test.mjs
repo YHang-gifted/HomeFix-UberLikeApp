@@ -66,4 +66,29 @@ describe('PostgresReviewRepository (PGlite)', () => {
     await repo.clear();
     assert.deepEqual(await repo.findByWorkerId(WORKER_ID), []);
   });
+
+  it('aggregateRatings() groups count + average by worker in one query', async () => {
+    const OTHER_WORKER = '823e4567-e89b-12d3-a456-426614174000';
+    await repo.save(makeReview({ id: '623e4567-e89b-12d3-a456-426614174001', rating: 4 }));
+    await repo.save(
+      makeReview({
+        id: '623e4567-e89b-12d3-a456-426614174002',
+        requestId: '523e4567-e89b-12d3-a456-426614174111',
+        rating: 2,
+      }),
+    );
+    await repo.save(
+      makeReview({
+        id: '623e4567-e89b-12d3-a456-426614174003',
+        requestId: '523e4567-e89b-12d3-a456-426614174222',
+        workerId: OTHER_WORKER,
+        rating: 5,
+      }),
+    );
+
+    const aggregates = await repo.aggregateRatings();
+    assert.deepEqual(aggregates.get(WORKER_ID), { reviewCount: 2, averageRating: 3 });
+    assert.deepEqual(aggregates.get(OTHER_WORKER), { reviewCount: 1, averageRating: 5 });
+    assert.equal(aggregates.get('999e4567-e89b-12d3-a456-426614174000'), undefined);
+  });
 });
