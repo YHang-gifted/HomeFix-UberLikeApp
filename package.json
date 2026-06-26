@@ -16,7 +16,7 @@
     "integrity:files": "node scripts/check-file-integrity.mjs",
     "security:audit": "npm audit --audit-level=high",
     "quality": "npm run integrity:files && npm run format:check && npm run lint && npm run typecheck && npm test && npm run security:audit",
-    "test": "node --import tsx --test"
+    "test": "node --import tsx --test --test-concurrency=1"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.3",

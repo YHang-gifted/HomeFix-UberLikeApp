@@ -31,6 +31,7 @@ Use exactly one of: `authentication`, `authorization`, `input-validation`, `inje
 | -------- | ---------- | ------------- | ----------------------------------------------------------------- | --------------- |
 | SEC-0001 | 2026-06-14 | authorization | (Example) Missing server-side authz on order PATCH                | example         |
 | SEC-0002 | 2026-06-22 | data-exposure | Permissive dev CORS on the API (`Access-Control-Allow-Origin: *`) | mitigated (dev) |
+| SEC-0003 | 2026-06-26 | rate-limiting | No rate limiting on the unauthenticated auth endpoints            | fixed           |
 
 ## Entry template
 
@@ -79,4 +80,17 @@ Copy this block for every new fix.
 - **Canonical fix:** Keep CORS off credentialed mode while using Bearer-token auth. Before production, restrict `Access-Control-Allow-Origin` to an explicit allowlist of known web origins (driven by an env var, e.g. `CORS_ALLOWED_ORIGINS`), and never combine `*` with `Access-Control-Allow-Credentials: true`. If cookie/session auth is ever introduced, this becomes mandatory, not optional.
 - **Regression test:** `tests/cors.test.mjs` (asserts the preflight + header behavior; tighten to assert an allowlist once origins are restricted).
 - **Prevention:** This ledger entry as a release-gate reminder; revisit when adding any cookie/session auth or preparing a production deploy.
+- **Related:** none
+
+### SEC-0003 — No rate limiting on the unauthenticated auth endpoints
+
+- **Date:** 2026-06-26
+- **Category:** rate-limiting
+- **Severity:** medium
+- **Affected area:** `server/src/routes/auth.ts` (`POST /auth/login`, `POST /auth/register`)
+- **Vulnerability:** Both endpoints accepted unlimited requests from a single client, allowing brute-force / credential-stuffing against login and automated mass-account creation against register (the latter added in slice 59a with no abuse guard).
+- **Root cause:** No application-level throttling existed anywhere in `server/src`; the endpoints were mounted bare.
+- **Canonical fix:** Apply a per-client (per-IP) fixed-window rate limiter to every unauthenticated, abuse-prone endpoint. Use the shared `createRateLimiter({ windowMs, max })` middleware (`server/src/middlewares/rateLimit.ts`), which throws `AppError(…, 429)` past the limit; mount one shared instance across the related auth endpoints so a client cannot spread attempts across them. When the API is deployed behind a proxy/CDN, pair this with an edge limiter and set `trust proxy` so `req.ip` is the real client. Do not invent a second limiter implementation — reuse this middleware for any future sensitive endpoint (e.g. password reset).
+- **Regression test:** `tests/rate-limit.test.mjs` (asserts requests succeed up to the limit and the next one returns 429).
+- **Prevention:** Reuse the `createRateLimiter` middleware for any new unauthenticated/sensitive route; this ledger entry as the pattern of record.
 - **Related:** none
