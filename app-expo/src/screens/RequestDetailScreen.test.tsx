@@ -25,6 +25,74 @@ function clientWith(extra: Record<string, unknown>, principal: Principal = OWNER
   return { getPrincipal: jest.fn().mockReturnValue(principal), ...extra } as unknown as ApiClient;
 }
 
+function makePayment(overrides = {}) {
+  return {
+    id: '623e4567-e89b-12d3-a456-426614174777',
+    requestId: '523e4567-e89b-12d3-a456-426614174000',
+    customerId: CUSTOMER_ID,
+    workerId: WORKER_ID,
+    amountCents: 150000,
+    currency: 'TWD',
+    status: 'pending',
+    createdAt: '2026-06-22T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+describe('RequestDetailScreen payments', () => {
+  it('lets the owning customer set up then pay a payment', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const createPayment = jest.fn().mockResolvedValue(makePayment());
+    const payPayment = jest
+      .fn()
+      .mockResolvedValue(makePayment({ status: 'paid', paidAt: '2026-06-22T01:00:00.000Z' }));
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      getPayment: jest.fn().mockRejectedValue(new ApiError(404, 'no payment')),
+      createPayment,
+      payPayment,
+    });
+
+    const { findByLabelText, findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    await fireEvent.changeText(await findByLabelText('Payment amount'), '1500');
+    await fireEvent.press(await findByLabelText('Set up payment'));
+
+    await waitFor(() => {
+      expect(createPayment).toHaveBeenCalledWith(request.id, 150000);
+    });
+    await findByText('NT$1,500.00');
+
+    await fireEvent.press(await findByLabelText('Pay now'));
+    await waitFor(() => {
+      expect(payPayment).toHaveBeenCalledWith(request.id);
+    });
+    await findByText('Paid');
+  });
+
+  it('shows the payment status to the assigned worker without a pay action', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const client = clientWith(
+      {
+        getServiceRequest: jest.fn().mockResolvedValue(request),
+        getPayment: jest.fn().mockResolvedValue(makePayment({ status: 'paid' })),
+      },
+      { id: WORKER_ID, role: 'worker' },
+    );
+
+    const { findByText, queryByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    await findByText('NT$1,500.00');
+    await findByText('Paid');
+    expect(queryByLabelText('Pay now')).toBeNull();
+    expect(queryByLabelText('Set up payment')).toBeNull();
+  });
+});
+
 describe('RequestDetailScreen', () => {
   it('renders the request and offers cancel for the owner on a non-terminal request', async () => {
     const request = makeRequest({ status: 'pending' });
