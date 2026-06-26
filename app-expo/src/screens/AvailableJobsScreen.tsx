@@ -31,7 +31,9 @@ export function AvailableJobsScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [claimingId, setClaimingId] = useState<string | null>(null);
 
-  const customerNames = useCustomerNames(activeClient, items ?? []);
+  // Pass `items` (nullable) directly — `?? []` would create a new array every
+  // render while loading, retriggering the hook's effect in an infinite loop.
+  const customerNames = useCustomerNames(activeClient, items);
 
   useEffect(() => {
     let active = true;

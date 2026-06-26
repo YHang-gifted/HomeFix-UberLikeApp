@@ -36,6 +36,21 @@ describe('AvailableJobsScreen', () => {
     await findByText('Leaking kitchen sink');
   });
 
+  it('does not resolve customer names while still loading (no render loop)', async () => {
+    const listUsers = jest.fn().mockResolvedValue([]);
+    const client = clientWith({
+      listAvailableRequests: jest.fn(() => new Promise(() => {})),
+      listUsers,
+    });
+
+    await render(<AvailableJobsScreen client={client} />);
+    await new Promise((resolve) => {
+      setTimeout(resolve, 50);
+    });
+
+    expect(listUsers).not.toHaveBeenCalled();
+  });
+
   it('shows an empty state when nothing is available', async () => {
     const client = clientWith({
       listAvailableRequests: jest.fn().mockResolvedValue(makePage([])),
