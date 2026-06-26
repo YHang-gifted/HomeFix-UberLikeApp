@@ -23,7 +23,8 @@ function historyLabel(event: AuditEvent): string {
     return 'Request created';
   }
   if (event.action === 'service_request.assigned') {
-    return 'Worker assigned';
+    const workerName = event.details?.['workerName'];
+    return workerName !== undefined ? `Worker assigned: ${workerName}` : 'Worker assigned';
   }
   const to = event.details?.['to'];
   const reason = event.details?.['reason'];
