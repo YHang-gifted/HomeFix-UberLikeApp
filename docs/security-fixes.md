@@ -27,11 +27,11 @@ Use exactly one of: `authentication`, `authorization`, `input-validation`, `inje
 
 ## Index
 
-| ID       | Date       | Category      | Title                                                             | Status          |
-| -------- | ---------- | ------------- | ----------------------------------------------------------------- | --------------- |
-| SEC-0001 | 2026-06-14 | authorization | (Example) Missing server-side authz on order PATCH                | example         |
-| SEC-0002 | 2026-06-22 | data-exposure | Permissive dev CORS on the API (`Access-Control-Allow-Origin: *`) | mitigated (dev) |
-| SEC-0003 | 2026-06-26 | rate-limiting | No rate limiting on the unauthenticated auth endpoints            | fixed           |
+| ID       | Date       | Category      | Title                                                             | Status    |
+| -------- | ---------- | ------------- | ----------------------------------------------------------------- | --------- |
+| SEC-0001 | 2026-06-14 | authorization | (Example) Missing server-side authz on order PATCH                | example   |
+| SEC-0002 | 2026-06-22 | data-exposure | Permissive dev CORS on the API (`Access-Control-Allow-Origin: *`) | addressed |
+| SEC-0003 | 2026-06-26 | rate-limiting | No rate limiting on the unauthenticated auth endpoints            | fixed     |
 
 ## Entry template
 
@@ -77,9 +77,9 @@ Copy this block for every new fix.
 - **Affected area:** `server/src/middlewares/cors.ts` (applied in `server/src/app.ts` to all routes)
 - **Vulnerability:** The CORS middleware returns `Access-Control-Allow-Origin: *`, allowing any web origin to call the API from a browser. With the current design this is safe: the API authenticates with a Bearer token in the `Authorization` header, not cookies, so there are no ambient credentials to leak cross-origin (the browser will not attach credentials, and `*` is incompatible with credentialed CORS anyway). It becomes a real data-exposure risk only if the API later adopts cookie/session auth or ships `*` to production.
 - **Root cause:** The Expo web client runs on a different localhost port than the API, so cross-origin requests must be allowed for local development; the simplest dev-time setting is `*`.
-- **Canonical fix:** Keep CORS off credentialed mode while using Bearer-token auth. Before production, restrict `Access-Control-Allow-Origin` to an explicit allowlist of known web origins (driven by an env var, e.g. `CORS_ALLOWED_ORIGINS`), and never combine `*` with `Access-Control-Allow-Credentials: true`. If cookie/session auth is ever introduced, this becomes mandatory, not optional.
-- **Regression test:** `tests/cors.test.mjs` (asserts the preflight + header behavior; tighten to assert an allowlist once origins are restricted).
-- **Prevention:** This ledger entry as a release-gate reminder; revisit when adding any cookie/session auth or preparing a production deploy.
+- **Canonical fix:** Keep CORS off credentialed mode while using Bearer-token auth. Restrict `Access-Control-Allow-Origin` to an explicit allowlist of known web origins, driven by the `CORS_ALLOWED_ORIGINS` env var (comma-separated). **Implemented in slice 67:** `createCorsMiddleware(allowedOrigins)` (`server/src/middlewares/cors.ts`) returns `*` only when the allowlist is empty (dev default); when set, it echoes back the request `Origin` only if it is on the list, adds `Vary: Origin`, and otherwise omits the allow-origin header so the browser blocks the response. Production must set `CORS_ALLOWED_ORIGINS` to the known web origin(s). Never combine an allowlist with `Access-Control-Allow-Credentials: true` while the origin is `*`. If cookie/session auth is ever introduced, setting the allowlist becomes mandatory.
+- **Regression test:** `tests/cors.test.mjs` — asserts the dev `*` default, plus (with an allowlist) that an allowed origin is echoed with `Vary: Origin`, a disallowed origin gets no allow-origin header, and `*` is never returned when restricted.
+- **Prevention:** This ledger entry + the regression test; set `CORS_ALLOWED_ORIGINS` in every production deploy. Revisit if cookie/session auth is added.
 - **Related:** none
 
 ### SEC-0003 — No rate limiting on the unauthenticated auth endpoints
