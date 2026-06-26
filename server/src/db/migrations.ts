@@ -107,4 +107,20 @@ export const migrations: Migration[] = [
       )
     `,
   },
+  {
+    id: '0009_payments',
+    sql: `
+      CREATE TABLE IF NOT EXISTS payments (
+        id uuid PRIMARY KEY,
+        request_id uuid NOT NULL UNIQUE,
+        customer_id uuid NOT NULL,
+        worker_id uuid NOT NULL,
+        amount_cents integer NOT NULL,
+        currency text NOT NULL,
+        status text NOT NULL,
+        created_at timestamptz NOT NULL,
+        paid_at timestamptz
+      )
+    `,
+  },
 ];
