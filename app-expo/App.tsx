@@ -19,6 +19,7 @@ import { apiClient } from './src/api';
 import { tokenStore } from './src/tokenStore';
 import { AdminRequestsScreen } from './src/screens/AdminRequestsScreen';
 import { AuditLogScreen } from './src/screens/AuditLogScreen';
+import { AvailableJobsScreen } from './src/screens/AvailableJobsScreen';
 import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
 import { FavoritesScreen } from './src/screens/FavoritesScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
@@ -37,6 +38,7 @@ export type RootStackParamList = {
   CreateRequest: undefined;
   RequestDetail: { id: string };
   WorkerJobs: undefined;
+  AvailableJobs: undefined;
   AdminRequests: undefined;
   AuditLog: undefined;
   Profile: undefined;
@@ -198,11 +200,39 @@ function WorkerJobsRoute({
       onViewNotifications={() => {
         navigation.navigate('Notifications');
       }}
+      onViewAvailable={() => {
+        navigation.navigate('AvailableJobs');
+      }}
       onSelectRequest={(id) => {
         navigation.navigate('RequestDetail', { id });
       }}
       onLogout={() => {
         signOut();
+      }}
+    />
+  );
+}
+
+function AvailableJobsRoute({
+  navigation,
+}: NativeStackScreenProps<RootStackParamList, 'AvailableJobs'>): ReactElement {
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshToken((current) => current + 1);
+    }, []),
+  );
+
+  return (
+    <AvailableJobsScreen
+      client={apiClient}
+      refreshToken={refreshToken}
+      onSelectRequest={(id) => {
+        navigation.navigate('RequestDetail', { id });
+      }}
+      onClaimed={(id) => {
+        navigation.navigate('RequestDetail', { id });
       }}
     />
   );
@@ -362,6 +392,11 @@ export default function App(): ReactElement {
                 name="WorkerJobs"
                 component={WorkerJobsRoute}
                 options={{ title: 'Assigned jobs' }}
+              />
+              <Stack.Screen
+                name="AvailableJobs"
+                component={AvailableJobsRoute}
+                options={{ title: 'Available jobs' }}
               />
               <Stack.Screen
                 name="RequestDetail"
