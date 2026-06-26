@@ -12,9 +12,11 @@ export interface LoginScreenProps {
   client?: ApiClient;
   /** Called with the JWT after a successful login. */
   onSuccess?: (token: string) => void;
+  /** Called when the user wants to create a new account. */
+  onRegister?: () => void;
 }
 
-export function LoginScreen({ client, onSuccess }: LoginScreenProps): ReactElement {
+export function LoginScreen({ client, onSuccess, onRegister }: LoginScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
   const [email, setEmail] = useState('');
@@ -92,6 +94,18 @@ export function LoginScreen({ client, onSuccess }: LoginScreenProps): ReactEleme
       </Pressable>
 
       {banner !== null && <Text style={styles.banner}>{banner}</Text>}
+
+      <Pressable
+        style={styles.linkButton}
+        onPress={() => {
+          onRegister?.();
+        }}
+        disabled={submitting}
+        accessibilityRole="button"
+        accessibilityLabel="Create account"
+      >
+        <Text style={styles.link}>New to HomeFix? Create an account</Text>
+      </Pressable>
     </View>
   );
 }
@@ -128,4 +142,6 @@ const styles = StyleSheet.create({
   buttonPressed: { backgroundColor: '#1d4ed8' },
   buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
   banner: { marginTop: 16, textAlign: 'center', fontSize: 14, color: '#0f172a' },
+  linkButton: { marginTop: 20, alignItems: 'center' },
+  link: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
 });
