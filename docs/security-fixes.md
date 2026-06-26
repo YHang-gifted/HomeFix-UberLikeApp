@@ -27,11 +27,12 @@ Use exactly one of: `authentication`, `authorization`, `input-validation`, `inje
 
 ## Index
 
-| ID       | Date       | Category      | Title                                                             | Status    |
-| -------- | ---------- | ------------- | ----------------------------------------------------------------- | --------- |
-| SEC-0001 | 2026-06-14 | authorization | (Example) Missing server-side authz on order PATCH                | example   |
-| SEC-0002 | 2026-06-22 | data-exposure | Permissive dev CORS on the API (`Access-Control-Allow-Origin: *`) | addressed |
-| SEC-0003 | 2026-06-26 | rate-limiting | No rate limiting on the unauthenticated auth endpoints            | fixed     |
+| ID       | Date       | Category       | Title                                                             | Status    |
+| -------- | ---------- | -------------- | ----------------------------------------------------------------- | --------- |
+| SEC-0001 | 2026-06-14 | authorization  | (Example) Missing server-side authz on order PATCH                | example   |
+| SEC-0002 | 2026-06-22 | data-exposure  | Permissive dev CORS on the API (`Access-Control-Allow-Origin: *`) | addressed |
+| SEC-0003 | 2026-06-26 | rate-limiting  | No rate limiting on the unauthenticated auth endpoints            | fixed     |
+| SEC-0004 | 2026-06-26 | authentication | Default JWT signing secret could reach production                 | fixed     |
 
 ## Entry template
 
@@ -93,4 +94,17 @@ Copy this block for every new fix.
 - **Canonical fix:** Apply a per-client (per-IP) fixed-window rate limiter to every unauthenticated, abuse-prone endpoint. Use the shared `createRateLimiter({ windowMs, max })` middleware (`server/src/middlewares/rateLimit.ts`), which throws `AppError(…, 429)` past the limit; mount one shared instance across the related auth endpoints so a client cannot spread attempts across them. When the API is deployed behind a proxy/CDN, pair this with an edge limiter and set `trust proxy` so `req.ip` is the real client. Do not invent a second limiter implementation — reuse this middleware for any future sensitive endpoint (e.g. password reset).
 - **Regression test:** `tests/rate-limit.test.mjs` (asserts requests succeed up to the limit and the next one returns 429).
 - **Prevention:** Reuse the `createRateLimiter` middleware for any new unauthenticated/sensitive route; this ledger entry as the pattern of record.
+- **Related:** none
+
+### SEC-0004 — Default JWT signing secret could reach production
+
+- **Date:** 2026-06-26
+- **Category:** authentication
+- **Severity:** high
+- **Affected area:** `server/src/config/env.ts` (`JWT_SECRET`), consumed by `server/src/auth/jwt.ts`
+- **Vulnerability:** `JWT_SECRET` defaulted to a hard-coded value (`dev-insecure-secret-change-me-please`) that lives in the public source tree. If a production deploy forgot to override it, every JWT would be signed with a publicly known key, so anyone could forge a token for any user/role (full authentication bypass + privilege escalation to admin).
+- **Root cause:** A convenience dev default with no environment-aware guard, so a missing prod env var failed open instead of failing closed.
+- **Canonical fix:** Fail closed on weak secrets in production. `loadEnv` (`superRefine`) throws when `NODE_ENV === 'production'` and `JWT_SECRET` equals the exported `DEV_JWT_SECRET`, so the server refuses to boot rather than run with a forgeable key. Apply the same fail-closed env validation to any future production-only secret (DB credentials, payment provider keys, signing keys): never ship a usable default to production.
+- **Regression test:** `tests/env.test.mjs` (production + default/unset secret throws; a strong secret in production is accepted; dev/test keep the default).
+- **Prevention:** The `loadEnv` guard runs at startup on every deploy; extend it for each new secret. This ledger entry as the pattern of record.
 - **Related:** none
