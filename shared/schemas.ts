@@ -130,6 +130,24 @@ export type AuditPage = z.infer<typeof auditPageSchema>;
 export const requestHistorySchema = z.array(auditEventSchema);
 export type RequestHistory = z.infer<typeof requestHistorySchema>;
 
+export const messageSchema = z.object({
+  id: z.uuid(),
+  requestId: z.uuid(),
+  senderId: z.uuid(),
+  senderRole: roleSchema,
+  body: z.string().min(1).max(2000),
+  createdAt: z.iso.datetime(),
+});
+export type Message = z.infer<typeof messageSchema>;
+
+export const messageListSchema = z.array(messageSchema);
+export type MessageList = z.infer<typeof messageListSchema>;
+
+export const createMessageInputSchema = z.object({
+  body: z.string().trim().min(1).max(2000),
+});
+export type CreateMessageInput = z.infer<typeof createMessageInputSchema>;
+
 export const ratingSchema = z.number().int().min(1).max(5);
 
 export const reviewSchema = z.object({

@@ -3,6 +3,7 @@ import type {
   AuditPage,
   CreateReviewInput,
   CreateServiceRequestInput,
+  Message,
   Notification,
   NotificationList,
   Principal,
@@ -20,6 +21,8 @@ import type {
 } from '../../../shared/schemas.ts';
 import {
   auditPageSchema,
+  messageListSchema,
+  messageSchema,
   notificationListSchema,
   notificationSchema,
   publicUserListSchema,
@@ -129,6 +132,16 @@ export class ApiClient {
   public async getRequestHistory(id: string): Promise<AuditEvent[]> {
     const data = await this.send('GET', `/service-requests/${id}/history`, undefined, true);
     return requestHistorySchema.parse(data);
+  }
+
+  public async listMessages(id: string): Promise<Message[]> {
+    const data = await this.send('GET', `/service-requests/${id}/messages`, undefined, true);
+    return messageListSchema.parse(data);
+  }
+
+  public async postMessage(id: string, body: string): Promise<Message> {
+    const data = await this.send('POST', `/service-requests/${id}/messages`, { body }, true);
+    return messageSchema.parse(data);
   }
 
   public async listServiceRequests(params?: {

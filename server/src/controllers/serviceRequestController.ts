@@ -2,12 +2,14 @@ import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 
 import {
+  createMessageInputSchema,
   createServiceRequestInputSchema,
   paginationQuerySchema,
   serviceRequestStatusSchema,
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
+import { listMessages, postMessage } from '../services/messageService.ts';
 import {
   assignWorker,
   createServiceRequest,
@@ -150,6 +152,58 @@ export async function getServiceRequestHistory(
 
   try {
     res.status(200).json(await getRequestHistory(idResult.data, principal));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getServiceRequestMessages(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  const idResult = idParamSchema.safeParse(req.params['id']);
+  if (!idResult.success) {
+    next(new AppError('Invalid service request id', 422));
+    return;
+  }
+
+  try {
+    res.status(200).json(await listMessages(idResult.data, principal));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function postServiceRequestMessage(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  const idResult = idParamSchema.safeParse(req.params['id']);
+  if (!idResult.success) {
+    next(new AppError('Invalid service request id', 422));
+    return;
+  }
+
+  const parsed = createMessageInputSchema.safeParse(req.body);
+  if (!parsed.success) {
+    next(new AppError('Invalid message payload', 422));
+    return;
+  }
+
+  try {
+    res.status(201).json(await postMessage(idResult.data, parsed.data, principal));
   } catch (error) {
     next(error);
   }
