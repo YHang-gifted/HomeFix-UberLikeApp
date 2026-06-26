@@ -12,6 +12,7 @@ import { requirePrincipal } from '../middlewares/auth.ts';
 import { listMessages, postMessage } from '../services/messageService.ts';
 import {
   assignWorker,
+  claimRequest,
   createServiceRequest,
   getRequestContacts,
   getRequestHistory,
@@ -259,6 +260,30 @@ export async function patchServiceRequestAssignment(
 
   try {
     const updated = await assignWorker(idResult.data, parsed.data.workerId, principal);
+    res.status(200).json(updated);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function patchServiceRequestClaim(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  const idResult = idParamSchema.safeParse(req.params['id']);
+  if (!idResult.success) {
+    next(new AppError('Invalid service request id', 422));
+    return;
+  }
+
+  try {
+    const updated = await claimRequest(idResult.data, principal);
     res.status(200).json(updated);
   } catch (error) {
     next(error);

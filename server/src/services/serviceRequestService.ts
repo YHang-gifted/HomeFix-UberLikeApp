@@ -173,6 +173,46 @@ export async function assignWorker(
   return updated;
 }
 
+/**
+ * A worker claims a pending, unassigned request for themselves (self-serve
+ * matching). Mirrors admin assignment — pending -> matched, sets workerId, and
+ * snapshots the worker's name into the audit trail so the history reads
+ * "Worker assigned: <name>". The owning customer is notified that a worker took
+ * the job. Worker-only; 422 if the request is not pending or already taken.
+ */
+export async function claimRequest(id: string, principal: Principal): Promise<ServiceRequest> {
+  if (principal.role !== 'worker') {
+    throw new AppError('Only a worker may claim a request', 403);
+  }
+
+  const request = await serviceRequestRepository.findById(id);
+  if (!request) {
+    throw new AppError('Service request not found', 404);
+  }
+  if (request.status !== 'pending' || request.workerId !== undefined) {
+    throw new AppError('This request is no longer available to claim', 422);
+  }
+
+  const updated: ServiceRequest = { ...request, workerId: principal.id, status: 'matched' };
+  await serviceRequestRepository.save(updated);
+  const worker = await userRepository.findById(principal.id);
+  await recordAuditEvent({
+    actor: principal,
+    action: 'service_request.assigned',
+    resourceId: id,
+    details: {
+      workerId: principal.id,
+      ...(worker?.displayName !== undefined ? { workerName: worker.displayName } : {}),
+    },
+  });
+  await recordNotification({
+    userId: request.customerId,
+    message: 'A worker has accepted your request.',
+    requestId: id,
+  });
+  return updated;
+}
+
 export async function updateServiceRequestStatus(
   id: string,
   nextStatus: ServiceRequestStatus,

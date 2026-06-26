@@ -8,6 +8,7 @@ import {
   getServiceRequestMessages,
   getServiceRequests,
   patchServiceRequestAssignment,
+  patchServiceRequestClaim,
   patchServiceRequestStatus,
   postServiceRequest,
   postServiceRequestMessage,
@@ -33,4 +34,5 @@ serviceRequestRouter.patch(
   authenticate,
   patchServiceRequestAssignment,
 );
+serviceRequestRouter.patch('/service-requests/:id/claim', authenticate, patchServiceRequestClaim);
 serviceRequestRouter.patch('/service-requests/:id/status', authenticate, patchServiceRequestStatus);
