@@ -13,7 +13,8 @@ import {
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import { isApiError } from '../../../app/src/services/apiClient';
 import { customerCanCancel } from '../../../app/src/features/serviceRequests/customerStatus';
-import type { AuditEvent, ServiceRequest } from '../../../shared/schemas';
+import { dollarsToCents, formatCents } from '../../../app/src/features/payments/paymentFormat';
+import type { AuditEvent, Payment, ServiceRequest } from '../../../shared/schemas';
 import { apiClient } from '../api';
 
 const RATINGS = [1, 2, 3, 4, 5];
@@ -69,6 +70,10 @@ export function RequestDetailScreen({
   const [customerPhone, setCustomerPhone] = useState<string | null>(null);
   const [isFavorite, setIsFavorite] = useState<boolean | null>(null);
   const [favoriteBusy, setFavoriteBusy] = useState(false);
+  const [payment, setPayment] = useState<Payment | null>(null);
+  const [amountText, setAmountText] = useState('');
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentBusy, setPaymentBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -127,6 +132,14 @@ export function RequestDetailScreen({
         } catch {
           // History is best-effort; ignore failures.
         }
+        try {
+          const found2 = await activeClient.getPayment(requestId);
+          if (active) {
+            setPayment(found2);
+          }
+        } catch {
+          // No payment yet (404) or not a party; leave it unset.
+        }
       } catch {
         if (active) {
           setError('Could not load this request.');
@@ -171,6 +184,42 @@ export function RequestDetailScreen({
       // Best-effort: leave the toggle as-is on failure.
     } finally {
       setFavoriteBusy(false);
+    }
+  }
+
+  async function setupPayment(): Promise<void> {
+    const amountCents = dollarsToCents(amountText);
+    if (amountCents === null) {
+      setPaymentError('Enter a valid amount.');
+      return;
+    }
+    setPaymentError(null);
+    setPaymentBusy(true);
+    try {
+      const created = await activeClient.createPayment(requestId, amountCents);
+      setPayment(created);
+      setAmountText('');
+    } catch (paymentSetupError) {
+      setPaymentError(
+        isApiError(paymentSetupError)
+          ? paymentSetupError.message
+          : 'Could not set up the payment. Please try again.',
+      );
+    } finally {
+      setPaymentBusy(false);
+    }
+  }
+
+  async function payNow(): Promise<void> {
+    setPaymentError(null);
+    setPaymentBusy(true);
+    try {
+      const paid = await activeClient.payPayment(requestId);
+      setPayment(paid);
+    } catch (payError) {
+      setPaymentError(isApiError(payError) ? payError.message : 'Could not complete the payment.');
+    } finally {
+      setPaymentBusy(false);
     }
   }
 
@@ -301,6 +350,70 @@ export function RequestDetailScreen({
         >
           <Text style={styles.messagesText}>Messages</Text>
         </Pressable>
+      )}
+
+      {request.workerId !== undefined && (payment !== null || isOwner) && (
+        <View style={styles.paymentBox}>
+          <Text style={styles.label}>Payment</Text>
+
+          {payment !== null && (
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentAmount}>{formatCents(payment.amountCents)}</Text>
+              <Text style={payment.status === 'paid' ? styles.paymentPaid : styles.paymentPending}>
+                {payment.status === 'paid' ? 'Paid' : 'Pending'}
+              </Text>
+            </View>
+          )}
+
+          {isOwner && payment === null && (
+            <>
+              <TextInput
+                style={styles.paymentInput}
+                value={amountText}
+                onChangeText={setAmountText}
+                placeholder="Amount in NT$ (e.g. 1500)"
+                keyboardType="numbers-and-punctuation"
+                accessibilityLabel="Payment amount"
+                editable={!paymentBusy}
+              />
+              <Pressable
+                style={({ pressed }) => [styles.payButton, pressed && styles.payButtonPressed]}
+                onPress={() => {
+                  void setupPayment();
+                }}
+                disabled={paymentBusy}
+                accessibilityRole="button"
+                accessibilityLabel="Set up payment"
+              >
+                {paymentBusy ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text style={styles.payButtonText}>Set up payment</Text>
+                )}
+              </Pressable>
+            </>
+          )}
+
+          {isOwner && payment !== null && payment.status === 'pending' && (
+            <Pressable
+              style={({ pressed }) => [styles.payButton, pressed && styles.payButtonPressed]}
+              onPress={() => {
+                void payNow();
+              }}
+              disabled={paymentBusy}
+              accessibilityRole="button"
+              accessibilityLabel="Pay now"
+            >
+              {paymentBusy ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.payButtonText}>Pay now</Text>
+              )}
+            </Pressable>
+          )}
+
+          {paymentError !== null && <Text style={styles.error}>{paymentError}</Text>}
+        </View>
       )}
 
       {history !== null && history.length > 0 && (
@@ -444,6 +557,36 @@ const styles = StyleSheet.create({
   },
   historyText: { fontSize: 14, color: '#0f172a' },
   historyTime: { fontSize: 12, color: '#94a3b8' },
+  paymentBox: { marginTop: 8 },
+  paymentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  paymentAmount: { fontSize: 18, fontWeight: '700', color: '#0f172a' },
+  paymentPending: { fontSize: 14, fontWeight: '600', color: '#d97706' },
+  paymentPaid: { fontSize: 14, fontWeight: '600', color: '#16a34a' },
+  paymentInput: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: '#0f172a',
+  },
+  payButton: {
+    marginTop: 12,
+    backgroundColor: '#16a34a',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  payButtonPressed: { backgroundColor: '#15803d' },
+  payButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
   reasonInput: {
     borderWidth: 1,
     borderColor: '#cbd5e1',
