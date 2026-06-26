@@ -29,7 +29,10 @@ describe('CORS middleware', () => {
     const response = await fetch(`${baseUrl}/auth/login`, { method: 'OPTIONS' });
     assert.equal(response.status, 204);
     assert.equal(response.headers.get('access-control-allow-origin'), '*');
-    assert.match(response.headers.get('access-control-allow-methods') ?? '', /POST/);
+    const methods = response.headers.get('access-control-allow-methods') ?? '';
+    for (const method of ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS']) {
+      assert.match(methods, new RegExp(method), `allow-methods should include ${method}`);
+    }
     assert.match(response.headers.get('access-control-allow-headers') ?? '', /Authorization/);
   });
 
