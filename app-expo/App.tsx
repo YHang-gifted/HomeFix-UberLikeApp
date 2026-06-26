@@ -22,6 +22,7 @@ import { AuditLogScreen } from './src/screens/AuditLogScreen';
 import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
 import { FavoritesScreen } from './src/screens/FavoritesScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
+import { MessagesScreen } from './src/screens/MessagesScreen';
 import { RequestDetailScreen } from './src/screens/RequestDetailScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
@@ -39,6 +40,7 @@ export type RootStackParamList = {
   Profile: undefined;
   Notifications: undefined;
   Favorites: undefined;
+  Messages: { id: string };
 };
 
 interface AuthActions {
@@ -127,7 +129,26 @@ function RequestDetailRoute({
       onCancelled={() => {
         navigation.goBack();
       }}
+      onViewMessages={() => {
+        navigation.navigate('Messages', { id: route.params.id });
+      }}
     />
+  );
+}
+
+function MessagesRoute({
+  route,
+}: NativeStackScreenProps<RootStackParamList, 'Messages'>): ReactElement {
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshToken((current) => current + 1);
+    }, []),
+  );
+
+  return (
+    <MessagesScreen client={apiClient} requestId={route.params.id} refreshToken={refreshToken} />
   );
 }
 
@@ -317,6 +338,11 @@ export default function App(): ReactElement {
                 options={{ title: 'Request' }}
               />
               <Stack.Screen
+                name="Messages"
+                component={MessagesRoute}
+                options={{ title: 'Messages' }}
+              />
+              <Stack.Screen
                 name="Profile"
                 component={ProfileRoute}
                 options={{ title: 'Profile' }}
@@ -346,6 +372,11 @@ export default function App(): ReactElement {
                 options={{ title: 'Request' }}
               />
               <Stack.Screen
+                name="Messages"
+                component={MessagesRoute}
+                options={{ title: 'Messages' }}
+              />
+              <Stack.Screen
                 name="Profile"
                 component={ProfileRoute}
                 options={{ title: 'Profile' }}
@@ -373,6 +404,11 @@ export default function App(): ReactElement {
                 name="RequestDetail"
                 component={RequestDetailRoute}
                 options={{ title: 'Request' }}
+              />
+              <Stack.Screen
+                name="Messages"
+                component={MessagesRoute}
+                options={{ title: 'Messages' }}
               />
               <Stack.Screen
                 name="Profile"

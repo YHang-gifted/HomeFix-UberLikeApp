@@ -39,12 +39,15 @@ export interface RequestDetailScreenProps {
   client?: ApiClient;
   /** Called after the request is cancelled. */
   onCancelled?: () => void;
+  /** Called when the user opens the request's message thread. */
+  onViewMessages?: () => void;
 }
 
 export function RequestDetailScreen({
   requestId,
   client,
   onCancelled,
+  onViewMessages,
 }: RequestDetailScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
   const principal = useMemo(() => activeClient.getPrincipal(), [activeClient]);
@@ -287,6 +290,19 @@ export function RequestDetailScreen({
         </>
       )}
 
+      {request.workerId !== undefined && onViewMessages !== undefined && (
+        <Pressable
+          style={({ pressed }) => [styles.messages, pressed && styles.messagesPressed]}
+          onPress={() => {
+            onViewMessages();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Messages"
+        >
+          <Text style={styles.messagesText}>Messages</Text>
+        </Pressable>
+      )}
+
       {history !== null && history.length > 0 && (
         <>
           <Text style={styles.label}>Activity</Text>
@@ -404,6 +420,17 @@ const styles = StyleSheet.create({
   workerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   favorite: { fontSize: 22, color: '#cbd5e1' },
   favoriteOn: { color: '#dc2626' },
+  messages: {
+    marginTop: 24,
+    backgroundColor: '#2563eb',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  messagesPressed: { backgroundColor: '#1d4ed8' },
+  messagesText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
   photoRow: { marginTop: 8 },
   photoRowContent: { gap: 8 },
   photo: { width: 120, height: 120, borderRadius: 8, backgroundColor: '#e2e8f0' },
