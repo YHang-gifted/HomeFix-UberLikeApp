@@ -6,6 +6,7 @@ import type {
   Message,
   Notification,
   NotificationList,
+  Payment,
   Principal,
   PublicUser,
   RegisterInput,
@@ -26,6 +27,7 @@ import {
   messageSchema,
   notificationListSchema,
   notificationSchema,
+  paymentSchema,
   publicUserListSchema,
   publicUserSchema,
   requestContactsSchema,
@@ -148,6 +150,21 @@ export class ApiClient {
   public async listMessages(id: string): Promise<Message[]> {
     const data = await this.send('GET', `/service-requests/${id}/messages`, undefined, true);
     return messageListSchema.parse(data);
+  }
+
+  public async getPayment(id: string): Promise<Payment> {
+    const data = await this.send('GET', `/service-requests/${id}/payment`, undefined, true);
+    return paymentSchema.parse(data);
+  }
+
+  public async createPayment(id: string, amountCents: number): Promise<Payment> {
+    const data = await this.send('POST', `/service-requests/${id}/payment`, { amountCents }, true);
+    return paymentSchema.parse(data);
+  }
+
+  public async payPayment(id: string): Promise<Payment> {
+    const data = await this.send('POST', `/service-requests/${id}/payment/pay`, undefined, true);
+    return paymentSchema.parse(data);
   }
 
   public async postMessage(id: string, body: string): Promise<Message> {
