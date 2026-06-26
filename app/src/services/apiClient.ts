@@ -62,7 +62,7 @@ export function isApiError(error: unknown): error is ApiError {
   );
 }
 
-type HttpMethod = 'GET' | 'POST' | 'PATCH';
+type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
 export class ApiClient {
   private readonly baseUrl: string;
@@ -187,6 +187,21 @@ export class ApiClient {
     }
     const query = new URLSearchParams({ ids: ids.join(',') });
     const data = await this.send('GET', `/users?${query.toString()}`, undefined, true);
+    return publicUserListSchema.parse(data);
+  }
+
+  public async listFavorites(): Promise<PublicUser[]> {
+    const data = await this.send('GET', '/favorites', undefined, true);
+    return publicUserListSchema.parse(data);
+  }
+
+  public async addFavorite(workerId: string): Promise<PublicUser[]> {
+    const data = await this.send('PUT', `/favorites/${workerId}`, undefined, true);
+    return publicUserListSchema.parse(data);
+  }
+
+  public async removeFavorite(workerId: string): Promise<PublicUser[]> {
+    const data = await this.send('DELETE', `/favorites/${workerId}`, undefined, true);
     return publicUserListSchema.parse(data);
   }
 
