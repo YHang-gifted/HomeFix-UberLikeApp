@@ -65,6 +65,15 @@ describe('RequestDetailScreen', () => {
         resourceId: request.id,
       },
       {
+        id: '623e4567-e89b-12d3-a456-426614174004',
+        occurredAt: '2026-06-22T00:30:00.000Z',
+        actorId: '323e4567-e89b-12d3-a456-426614174000',
+        actorRole: 'admin',
+        action: 'service_request.assigned',
+        resourceId: request.id,
+        details: { workerId: WORKER_ID, workerName: 'Demo Worker' },
+      },
+      {
         id: '623e4567-e89b-12d3-a456-426614174002',
         occurredAt: '2026-06-22T01:00:00.000Z',
         actorId: WORKER_ID,
@@ -85,6 +94,7 @@ describe('RequestDetailScreen', () => {
 
     await findByText('Activity');
     await findByText('Request created');
+    await findByText('Worker assigned: Demo Worker');
     await findByText('Status changed to accepted');
   });
 
