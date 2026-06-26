@@ -8,6 +8,7 @@ import type {
   NotificationList,
   Principal,
   PublicUser,
+  RegisterInput,
   RequestContacts,
   Review,
   ServiceRequest,
@@ -99,6 +100,16 @@ export class ApiClient {
     const body = data as { token?: unknown };
     if (typeof body.token !== 'string') {
       throw new ApiError(502, 'Invalid login response');
+    }
+    this.token = body.token;
+    return body.token;
+  }
+
+  public async register(input: RegisterInput): Promise<string> {
+    const data = await this.send('POST', '/auth/register', input, false);
+    const body = data as { token?: unknown };
+    if (typeof body.token !== 'string') {
+      throw new ApiError(502, 'Invalid registration response');
     }
     this.token = body.token;
     return body.token;

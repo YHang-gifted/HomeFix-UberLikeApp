@@ -18,6 +18,7 @@ export interface UserRepository {
   findByEmail(email: string): Promise<UserRecord | undefined>;
   listByRole(role: Role): Promise<UserRecord[]>;
   findById(id: string): Promise<UserRecord | undefined>;
+  create(user: UserRecord): Promise<void>;
   updateProfile(
     id: string,
     displayName: string,
@@ -83,6 +84,11 @@ export class InMemoryUserRepository implements UserRepository {
 
   public findById(id: string): Promise<UserRecord | undefined> {
     return Promise.resolve([...this.users.values()].find((user) => user.id === id));
+  }
+
+  public create(user: UserRecord): Promise<void> {
+    this.users.set(user.email.toLowerCase(), user);
+    return Promise.resolve();
   }
 
   public updateProfile(
