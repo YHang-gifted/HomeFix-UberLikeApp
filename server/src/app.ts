@@ -8,6 +8,7 @@ import { authRouter } from './routes/auth.ts';
 import { favoriteRouter } from './routes/favorite.ts';
 import { healthRouter } from './routes/health.ts';
 import { notificationRouter } from './routes/notification.ts';
+import { paymentRouter } from './routes/payment.ts';
 import { profileRouter } from './routes/profile.ts';
 import { reviewRouter } from './routes/review.ts';
 import { serviceRequestRouter } from './routes/serviceRequest.ts';
@@ -27,6 +28,7 @@ export function createApp(): Express {
   app.use(reviewRouter);
   app.use(notificationRouter);
   app.use(favoriteRouter);
+  app.use(paymentRouter);
   app.use(auditRouter);
   app.use(notFoundHandler);
   app.use(errorHandler);

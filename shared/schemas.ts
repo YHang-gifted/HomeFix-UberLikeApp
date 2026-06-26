@@ -233,3 +233,26 @@ export const notificationListSchema = z.object({
   unreadCount: z.number().int().nonnegative(),
 });
 export type NotificationList = z.infer<typeof notificationListSchema>;
+
+// Mock/sandbox payments only — no real money moves and no external provider is
+// contacted. A payment is a record on a request that a customer can mark "paid".
+export const paymentStatusSchema = z.enum(['pending', 'paid']);
+export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
+
+export const paymentSchema = z.object({
+  id: z.uuid(),
+  requestId: z.uuid(),
+  customerId: z.uuid(),
+  workerId: z.uuid(),
+  amountCents: z.number().int().positive(),
+  currency: z.literal('TWD'),
+  status: paymentStatusSchema,
+  createdAt: z.iso.datetime(),
+  paidAt: z.iso.datetime().optional(),
+});
+export type Payment = z.infer<typeof paymentSchema>;
+
+export const createPaymentInputSchema = z.object({
+  amountCents: z.number().int().positive().max(100_000_000),
+});
+export type CreatePaymentInput = z.infer<typeof createPaymentInputSchema>;
