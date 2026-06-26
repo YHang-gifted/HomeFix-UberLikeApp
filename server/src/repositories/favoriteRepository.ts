@@ -1,3 +1,8 @@
+import process from 'node:process';
+
+import { createPoolQueryable } from '../config/db.ts';
+import { PostgresFavoriteRepository } from './postgresFavoriteRepository.ts';
+
 /** A customer's set of favorited workers. Membership is unique per (customer, worker). */
 export interface FavoriteRepository {
   add(customerId: string, workerId: string): Promise<void>;
@@ -31,6 +36,13 @@ export class InMemoryFavoriteRepository implements FavoriteRepository {
   }
 }
 
-// In-memory only for now; slice 56b adds PostgresFavoriteRepository + a
-// DATABASE_URL-based selector + migration, mirroring the other domains.
-export const favoriteRepository: FavoriteRepository = new InMemoryFavoriteRepository();
+export function selectFavoriteRepository(databaseUrl: string | undefined): FavoriteRepository {
+  if (databaseUrl !== undefined && databaseUrl !== '') {
+    return new PostgresFavoriteRepository(createPoolQueryable(databaseUrl));
+  }
+  return new InMemoryFavoriteRepository();
+}
+
+export const favoriteRepository: FavoriteRepository = selectFavoriteRepository(
+  process.env['DATABASE_URL'],
+);
