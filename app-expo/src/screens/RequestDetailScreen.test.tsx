@@ -204,6 +204,34 @@ describe('RequestDetailScreen', () => {
     await findByText('+1 555 444 5555');
   });
 
+  it('lets the customer favorite the assigned worker', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const addFavorite = jest
+      .fn()
+      .mockResolvedValue([{ id: WORKER_ID, displayName: 'Demo Worker', role: 'worker' }]);
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      getWorker: jest.fn().mockResolvedValue({
+        id: WORKER_ID,
+        email: 'worker@homefix.test',
+        displayName: 'Demo Worker',
+      }),
+      listFavorites: jest.fn().mockResolvedValue([]),
+      addFavorite,
+    });
+
+    const { findByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    await fireEvent.press(await findByLabelText('Add to favorites'));
+
+    await waitFor(() => {
+      expect(addFavorite).toHaveBeenCalledWith(WORKER_ID);
+    });
+    await findByLabelText('Remove from favorites');
+  });
+
   it('shows the ordering customer name to a non-owner (worker/admin)', async () => {
     const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
     const worker: Principal = { id: WORKER_ID, role: 'worker' };
