@@ -1,6 +1,7 @@
 import express from 'express';
 
 import {
+  getAvailableServiceRequests,
   getServiceRequest,
   getServiceRequestContacts,
   getServiceRequestHistory,
@@ -16,6 +17,7 @@ import { authenticate } from '../middlewares/auth.ts';
 export const serviceRequestRouter = express.Router();
 
 serviceRequestRouter.post('/service-requests', authenticate, postServiceRequest);
+serviceRequestRouter.get('/service-requests/available', authenticate, getAvailableServiceRequests);
 serviceRequestRouter.get('/service-requests', authenticate, getServiceRequests);
 serviceRequestRouter.get('/service-requests/:id/contacts', authenticate, getServiceRequestContacts);
 serviceRequestRouter.get('/service-requests/:id/history', authenticate, getServiceRequestHistory);

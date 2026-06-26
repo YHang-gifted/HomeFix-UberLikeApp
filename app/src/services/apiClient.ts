@@ -180,6 +180,26 @@ export class ApiClient {
     return serviceRequestPageSchema.parse(data);
   }
 
+  public async listAvailableRequests(params?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<ServiceRequestPage> {
+    const query = new URLSearchParams();
+    if (params?.limit !== undefined) {
+      query.set('limit', String(params.limit));
+    }
+    if (params?.offset !== undefined) {
+      query.set('offset', String(params.offset));
+    }
+    const queryString = query.toString();
+    const path =
+      queryString.length > 0
+        ? `/service-requests/available?${queryString}`
+        : '/service-requests/available';
+    const data = await this.send('GET', path, undefined, true);
+    return serviceRequestPageSchema.parse(data);
+  }
+
   public async updateServiceRequestStatus(
     id: string,
     status: ServiceRequestStatus,

@@ -16,6 +16,7 @@ import {
   getRequestContacts,
   getRequestHistory,
   getServiceRequestForPrincipal,
+  listAvailableRequests,
   listServiceRequests,
   updateServiceRequestStatus,
 } from '../services/serviceRequestService.ts';
@@ -81,6 +82,30 @@ export async function getServiceRequests(
       parsed.data.status,
       parsed.data.q,
     );
+    res.status(200).json(page);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getAvailableServiceRequests(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  const parsed = paginationQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    next(new AppError('Invalid query parameters', 422));
+    return;
+  }
+
+  try {
+    const page = await listAvailableRequests(principal, parsed.data.limit, parsed.data.offset);
     res.status(200).json(page);
   } catch (error) {
     next(error);
