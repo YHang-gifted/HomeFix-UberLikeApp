@@ -4,10 +4,18 @@ import type { Review } from '../../../shared/schemas.ts';
 import { createPoolQueryable } from '../config/db.ts';
 import { PostgresReviewRepository } from './postgresReviewRepository.ts';
 
+/** Aggregate rating stats for a single worker (count + average), no items. */
+export interface RatingAggregate {
+  reviewCount: number;
+  averageRating: number;
+}
+
 export interface ReviewRepository {
   save(review: Review): Promise<void>;
   findByRequestId(requestId: string): Promise<Review | undefined>;
   findByWorkerId(workerId: string): Promise<Review[]>;
+  /** Count + average rating grouped by worker, keyed by workerId. Only workers with reviews appear. */
+  aggregateRatings(): Promise<Map<string, RatingAggregate>>;
   clear(): Promise<void>;
 }
 
@@ -29,6 +37,22 @@ export class InMemoryReviewRepository implements ReviewRepository {
     return Promise.resolve(
       [...this.reviews.values()].filter((review) => review.workerId === workerId),
     );
+  }
+
+  public aggregateRatings(): Promise<Map<string, RatingAggregate>> {
+    const sums = new Map<string, { total: number; count: number }>();
+    for (const review of this.reviews.values()) {
+      const current = sums.get(review.workerId) ?? { total: 0, count: 0 };
+      sums.set(review.workerId, {
+        total: current.total + review.rating,
+        count: current.count + 1,
+      });
+    }
+    const result = new Map<string, RatingAggregate>();
+    for (const [workerId, { total, count }] of sums) {
+      result.set(workerId, { reviewCount: count, averageRating: total / count });
+    }
+    return Promise.resolve(result);
   }
 
   public clear(): Promise<void> {

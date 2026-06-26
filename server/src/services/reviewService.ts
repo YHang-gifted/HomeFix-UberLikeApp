@@ -66,18 +66,18 @@ export async function getWorkerReviews(workerId: string): Promise<WorkerReviews>
  * one per worker.
  */
 export async function listWorkerRatings(): Promise<WorkerRating[]> {
-  const workers = await userRepository.listByRole('worker');
-  return Promise.all(
-    workers.map(async (worker): Promise<WorkerRating> => {
-      const reviews = await reviewRepository.findByWorkerId(worker.id);
-      const reviewCount = reviews.length;
-      const averageRating =
-        reviewCount === 0
-          ? 0
-          : reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount;
-      return { workerId: worker.id, reviewCount, averageRating };
-    }),
-  );
+  const [workers, aggregates] = await Promise.all([
+    userRepository.listByRole('worker'),
+    reviewRepository.aggregateRatings(),
+  ]);
+  return workers.map((worker): WorkerRating => {
+    const aggregate = aggregates.get(worker.id);
+    return {
+      workerId: worker.id,
+      reviewCount: aggregate?.reviewCount ?? 0,
+      averageRating: aggregate?.averageRating ?? 0,
+    };
+  });
 }
 
 export async function resetReviews(): Promise<void> {

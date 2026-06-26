@@ -1,6 +1,6 @@
 import type { Review } from '../../../shared/schemas.ts';
 import { reviewSchema } from '../../../shared/schemas.ts';
-import type { ReviewRepository } from './reviewRepository.ts';
+import type { RatingAggregate, ReviewRepository } from './reviewRepository.ts';
 import type { Queryable } from '../db/queryable.ts';
 
 const INSERT = `
@@ -17,6 +17,12 @@ interface ReviewRow {
   rating: number;
   comment: string | null;
   created_at: string | Date;
+}
+
+interface RatingRow {
+  worker_id: string;
+  review_count: number;
+  average_rating: number;
 }
 
 function mapRow(row: unknown): Review {
@@ -61,6 +67,24 @@ export class PostgresReviewRepository implements ReviewRepository {
   public async findByWorkerId(workerId: string): Promise<Review[]> {
     const result = await this.db.query('SELECT * FROM reviews WHERE worker_id = $1', [workerId]);
     return result.rows.map(mapRow);
+  }
+
+  public async aggregateRatings(): Promise<Map<string, RatingAggregate>> {
+    const result = await this.db.query(
+      `SELECT worker_id,
+              COUNT(*)::int AS review_count,
+              AVG(rating)::float8 AS average_rating
+         FROM reviews
+        GROUP BY worker_id`,
+    );
+    const aggregates = new Map<string, RatingAggregate>();
+    for (const row of result.rows as RatingRow[]) {
+      aggregates.set(row.worker_id, {
+        reviewCount: row.review_count,
+        averageRating: row.average_rating,
+      });
+    }
+    return aggregates;
   }
 
   public async clear(): Promise<void> {
