@@ -16,6 +16,8 @@ import type {
   CreateRequestFormValues,
 } from '../../../app/src/features/serviceRequests/createRequestForm';
 import { validateCreateRequestForm } from '../../../app/src/features/serviceRequests/createRequestForm';
+import type { LocationProvider } from '../../../app/src/features/location/currentLocation';
+import { fetchCurrentLocation } from '../../../app/src/features/location/currentLocation';
 import type { ServiceCategory, ServiceRequest } from '../../../shared/schemas';
 import { serviceCategorySchema } from '../../../shared/schemas';
 import { apiClient } from '../api';
@@ -27,9 +29,19 @@ export interface CreateRequestScreenProps {
   client?: ApiClient;
   /** Called with the created request after a successful submit. */
   onCreated?: (request: ServiceRequest) => void;
+  /**
+   * Source of the device's current location. When provided, a "Use my current
+   * location" button is shown. App.tsx injects the real expo-location provider;
+   * left undefined (e.g. in tests or on web) the button is simply hidden.
+   */
+  locationProvider?: LocationProvider;
 }
 
-export function CreateRequestScreen({ client, onCreated }: CreateRequestScreenProps): ReactElement {
+export function CreateRequestScreen({
+  client,
+  onCreated,
+  locationProvider,
+}: CreateRequestScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
   const [category, setCategory] = useState('');
@@ -40,6 +52,24 @@ export function CreateRequestScreen({ client, onCreated }: CreateRequestScreenPr
   const [errors, setErrors] = useState<CreateRequestFieldErrors>({});
   const [banner, setBanner] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [locating, setLocating] = useState(false);
+
+  async function fillCurrentLocation(): Promise<void> {
+    if (locationProvider === undefined) {
+      return;
+    }
+    setBanner(null);
+    setLocating(true);
+    const outcome = await fetchCurrentLocation(locationProvider);
+    setLocating(false);
+    if (outcome.ok) {
+      setLatitude(outcome.latitude);
+      setLongitude(outcome.longitude);
+      setErrors((current) => ({ ...current, latitude: undefined, longitude: undefined }));
+    } else {
+      setBanner(outcome.message);
+    }
+  }
 
   async function submit(): Promise<void> {
     setBanner(null);
@@ -116,6 +146,27 @@ export function CreateRequestScreen({ client, onCreated }: CreateRequestScreenPr
         editable={!submitting}
       />
       {errors.description !== undefined && <Text style={styles.error}>{errors.description}</Text>}
+
+      {locationProvider !== undefined && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.locationButton,
+            (pressed || locating) && styles.locationButtonPressed,
+          ]}
+          onPress={() => {
+            void fillCurrentLocation();
+          }}
+          disabled={submitting || locating}
+          accessibilityRole="button"
+          accessibilityLabel="Use my current location"
+        >
+          {locating ? (
+            <ActivityIndicator color="#2563eb" />
+          ) : (
+            <Text style={styles.locationButtonText}>Use my current location</Text>
+          )}
+        </Pressable>
+      )}
 
       <Text style={styles.label}>Latitude</Text>
       <TextInput
@@ -201,6 +252,18 @@ const styles = StyleSheet.create({
   },
   multiline: { minHeight: 80, textAlignVertical: 'top' },
   error: { color: '#dc2626', fontSize: 13, marginTop: 4 },
+  locationButton: {
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#2563eb',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  locationButtonPressed: { backgroundColor: '#eff6ff' },
+  locationButtonText: { color: '#2563eb', fontSize: 15, fontWeight: '600' },
   button: {
     marginTop: 24,
     backgroundColor: '#2563eb',

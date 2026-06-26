@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import type { ServiceRequest } from '../../../shared/schemas';
@@ -56,6 +56,51 @@ describe('CreateRequestScreen', () => {
       location: { latitude: 25.03, longitude: 121.56 },
     });
     expect(onCreated).toHaveBeenCalledWith(created);
+  });
+
+  it('fills the coordinates from the current location', async () => {
+    const getPrincipal = jest.fn().mockReturnValue({ id: CUSTOMER_ID, role: 'customer' });
+    const client = { createServiceRequest: jest.fn(), getPrincipal } as unknown as ApiClient;
+    const locationProvider = {
+      getCurrentPosition: jest
+        .fn()
+        .mockResolvedValue({ latitude: 25.033964, longitude: 121.564468 }),
+    };
+
+    const { getByLabelText } = await render(
+      <CreateRequestScreen client={client} locationProvider={locationProvider} />,
+    );
+    await fireEvent.press(getByLabelText('Use my current location'));
+
+    await waitFor(() => {
+      expect(getByLabelText('Latitude').props.value).toBe('25.033964');
+    });
+    expect(getByLabelText('Longitude').props.value).toBe('121.564468');
+  });
+
+  it('shows a message when the location lookup fails', async () => {
+    const getPrincipal = jest.fn().mockReturnValue({ id: CUSTOMER_ID, role: 'customer' });
+    const client = { createServiceRequest: jest.fn(), getPrincipal } as unknown as ApiClient;
+    const locationProvider = {
+      getCurrentPosition: jest.fn().mockRejectedValue(new Error('Location permission denied')),
+    };
+
+    const { getByLabelText, findByText } = await render(
+      <CreateRequestScreen client={client} locationProvider={locationProvider} />,
+    );
+    await fireEvent.press(getByLabelText('Use my current location'));
+
+    await findByText('Location permission denied');
+  });
+
+  it('hides the location button when no provider is given', async () => {
+    const client = {
+      createServiceRequest: jest.fn(),
+      getPrincipal: jest.fn(),
+    } as unknown as ApiClient;
+
+    const { queryByLabelText } = await render(<CreateRequestScreen client={client} />);
+    expect(queryByLabelText('Use my current location')).toBeNull();
   });
 
   it('includes photo URLs (one per line) when provided', async () => {
