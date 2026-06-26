@@ -113,6 +113,27 @@ export async function listServiceRequests(
   return { items, total: sorted.length, limit, offset };
 }
 
+/**
+ * Pending requests with no assigned worker, for a worker (or admin) to browse
+ * and claim. Lets matching happen self-serve instead of admin-only assignment.
+ */
+export async function listAvailableRequests(
+  principal: Principal,
+  limit: number,
+  offset: number,
+): Promise<ServiceRequestPage> {
+  if (principal.role !== 'worker' && principal.role !== 'admin') {
+    throw new AppError('Only workers can browse available requests', 403);
+  }
+  const all = await serviceRequestRepository.findAll();
+  const available = all.filter(
+    (request) => request.status === 'pending' && request.workerId === undefined,
+  );
+  const sorted = [...available].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const items = sorted.slice(offset, offset + limit);
+  return { items, total: sorted.length, limit, offset };
+}
+
 export async function assignWorker(
   id: string,
   workerId: string,
