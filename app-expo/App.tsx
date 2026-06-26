@@ -23,6 +23,7 @@ import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
 import { FavoritesScreen } from './src/screens/FavoritesScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { MessagesScreen } from './src/screens/MessagesScreen';
+import { RegisterScreen } from './src/screens/RegisterScreen';
 import { RequestDetailScreen } from './src/screens/RequestDetailScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
@@ -31,6 +32,7 @@ import { WorkerJobsScreen } from './src/screens/WorkerJobsScreen';
 
 export type RootStackParamList = {
   Login: undefined;
+  Register: undefined;
   ServiceRequests: undefined;
   CreateRequest: undefined;
   RequestDetail: { id: string };
@@ -55,13 +57,35 @@ const AuthContext = createContext<AuthActions>({
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-function LoginRoute(): ReactElement {
+function LoginRoute({
+  navigation,
+}: NativeStackScreenProps<RootStackParamList, 'Login'>): ReactElement {
   const { signIn } = useContext(AuthContext);
   return (
     <LoginScreen
       client={apiClient}
       onSuccess={(token) => {
         signIn(token);
+      }}
+      onRegister={() => {
+        navigation.navigate('Register');
+      }}
+    />
+  );
+}
+
+function RegisterRoute({
+  navigation,
+}: NativeStackScreenProps<RootStackParamList, 'Register'>): ReactElement {
+  const { signIn } = useContext(AuthContext);
+  return (
+    <RegisterScreen
+      client={apiClient}
+      onSuccess={(token) => {
+        signIn(token);
+      }}
+      onBackToLogin={() => {
+        navigation.goBack();
       }}
     />
   );
@@ -323,7 +347,14 @@ export default function App(): ReactElement {
         <StatusBar style="auto" />
         <Stack.Navigator>
           {!signedIn && (
-            <Stack.Screen name="Login" component={LoginRoute} options={{ title: 'HomeFix' }} />
+            <>
+              <Stack.Screen name="Login" component={LoginRoute} options={{ title: 'HomeFix' }} />
+              <Stack.Screen
+                name="Register"
+                component={RegisterRoute}
+                options={{ title: 'Create account' }}
+              />
+            </>
           )}
           {signedIn && role === 'worker' && (
             <>
