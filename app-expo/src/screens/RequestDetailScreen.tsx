@@ -64,6 +64,8 @@ export function RequestDetailScreen({
   const [workerPhone, setWorkerPhone] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState<string | null>(null);
   const [customerPhone, setCustomerPhone] = useState<string | null>(null);
+  const [isFavorite, setIsFavorite] = useState<boolean | null>(null);
+  const [favoriteBusy, setFavoriteBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -91,6 +93,17 @@ export function RequestDetailScreen({
             }
           } catch {
             // Fall back to showing the worker id.
+          }
+          if (principal?.role === 'customer') {
+            try {
+              // Seed the favorite toggle's state (customer-only on the server).
+              const favorites = await activeClient.listFavorites();
+              if (active) {
+                setIsFavorite(favorites.some((worker) => worker.id === found.workerId));
+              }
+            } catch {
+              // Favorites are best-effort; leave the toggle hidden.
+            }
           }
         }
         try {
@@ -122,7 +135,7 @@ export function RequestDetailScreen({
     return () => {
       active = false;
     };
-  }, [activeClient, requestId]);
+  }, [activeClient, requestId, principal]);
 
   async function cancel(): Promise<void> {
     setCancelling(true);
@@ -137,6 +150,24 @@ export function RequestDetailScreen({
     } catch {
       setError('Could not cancel the request. Please try again.');
       setCancelling(false);
+    }
+  }
+
+  async function toggleFavorite(): Promise<void> {
+    const workerId = request?.workerId;
+    if (workerId === undefined) {
+      return;
+    }
+    setFavoriteBusy(true);
+    try {
+      const favorites = isFavorite
+        ? await activeClient.removeFavorite(workerId)
+        : await activeClient.addFavorite(workerId);
+      setIsFavorite(favorites.some((worker) => worker.id === workerId));
+    } catch {
+      // Best-effort: leave the toggle as-is on failure.
+    } finally {
+      setFavoriteBusy(false);
     }
   }
 
@@ -235,7 +266,23 @@ export function RequestDetailScreen({
       {request.workerId !== undefined && (
         <>
           <Text style={styles.label}>Assigned worker</Text>
-          <Text style={styles.value}>{workerName ?? request.workerId}</Text>
+          <View style={styles.workerRow}>
+            <Text style={styles.value}>{workerName ?? request.workerId}</Text>
+            {principal?.role === 'customer' && isFavorite !== null && (
+              <Pressable
+                onPress={() => {
+                  void toggleFavorite();
+                }}
+                disabled={favoriteBusy}
+                accessibilityRole="button"
+                accessibilityLabel={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+              >
+                <Text style={[styles.favorite, isFavorite && styles.favoriteOn]}>
+                  {isFavorite ? '♥' : '♡'}
+                </Text>
+              </Pressable>
+            )}
+          </View>
           {workerPhone !== null && <Text style={styles.value}>{workerPhone}</Text>}
         </>
       )}
@@ -354,6 +401,9 @@ const styles = StyleSheet.create({
   status: { fontSize: 14, color: '#2563eb', textTransform: 'capitalize' },
   label: { fontSize: 13, fontWeight: '600', color: '#64748b', marginTop: 20, marginBottom: 4 },
   value: { fontSize: 16, color: '#0f172a' },
+  workerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  favorite: { fontSize: 22, color: '#cbd5e1' },
+  favoriteOn: { color: '#dc2626' },
   photoRow: { marginTop: 8 },
   photoRowContent: { gap: 8 },
   photo: { width: 120, height: 120, borderRadius: 8, backgroundColor: '#e2e8f0' },
