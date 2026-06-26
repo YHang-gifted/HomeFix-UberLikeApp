@@ -51,6 +51,14 @@ export class PostgresUserRepository implements UserRepository {
     return row === undefined ? undefined : mapRow(row);
   }
 
+  public async create(user: UserRecord): Promise<void> {
+    await this.db.query(
+      `INSERT INTO users (id, email, role, display_name, phone, password_hash)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [user.id, user.email, user.role, user.displayName, user.phone ?? null, user.passwordHash],
+    );
+  }
+
   public async updateProfile(
     id: string,
     displayName: string,

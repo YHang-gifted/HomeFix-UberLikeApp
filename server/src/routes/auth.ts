@@ -1,7 +1,8 @@
 import express from 'express';
 
-import { postLogin } from '../controllers/authController.ts';
+import { postLogin, postRegister } from '../controllers/authController.ts';
 
 export const authRouter = express.Router();
 
+authRouter.post('/auth/register', postRegister);
 authRouter.post('/auth/login', postLogin);

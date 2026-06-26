@@ -84,6 +84,16 @@ export const loginInputSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginInputSchema>;
 
+// Self-service sign-up. Admins are never self-registerable — only customer or
+// worker accounts can be created this way.
+export const registerInputSchema = z.object({
+  email: z.email(),
+  password: z.string().min(8).max(200),
+  displayName: z.string().trim().min(1).max(120),
+  role: z.enum(['customer', 'worker']).default('customer'),
+});
+export type RegisterInput = z.infer<typeof registerInputSchema>;
+
 export const phoneSchema = z.string().regex(/^[+]?[\d ()-]{7,20}$/, 'Enter a valid phone number');
 
 export const requestContactsSchema = z.object({
