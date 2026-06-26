@@ -20,6 +20,7 @@ import { tokenStore } from './src/tokenStore';
 import { AdminRequestsScreen } from './src/screens/AdminRequestsScreen';
 import { AuditLogScreen } from './src/screens/AuditLogScreen';
 import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
+import { FavoritesScreen } from './src/screens/FavoritesScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RequestDetailScreen } from './src/screens/RequestDetailScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
@@ -37,6 +38,7 @@ export type RootStackParamList = {
   AuditLog: undefined;
   Profile: undefined;
   Notifications: undefined;
+  Favorites: undefined;
 };
 
 interface AuthActions {
@@ -84,6 +86,9 @@ function ServiceRequestsRoute({
       }}
       onViewNotifications={() => {
         navigation.navigate('Notifications');
+      }}
+      onViewFavorites={() => {
+        navigation.navigate('Favorites');
       }}
       onNewRequest={() => {
         navigation.navigate('CreateRequest');
@@ -212,6 +217,18 @@ function NotificationsRoute(): ReactElement {
   );
 
   return <NotificationsScreen client={apiClient} refreshToken={refreshToken} />;
+}
+
+function FavoritesRoute(): ReactElement {
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshToken((current) => current + 1);
+    }, []),
+  );
+
+  return <FavoritesScreen client={apiClient} refreshToken={refreshToken} />;
 }
 
 function ProfileRoute(): ReactElement {
@@ -366,6 +383,11 @@ export default function App(): ReactElement {
                 name="Notifications"
                 component={NotificationsRoute}
                 options={{ title: 'Notifications' }}
+              />
+              <Stack.Screen
+                name="Favorites"
+                component={FavoritesRoute}
+                options={{ title: 'Favorite workers' }}
               />
             </>
           )}
