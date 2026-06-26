@@ -99,6 +99,38 @@ describe('AdminRequestsScreen', () => {
     await findByText('4.5 ★ (2)');
   });
 
+  it('orders the assign actions by worker rating, highest first', async () => {
+    const TOP_WORKER = '523e4567-e89b-12d3-a456-426614174999';
+    const workers: WorkerSummary[] = [
+      { id: WORKER_ID, email: 'worker@homefix.test', displayName: 'Demo Worker' },
+      { id: TOP_WORKER, email: 'top@homefix.test', displayName: 'Top Worker' },
+    ];
+    const listServiceRequests = jest.fn().mockResolvedValue(makePage([makeRequest()]));
+    const listWorkers = jest.fn().mockResolvedValue(workers);
+    const listWorkerRatings = jest
+      .fn()
+      .mockResolvedValue([
+        makeRating({ workerId: WORKER_ID, reviewCount: 3, averageRating: 3.0 }),
+        makeRating({ workerId: TOP_WORKER, reviewCount: 2, averageRating: 4.8 }),
+      ]);
+    const client = baseClient({
+      listServiceRequests,
+      listWorkers,
+      listWorkerRatings,
+    }) as unknown as ApiClient;
+
+    const { findByLabelText, getAllByLabelText } = await render(
+      <AdminRequestsScreen client={client} />,
+    );
+
+    await findByLabelText('Assign to Top Worker');
+    const labels = getAllByLabelText(/^Assign to /).map(
+      (node) => node.props.accessibilityLabel as string,
+    );
+    // The higher-rated worker (4.8) renders before the lower-rated one (3.0).
+    expect(labels).toEqual(['Assign to Top Worker', 'Assign to Demo Worker']);
+  });
+
   it('shows the ordering customer name on each request card', async () => {
     const listServiceRequests = jest.fn().mockResolvedValue(makePage([makeRequest()]));
     const listUsers = jest.fn().mockResolvedValue([

@@ -65,6 +65,22 @@ export function AdminRequestsScreen({
   const customerNames = useCustomerNames(activeClient, page.items);
   const { reload } = page;
 
+  // Best worker first: highest average rating, then most reviews. Workers with
+  // no reviews yet sort to the bottom so admins see proven workers first.
+  const sortedWorkers = useMemo(() => {
+    const score = (id: string): number => {
+      const rating = ratings[id];
+      return rating !== undefined && rating.reviewCount > 0 ? rating.averageRating : -1;
+    };
+    return [...workers].sort((a, b) => {
+      const byScore = score(b.id) - score(a.id);
+      if (byScore !== 0) {
+        return byScore;
+      }
+      return (ratings[b.id]?.reviewCount ?? 0) - (ratings[a.id]?.reviewCount ?? 0);
+    });
+  }, [workers, ratings]);
+
   useEffect(() => {
     let active = true;
 
@@ -209,7 +225,7 @@ export function AdminRequestsScreen({
 
               {item.status === 'pending' && (
                 <View style={styles.assignRow}>
-                  {workers.map((worker) => {
+                  {sortedWorkers.map((worker) => {
                     const summary = ratings[worker.id];
                     const ratingLabel =
                       summary === undefined
