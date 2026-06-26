@@ -1,4 +1,8 @@
+import process from 'node:process';
+
 import type { Payment } from '../../../shared/schemas.ts';
+import { createPoolQueryable } from '../config/db.ts';
+import { PostgresPaymentRepository } from './postgresPaymentRepository.ts';
 
 /** A request's payment record. At most one payment exists per request. */
 export interface PaymentRepository {
@@ -27,6 +31,13 @@ export class InMemoryPaymentRepository implements PaymentRepository {
   }
 }
 
-// In-memory only for now; slice 62b adds PostgresPaymentRepository + a
-// DATABASE_URL-based selector + migration, mirroring the other domains.
-export const paymentRepository: PaymentRepository = new InMemoryPaymentRepository();
+export function selectPaymentRepository(databaseUrl: string | undefined): PaymentRepository {
+  if (databaseUrl !== undefined && databaseUrl !== '') {
+    return new PostgresPaymentRepository(createPoolQueryable(databaseUrl));
+  }
+  return new InMemoryPaymentRepository();
+}
+
+export const paymentRepository: PaymentRepository = selectPaymentRepository(
+  process.env['DATABASE_URL'],
+);
