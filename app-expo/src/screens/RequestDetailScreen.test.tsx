@@ -39,6 +39,20 @@ function makePayment(overrides = {}) {
   };
 }
 
+function makeQuote(overrides = {}) {
+  return {
+    id: '623e4567-e89b-12d3-a456-426614174888',
+    requestId: '523e4567-e89b-12d3-a456-426614174000',
+    customerId: CUSTOMER_ID,
+    workerId: WORKER_ID,
+    amountCents: 250000,
+    currency: 'TWD',
+    status: 'pending',
+    createdAt: '2026-06-22T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
 describe('RequestDetailScreen payments', () => {
   it('lets the owning customer set up then pay a payment', async () => {
     const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
@@ -70,6 +84,28 @@ describe('RequestDetailScreen payments', () => {
       expect(payPayment).toHaveBeenCalledWith(request.id);
     });
     await findByText('Paid');
+  });
+
+  it('prefills the payment amount from an accepted quote', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const createPayment = jest.fn().mockResolvedValue(makePayment({ amountCents: 250000 }));
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      getPayment: jest.fn().mockRejectedValue(new ApiError(404, 'no payment')),
+      getQuote: jest.fn().mockResolvedValue(makeQuote({ status: 'accepted' })),
+      createPayment,
+    });
+
+    const { findByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    const input = await findByLabelText('Payment amount');
+    expect(input.props.value).toBe('2500');
+    await fireEvent.press(await findByLabelText('Set up payment'));
+    await waitFor(() => {
+      expect(createPayment).toHaveBeenCalledWith(request.id, 250000);
+    });
   });
 
   it('shows the payment status to the assigned worker without a pay action', async () => {
@@ -376,5 +412,94 @@ describe('RequestDetailScreen', () => {
     await findByText('Leaking kitchen sink');
     expect(queryByText('Rate the worker')).toBeNull();
     expect(queryByLabelText('Cancel request')).toBeNull();
+  });
+});
+
+describe('RequestDetailScreen quotes', () => {
+  it('lets the assigned worker propose a quote', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const createQuote = jest.fn().mockResolvedValue(makeQuote());
+    const client = clientWith(
+      {
+        getServiceRequest: jest.fn().mockResolvedValue(request),
+        getQuote: jest.fn().mockRejectedValue(new ApiError(404, 'no quote')),
+        createQuote,
+      },
+      { id: WORKER_ID, role: 'worker' },
+    );
+
+    const { findByLabelText, findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    await fireEvent.changeText(await findByLabelText('Quote amount'), '2500');
+    await fireEvent.changeText(await findByLabelText('Quote note'), '  Parts and labor  ');
+    await fireEvent.press(await findByLabelText('Send quote'));
+
+    await waitFor(() => {
+      expect(createQuote).toHaveBeenCalledWith(request.id, {
+        amountCents: 250000,
+        note: 'Parts and labor',
+      });
+    });
+    await findByText('NT$2,500.00');
+    await findByText('Pending');
+  });
+
+  it('lets the owning customer accept a pending quote', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const acceptQuote = jest.fn().mockResolvedValue(makeQuote({ status: 'accepted' }));
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      getQuote: jest.fn().mockResolvedValue(makeQuote()),
+      acceptQuote,
+    });
+
+    const { findByLabelText, findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    await fireEvent.press(await findByLabelText('Accept quote'));
+    await waitFor(() => {
+      expect(acceptQuote).toHaveBeenCalledWith(request.id);
+    });
+    await findByText('Accepted');
+  });
+
+  it('lets the owning customer decline a pending quote', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const declineQuote = jest.fn().mockResolvedValue(makeQuote({ status: 'declined' }));
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      getQuote: jest.fn().mockResolvedValue(makeQuote()),
+      declineQuote,
+    });
+
+    const { findByLabelText, findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    await fireEvent.press(await findByLabelText('Decline quote'));
+    await waitFor(() => {
+      expect(declineQuote).toHaveBeenCalledWith(request.id);
+    });
+    await findByText('Declined');
+  });
+
+  it('does not offer quote actions to a non-assigned worker', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const client = clientWith(
+      {
+        getServiceRequest: jest.fn().mockResolvedValue(request),
+        getQuote: jest.fn().mockRejectedValue(new ApiError(404, 'no quote')),
+      },
+      { id: '999e4567-e89b-12d3-a456-426614174000', role: 'worker' },
+    );
+
+    const { findByText, queryByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+    await findByText('Leaking kitchen sink');
+    expect(queryByLabelText('Send quote')).toBeNull();
   });
 });
