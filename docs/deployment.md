@@ -18,6 +18,14 @@ startup by `server/src/config/env.ts` (see `.env.example`). The active variables
 - `CORS_ALLOWED_ORIGINS` — comma-separated browser origins permitted to call the
   API. Empty serves a permissive `*` suitable only for development; set the real
   origin(s) in production (SEC-0002).
+- `NOTIFY_CHANNELS` — comma-separated notification channels to enable (`email`,
+  `push`). Empty delivers to no external channel.
+- `SEED_DEMO_USERS` — `true`/`false`. Unset seeds the three demo users outside
+  production but never in production; set explicitly to override.
+- `EMAIL_API_URL` / `EMAIL_API_KEY` / `EMAIL_FROM` — the HTTP email provider for
+  the `email` channel. Set all three to actually send emails; leave any unset and
+  the email channel only logs. The provider receives a JSON
+  `{ from, to, subject, text }` POST with `Authorization: Bearer EMAIL_API_KEY`.
 
 ## Build and run with Docker
 
@@ -52,7 +60,7 @@ inbound one) that matches the structured access log line for that request.
 - The image installs all dependencies and runs TypeScript via `tsx`. A future
   ops slice should add a `tsc` build and a dev-dependency-free image for a
   smaller, leaner production artifact.
-- `initDatabase` seeds demo users whenever `DATABASE_URL` is set. Gate or remove
-  this before a real production launch so demo accounts are not created.
+- Demo users are seeded outside production only (see `SEED_DEMO_USERS`); a real
+  production deploy creates no demo accounts by default.
 - A managed Postgres, log shipping/rotation, and a deploy target (the platform
   that runs this image) are still to be provisioned.

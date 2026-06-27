@@ -80,39 +80,64 @@ describe('buildDelivery', () => {
     push: () => Promise.resolve('device-token'),
   };
 
+  function sendersFor(send) {
+    return { email: send, push: send };
+  }
+
   it('enables only the configured known channels', async () => {
     const { sent, send } = recordingSender();
-    await buildDelivery(['email'], { resolvers, sender: send }).deliver(makeNotification());
+    await buildDelivery(['email'], { resolvers, senders: sendersFor(send) }).deliver(
+      makeNotification(),
+    );
     assert.equal(sent.length, 1);
     assert.equal(sent[0].channel, 'email');
   });
 
   it('fans out to both channels when both are configured', async () => {
     const { sent, send } = recordingSender();
-    await buildDelivery(['email', 'push'], { resolvers, sender: send }).deliver(makeNotification());
+    await buildDelivery(['email', 'push'], { resolvers, senders: sendersFor(send) }).deliver(
+      makeNotification(),
+    );
     assert.deepEqual(sent.map((m) => m.channel).sort(), ['email', 'push']);
   });
 
   it('ignores unknown channel names', async () => {
     const { sent, send } = recordingSender();
-    await buildDelivery(['sms', 'carrier-pigeon'], { resolvers, sender: send }).deliver(
-      makeNotification(),
-    );
+    await buildDelivery(['sms', 'carrier-pigeon'], {
+      resolvers,
+      senders: sendersFor(send),
+    }).deliver(makeNotification());
     assert.equal(sent.length, 0);
   });
 
   it('delivers to nothing (no throw) when no channels are configured', async () => {
     const { sent, send } = recordingSender();
-    await buildDelivery([], { resolvers, sender: send }).deliver(makeNotification());
+    await buildDelivery([], { resolvers, senders: sendersFor(send) }).deliver(makeNotification());
     assert.equal(sent.length, 0);
   });
 
   it('skips a channel whose recipient cannot be resolved', async () => {
     const { sent, send } = recordingSender();
     const noRecipient = { email: () => Promise.resolve(undefined) };
-    await buildDelivery(['email'], { resolvers: noRecipient, sender: send }).deliver(
+    await buildDelivery(['email'], { resolvers: noRecipient, senders: sendersFor(send) }).deliver(
       makeNotification(),
     );
     assert.equal(sent.length, 0);
+  });
+
+  it('uses the configured email sender and the inert default for unconfigured channels', async () => {
+    const emailSent = [];
+    await buildDelivery(['email', 'push'], {
+      resolvers,
+      senders: {
+        email: (message) => {
+          emailSent.push(message);
+          return Promise.resolve();
+        },
+      },
+    }).deliver(makeNotification());
+    // email used the configured sender; push fell back to the inert logging sender.
+    assert.equal(emailSent.length, 1);
+    assert.equal(emailSent[0].channel, 'email');
   });
 });
