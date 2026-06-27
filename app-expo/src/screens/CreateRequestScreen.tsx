@@ -18,6 +18,11 @@ import type {
 import { validateCreateRequestForm } from '../../../app/src/features/serviceRequests/createRequestForm';
 import type { LocationProvider } from '../../../app/src/features/location/currentLocation';
 import { fetchCurrentLocation } from '../../../app/src/features/location/currentLocation';
+import type { GeocodeResult, Geocoder } from '../../../app/src/features/location/geocoding';
+import {
+  resultToCoordinateStrings,
+  searchAddress,
+} from '../../../app/src/features/location/geocoding';
 import type { ServiceCategory, ServiceRequest } from '../../../shared/schemas';
 import { serviceCategorySchema } from '../../../shared/schemas';
 import { apiClient } from '../api';
@@ -35,12 +40,18 @@ export interface CreateRequestScreenProps {
    * left undefined (e.g. in tests or on web) the button is simply hidden.
    */
   locationProvider?: LocationProvider;
+  /**
+   * Address→coordinates lookup. When provided, an address-search field is shown.
+   * Left undefined (e.g. in tests without a geocoder) the field is hidden.
+   */
+  geocoder?: Geocoder;
 }
 
 export function CreateRequestScreen({
   client,
   onCreated,
   locationProvider,
+  geocoder,
 }: CreateRequestScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
@@ -53,6 +64,36 @@ export function CreateRequestScreen({
   const [banner, setBanner] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [addressQuery, setAddressQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [addressResults, setAddressResults] = useState<GeocodeResult[]>([]);
+  const [addressError, setAddressError] = useState<string | null>(null);
+
+  async function searchForAddress(): Promise<void> {
+    if (geocoder === undefined) {
+      return;
+    }
+    setAddressError(null);
+    setSearching(true);
+    const outcome = await searchAddress(geocoder, addressQuery);
+    setSearching(false);
+    if (outcome.ok) {
+      setAddressResults(outcome.results);
+    } else {
+      setAddressResults([]);
+      setAddressError(outcome.message);
+    }
+  }
+
+  function chooseAddress(result: GeocodeResult): void {
+    const coords = resultToCoordinateStrings(result);
+    setLatitude(coords.latitude);
+    setLongitude(coords.longitude);
+    setErrors((current) => ({ ...current, latitude: undefined, longitude: undefined }));
+    setAddressResults([]);
+    setAddressError(null);
+    setAddressQuery(result.label);
+  }
 
   async function fillCurrentLocation(): Promise<void> {
     if (locationProvider === undefined) {
@@ -146,6 +187,55 @@ export function CreateRequestScreen({
         editable={!submitting}
       />
       {errors.description !== undefined && <Text style={styles.error}>{errors.description}</Text>}
+
+      {geocoder !== undefined && (
+        <>
+          <Text style={styles.label}>Search address</Text>
+          <View style={styles.searchRow}>
+            <TextInput
+              style={[styles.input, styles.searchInput]}
+              value={addressQuery}
+              onChangeText={setAddressQuery}
+              placeholder="e.g. Taipei 101"
+              accessibilityLabel="Address search"
+              autoCorrect={false}
+              editable={!submitting && !searching}
+            />
+            <Pressable
+              style={({ pressed }) => [
+                styles.searchButton,
+                pressed && styles.locationButtonPressed,
+              ]}
+              onPress={() => {
+                void searchForAddress();
+              }}
+              disabled={submitting || searching}
+              accessibilityRole="button"
+              accessibilityLabel="Search address"
+            >
+              {searching ? (
+                <ActivityIndicator color="#2563eb" />
+              ) : (
+                <Text style={styles.locationButtonText}>Search</Text>
+              )}
+            </Pressable>
+          </View>
+          {addressError !== null && <Text style={styles.error}>{addressError}</Text>}
+          {addressResults.map((result) => (
+            <Pressable
+              key={`${result.label}:${result.latitude},${result.longitude}`}
+              style={({ pressed }) => [styles.resultRow, pressed && styles.locationButtonPressed]}
+              onPress={() => {
+                chooseAddress(result);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Use ${result.label}`}
+            >
+              <Text style={styles.resultText}>{result.label}</Text>
+            </Pressable>
+          ))}
+        </>
+      )}
 
       {locationProvider !== undefined && (
         <Pressable
@@ -252,6 +342,28 @@ const styles = StyleSheet.create({
   },
   multiline: { minHeight: 80, textAlignVertical: 'top' },
   error: { color: '#dc2626', fontSize: 13, marginTop: 4 },
+  searchRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  searchInput: { flex: 1 },
+  searchButton: {
+    borderWidth: 1,
+    borderColor: '#2563eb',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    minWidth: 80,
+  },
+  resultRow: {
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  resultText: { fontSize: 14, color: '#0f172a' },
   locationButton: {
     marginTop: 16,
     borderWidth: 1,
