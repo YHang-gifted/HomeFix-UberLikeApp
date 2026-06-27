@@ -223,6 +223,7 @@ export class ApiClient {
   public async listAvailableRequests(params?: {
     limit?: number;
     offset?: number;
+    category?: string;
   }): Promise<ServiceRequestPage> {
     const query = new URLSearchParams();
     if (params?.limit !== undefined) {
@@ -230,6 +231,9 @@ export class ApiClient {
     }
     if (params?.offset !== undefined) {
       query.set('offset', String(params.offset));
+    }
+    if (params?.category !== undefined && params.category.trim() !== '') {
+      query.set('category', params.category.trim());
     }
     const queryString = query.toString();
     const path =

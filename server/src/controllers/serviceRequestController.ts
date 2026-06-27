@@ -35,6 +35,9 @@ const listQuerySchema = paginationQuerySchema.extend({
   status: serviceRequestStatusSchema.optional(),
   q: z.string().trim().max(100).optional(),
 });
+const availableQuerySchema = paginationQuerySchema.extend({
+  category: z.string().trim().min(1).max(50).optional(),
+});
 
 export async function postServiceRequest(
   req: Request,
@@ -102,14 +105,19 @@ export async function getAvailableServiceRequests(
     return;
   }
 
-  const parsed = paginationQuerySchema.safeParse(req.query);
+  const parsed = availableQuerySchema.safeParse(req.query);
   if (!parsed.success) {
     next(new AppError('Invalid query parameters', 422));
     return;
   }
 
   try {
-    const page = await listAvailableRequests(principal, parsed.data.limit, parsed.data.offset);
+    const page = await listAvailableRequests(
+      principal,
+      parsed.data.limit,
+      parsed.data.offset,
+      parsed.data.category,
+    );
     res.status(200).json(page);
   } catch (error) {
     next(error);
