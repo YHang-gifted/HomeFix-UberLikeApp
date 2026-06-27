@@ -25,6 +25,7 @@ import type {
 } from '../../../shared/schemas.ts';
 import {
   auditPageSchema,
+  deviceTokenListSchema,
   messageListSchema,
   messageSchema,
   notificationListSchema,
@@ -331,6 +332,12 @@ export class ApiClient {
   public async markAllNotificationsRead(): Promise<NotificationList> {
     const data = await this.send('PATCH', '/notifications/read-all', undefined, true);
     return notificationListSchema.parse(data);
+  }
+
+  /** Register this device's push token so push notifications can reach it. */
+  public async registerDeviceToken(token: string): Promise<string[]> {
+    const data = await this.send('POST', '/me/device-tokens', { token }, true);
+    return deviceTokenListSchema.parse(data).tokens;
   }
 
   public async listAuditEvents(params?: { limit?: number; offset?: number }): Promise<AuditPage> {
