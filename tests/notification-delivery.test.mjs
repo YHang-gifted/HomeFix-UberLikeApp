@@ -5,9 +5,6 @@ import {
   CompositeDelivery,
   RecordingDelivery,
   buildDelivery,
-  emailDelivery,
-  pushDelivery,
-  resetDeliveries,
 } from '../server/src/services/notificationDelivery.ts';
 
 function makeNotification(overrides = {}) {
@@ -67,31 +64,55 @@ describe('CompositeDelivery', () => {
 });
 
 describe('buildDelivery', () => {
+  function recordingSender() {
+    const sent = [];
+    return {
+      sent,
+      send: (message) => {
+        sent.push(message);
+        return Promise.resolve();
+      },
+    };
+  }
+
+  const resolvers = {
+    email: () => Promise.resolve('user@example.com'),
+    push: () => Promise.resolve('device-token'),
+  };
+
   it('enables only the configured known channels', async () => {
-    resetDeliveries();
-    await buildDelivery(['email']).deliver(makeNotification());
-    assert.equal(emailDelivery.sent.length, 1);
-    assert.equal(pushDelivery.sent.length, 0);
+    const { sent, send } = recordingSender();
+    await buildDelivery(['email'], { resolvers, sender: send }).deliver(makeNotification());
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].channel, 'email');
   });
 
-  it('enables both channels when both are configured', async () => {
-    resetDeliveries();
-    await buildDelivery(['email', 'push']).deliver(makeNotification());
-    assert.equal(emailDelivery.sent.length, 1);
-    assert.equal(pushDelivery.sent.length, 1);
+  it('fans out to both channels when both are configured', async () => {
+    const { sent, send } = recordingSender();
+    await buildDelivery(['email', 'push'], { resolvers, sender: send }).deliver(makeNotification());
+    assert.deepEqual(sent.map((m) => m.channel).sort(), ['email', 'push']);
   });
 
   it('ignores unknown channel names', async () => {
-    resetDeliveries();
-    await buildDelivery(['sms', 'carrier-pigeon']).deliver(makeNotification());
-    assert.equal(emailDelivery.sent.length, 0);
-    assert.equal(pushDelivery.sent.length, 0);
+    const { sent, send } = recordingSender();
+    await buildDelivery(['sms', 'carrier-pigeon'], { resolvers, sender: send }).deliver(
+      makeNotification(),
+    );
+    assert.equal(sent.length, 0);
   });
 
   it('delivers to nothing (no throw) when no channels are configured', async () => {
-    resetDeliveries();
-    await buildDelivery([]).deliver(makeNotification());
-    assert.equal(emailDelivery.sent.length, 0);
-    assert.equal(pushDelivery.sent.length, 0);
+    const { sent, send } = recordingSender();
+    await buildDelivery([], { resolvers, sender: send }).deliver(makeNotification());
+    assert.equal(sent.length, 0);
+  });
+
+  it('skips a channel whose recipient cannot be resolved', async () => {
+    const { sent, send } = recordingSender();
+    const noRecipient = { email: () => Promise.resolve(undefined) };
+    await buildDelivery(['email'], { resolvers: noRecipient, sender: send }).deliver(
+      makeNotification(),
+    );
+    assert.equal(sent.length, 0);
   });
 });

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { Notification, NotificationList, Principal } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { notificationRepository } from '../repositories/notificationRepository.ts';
-import { notificationDelivery, resetDeliveries } from './notificationDelivery.ts';
+import { notificationDelivery } from './notificationDelivery.ts';
 import { logger } from '../utils/logger.ts';
 
 /** Create a notification for a recipient. Never throws to the calling flow. */
@@ -60,5 +60,4 @@ export async function markAllNotificationsRead(principal: Principal): Promise<No
 
 export async function resetNotifications(): Promise<void> {
   await notificationRepository.clear();
-  resetDeliveries();
 }
