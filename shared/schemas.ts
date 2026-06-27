@@ -43,6 +43,8 @@ export const createServiceRequestInputSchema = z.object({
   description: z.string().min(1).max(2000),
   location: coordinatesSchema,
   photoUrls: z.array(z.url()).max(5).optional(),
+  // Optional preferred time for the visit (ISO 8601).
+  scheduledAt: z.iso.datetime().optional(),
 });
 export type CreateServiceRequestInput = z.infer<typeof createServiceRequestInputSchema>;
 
@@ -56,6 +58,8 @@ export const serviceRequestSchema = z.object({
   status: serviceRequestStatusSchema,
   createdAt: z.iso.datetime(),
   photoUrls: z.array(z.url()).max(5).optional(),
+  // Optional preferred time for the visit (ISO 8601).
+  scheduledAt: z.iso.datetime().optional(),
 });
 export type ServiceRequest = z.infer<typeof serviceRequestSchema>;
 

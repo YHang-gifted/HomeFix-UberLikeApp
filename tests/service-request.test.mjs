@@ -63,6 +63,26 @@ describe('POST /service-requests', () => {
     assert.ok(body.id);
   });
 
+  it('stores an optional preferred time (scheduledAt) and returns it', async () => {
+    const res = await globalThis.fetch(`${baseUrl}/service-requests`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ ...validBody(), scheduledAt: '2026-07-01T09:00:00.000Z' }),
+    });
+    assert.equal(res.status, 201);
+    const body = await res.json();
+    assert.equal(body.scheduledAt, '2026-07-01T09:00:00.000Z');
+  });
+
+  it('rejects a malformed scheduledAt (422)', async () => {
+    const res = await globalThis.fetch(`${baseUrl}/service-requests`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ ...validBody(), scheduledAt: 'next tuesday' }),
+    });
+    assert.equal(res.status, 422);
+  });
+
   it('rejects an unauthenticated request (401)', async () => {
     const res = await globalThis.fetch(`${baseUrl}/service-requests`, {
       method: 'POST',
