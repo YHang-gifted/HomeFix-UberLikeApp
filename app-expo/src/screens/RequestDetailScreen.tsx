@@ -417,6 +417,13 @@ export function RequestDetailScreen({
       <Text style={styles.label}>Requested</Text>
       <Text style={styles.value}>{new Date(request.createdAt).toLocaleString()}</Text>
 
+      {request.scheduledAt !== undefined && (
+        <>
+          <Text style={styles.label}>Preferred time</Text>
+          <Text style={styles.value}>{new Date(request.scheduledAt).toLocaleString()}</Text>
+        </>
+      )}
+
       {!isOwner && (
         <>
           <Text style={styles.label}>Customer</Text>

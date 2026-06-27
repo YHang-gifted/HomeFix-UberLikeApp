@@ -15,7 +15,10 @@ import type {
   CreateRequestFieldErrors,
   CreateRequestFormValues,
 } from '../../../app/src/features/serviceRequests/createRequestForm';
-import { validateCreateRequestForm } from '../../../app/src/features/serviceRequests/createRequestForm';
+import {
+  parseScheduledTime,
+  validateCreateRequestForm,
+} from '../../../app/src/features/serviceRequests/createRequestForm';
 import type { LocationProvider } from '../../../app/src/features/location/currentLocation';
 import { fetchCurrentLocation } from '../../../app/src/features/location/currentLocation';
 import type { GeocodeResult, Geocoder } from '../../../app/src/features/location/geocoding';
@@ -60,6 +63,8 @@ export function CreateRequestScreen({
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [photoUrlsText, setPhotoUrlsText] = useState('');
+  const [scheduledText, setScheduledText] = useState('');
+  const [scheduledError, setScheduledError] = useState<string | null>(null);
   const [errors, setErrors] = useState<CreateRequestFieldErrors>({});
   const [banner, setBanner] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -118,7 +123,11 @@ export function CreateRequestScreen({
     const values: CreateRequestFormValues = { category, description, latitude, longitude };
     const fieldErrors = validateCreateRequestForm(values);
     setErrors(fieldErrors);
-    if (Object.keys(fieldErrors).length > 0) {
+
+    const schedule = parseScheduledTime(scheduledText);
+    setScheduledError(schedule.ok ? null : 'Enter a valid date/time (e.g. 2026-07-01T09:00)');
+
+    if (Object.keys(fieldErrors).length > 0 || !schedule.ok) {
       return;
     }
 
@@ -141,6 +150,7 @@ export function CreateRequestScreen({
         description: description.trim(),
         location: { latitude: Number(latitude), longitude: Number(longitude) },
         ...(photoUrls.length > 0 ? { photoUrls } : {}),
+        ...(schedule.iso !== undefined ? { scheduledAt: schedule.iso } : {}),
       });
       setBanner('Request created');
       onCreated?.(created);
@@ -294,6 +304,19 @@ export function CreateRequestScreen({
         multiline
         editable={!submitting}
       />
+
+      <Text style={styles.label}>Preferred time</Text>
+      <TextInput
+        style={styles.input}
+        value={scheduledText}
+        onChangeText={setScheduledText}
+        placeholder="Optional, e.g. 2026-07-01T09:00"
+        accessibilityLabel="Preferred time"
+        autoCapitalize="none"
+        autoCorrect={false}
+        editable={!submitting}
+      />
+      {scheduledError !== null && <Text style={styles.error}>{scheduledError}</Text>}
 
       <Pressable
         style={({ pressed }) => [styles.button, (pressed || submitting) && styles.buttonPressed]}

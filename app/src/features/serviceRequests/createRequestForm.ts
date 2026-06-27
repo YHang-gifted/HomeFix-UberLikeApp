@@ -49,3 +49,22 @@ export function validateCreateRequestForm(
 
   return errors;
 }
+
+/**
+ * Parse the optional "preferred time" field. An empty value is valid and means
+ * "no preference" (`iso` undefined); a parseable date is converted to an ISO
+ * string for the API; anything else is rejected so the screen can show an error.
+ */
+export type ScheduledTimeResult = { ok: true; iso: string | undefined } | { ok: false };
+
+export function parseScheduledTime(input: string): ScheduledTimeResult {
+  const trimmed = input.trim();
+  if (trimmed === '') {
+    return { ok: true, iso: undefined };
+  }
+  const date = new Date(trimmed);
+  if (Number.isNaN(date.getTime())) {
+    return { ok: false };
+  }
+  return { ok: true, iso: date.toISOString() };
+}

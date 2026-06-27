@@ -145,6 +145,17 @@ describe('RequestDetailScreen', () => {
     getByLabelText('Cancel request');
   });
 
+  it('shows the preferred time when the request has one', async () => {
+    const request = makeRequest({ scheduledAt: '2026-07-01T09:00:00.000Z' });
+    const client = clientWith({ getServiceRequest: jest.fn().mockResolvedValue(request) });
+
+    const { findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    await findByText('Preferred time');
+  });
+
   it('shows photos when the request has photo URLs', async () => {
     const request = makeRequest({ photoUrls: ['https://example.com/a.jpg'] });
     const client = clientWith({ getServiceRequest: jest.fn().mockResolvedValue(request) });
