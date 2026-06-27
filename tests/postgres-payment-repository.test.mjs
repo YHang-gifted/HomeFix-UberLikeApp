@@ -98,6 +98,37 @@ describe('PostgresPaymentRepository (PGlite)', () => {
     assert.deepEqual(await repo.findByCustomer('023e4567-e89b-12d3-a456-426614174000'), []);
   });
 
+  it('lists a worker received payments most-recent-first, scoped to that worker', async () => {
+    await repo.save(
+      makePayment({
+        id: '623e4567-e89b-12d3-a456-426614174011',
+        requestId: REQUEST_ID,
+        createdAt: '2026-06-22T00:00:00.000Z',
+      }),
+    );
+    await repo.save(
+      makePayment({
+        id: '623e4567-e89b-12d3-a456-426614174012',
+        requestId: OTHER_REQUEST,
+        createdAt: '2026-06-23T00:00:00.000Z',
+      }),
+    );
+    await repo.save(
+      makePayment({
+        id: '623e4567-e89b-12d3-a456-426614174013',
+        requestId: '523e4567-e89b-12d3-a456-426614174333',
+        workerId: '423e4567-e89b-12d3-a456-426614174999',
+        createdAt: '2026-06-24T00:00:00.000Z',
+      }),
+    );
+
+    const received = await repo.findByWorker(WORKER_ID);
+    assert.equal(received.length, 2);
+    assert.equal(received[0].createdAt, '2026-06-23T00:00:00.000Z');
+    assert.equal(received[1].createdAt, '2026-06-22T00:00:00.000Z');
+    assert.deepEqual(await repo.findByWorker('023e4567-e89b-12d3-a456-426614174000'), []);
+  });
+
   it('clear empties the table', async () => {
     await repo.save(makePayment());
     await repo.clear();

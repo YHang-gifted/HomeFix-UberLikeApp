@@ -10,6 +10,8 @@ export interface PaymentRepository {
   findByRequest(requestId: string): Promise<Payment | undefined>;
   /** A customer's payments, most-recent-first. */
   findByCustomer(customerId: string): Promise<Payment[]>;
+  /** A worker's received payments, most-recent-first. */
+  findByWorker(workerId: string): Promise<Payment[]>;
   clear(): Promise<void>;
 }
 
@@ -31,6 +33,14 @@ export class InMemoryPaymentRepository implements PaymentRepository {
     return Promise.resolve(
       [...this.payments.values()]
         .filter((payment) => payment.customerId === customerId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    );
+  }
+
+  public findByWorker(workerId: string): Promise<Payment[]> {
+    return Promise.resolve(
+      [...this.payments.values()]
+        .filter((payment) => payment.workerId === workerId)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     );
   }

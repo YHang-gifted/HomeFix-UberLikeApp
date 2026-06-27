@@ -7,7 +7,7 @@ import { parseUuidParam } from './parseUuidParam.ts';
 import {
   createPayment,
   getPayment,
-  listCustomerPayments,
+  listMyPayments,
   payPayment,
 } from '../services/paymentService.ts';
 
@@ -48,7 +48,7 @@ export async function getMyPayments(
   }
 
   try {
-    res.status(200).json({ items: await listCustomerPayments(principal) });
+    res.status(200).json({ items: await listMyPayments(principal) });
   } catch (error) {
     next(error);
   }

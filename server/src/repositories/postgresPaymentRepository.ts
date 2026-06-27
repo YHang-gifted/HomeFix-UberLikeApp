@@ -72,6 +72,14 @@ export class PostgresPaymentRepository implements PaymentRepository {
     return result.rows.map(mapRow);
   }
 
+  public async findByWorker(workerId: string): Promise<Payment[]> {
+    const result = await this.db.query(
+      'SELECT * FROM payments WHERE worker_id = $1 ORDER BY created_at DESC',
+      [workerId],
+    );
+    return result.rows.map(mapRow);
+  }
+
   public async clear(): Promise<void> {
     await this.db.query('DELETE FROM payments');
   }
