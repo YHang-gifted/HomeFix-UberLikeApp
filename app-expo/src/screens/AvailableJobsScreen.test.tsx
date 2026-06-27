@@ -61,6 +61,41 @@ describe('AvailableJobsScreen', () => {
     await findByText('No jobs available right now. Check back soon.');
   });
 
+  it('reloads with the chosen category when a chip is tapped', async () => {
+    const listAvailableRequests = jest
+      .fn()
+      .mockResolvedValueOnce(makePage([makeRequest()]))
+      .mockResolvedValueOnce(makePage([makeRequest({ category: 'electrical' })]));
+    const client = clientWith({ listAvailableRequests });
+
+    const { findByText, getByLabelText } = await render(<AvailableJobsScreen client={client} />);
+    await findByText('Leaking kitchen sink');
+
+    await fireEvent.press(getByLabelText('Category electrical'));
+
+    await waitFor(() => {
+      expect(listAvailableRequests).toHaveBeenLastCalledWith({
+        limit: 20,
+        offset: 0,
+        category: 'electrical',
+      });
+    });
+  });
+
+  it('shows a category-specific empty state', async () => {
+    const listAvailableRequests = jest
+      .fn()
+      .mockResolvedValueOnce(makePage([makeRequest()]))
+      .mockResolvedValueOnce(makePage([]));
+    const client = clientWith({ listAvailableRequests });
+
+    const { findByText, getByLabelText } = await render(<AvailableJobsScreen client={client} />);
+    await findByText('Leaking kitchen sink');
+    await fireEvent.press(getByLabelText('Category cleaning'));
+
+    await findByText('No cleaning jobs available right now.');
+  });
+
   it('claims a job, reloads, and notifies the caller', async () => {
     const listAvailableRequests = jest
       .fn()
