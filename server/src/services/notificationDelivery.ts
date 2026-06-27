@@ -1,3 +1,4 @@
+import { loadEnv } from '../config/env.ts';
 import type { Notification } from '../../../shared/schemas.ts';
 import { logger } from '../utils/logger.ts';
 
@@ -68,14 +69,29 @@ export class CompositeDelivery implements NotificationDelivery {
   }
 }
 
-// Default channels: recording mocks for email and push. Swap these for real
-// provider-backed implementations in a later slice.
+// Known channels: recording mocks for email and push. Swap these for real
+// provider-backed implementations in a later slice without changing callers.
 export const emailDelivery = new RecordingDelivery('email');
 export const pushDelivery = new RecordingDelivery('push');
-export const notificationDelivery: NotificationDelivery = new CompositeDelivery([
-  emailDelivery,
-  pushDelivery,
-]);
+
+const KNOWN_CHANNELS: Readonly<Record<string, NotificationDelivery>> = {
+  email: emailDelivery,
+  push: pushDelivery,
+};
+
+/**
+ * Build a delivery from the configured channel names, keeping only known ones
+ * (unknown names are ignored). An empty list yields a no-op delivery, so nothing
+ * is sent unless a channel is explicitly enabled via `NOTIFY_CHANNELS`.
+ */
+export function buildDelivery(channelNames: readonly string[]): NotificationDelivery {
+  const channels = channelNames
+    .map((name) => KNOWN_CHANNELS[name])
+    .filter((channel): channel is NotificationDelivery => channel !== undefined);
+  return new CompositeDelivery(channels);
+}
+
+export const notificationDelivery: NotificationDelivery = buildDelivery(loadEnv().NOTIFY_CHANNELS);
 
 /** Clear the recorded delivery attempts (used by tests and reset flows). */
 export function resetDeliveries(): void {

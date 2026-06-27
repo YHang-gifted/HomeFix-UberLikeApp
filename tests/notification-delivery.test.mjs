@@ -4,6 +4,10 @@ import { describe, it } from 'node:test';
 import {
   CompositeDelivery,
   RecordingDelivery,
+  buildDelivery,
+  emailDelivery,
+  pushDelivery,
+  resetDeliveries,
 } from '../server/src/services/notificationDelivery.ts';
 
 function makeNotification(overrides = {}) {
@@ -59,5 +63,35 @@ describe('CompositeDelivery', () => {
     // Must not throw even though one channel rejects.
     await composite.deliver(makeNotification());
     assert.equal(push.sent.length, 1);
+  });
+});
+
+describe('buildDelivery', () => {
+  it('enables only the configured known channels', async () => {
+    resetDeliveries();
+    await buildDelivery(['email']).deliver(makeNotification());
+    assert.equal(emailDelivery.sent.length, 1);
+    assert.equal(pushDelivery.sent.length, 0);
+  });
+
+  it('enables both channels when both are configured', async () => {
+    resetDeliveries();
+    await buildDelivery(['email', 'push']).deliver(makeNotification());
+    assert.equal(emailDelivery.sent.length, 1);
+    assert.equal(pushDelivery.sent.length, 1);
+  });
+
+  it('ignores unknown channel names', async () => {
+    resetDeliveries();
+    await buildDelivery(['sms', 'carrier-pigeon']).deliver(makeNotification());
+    assert.equal(emailDelivery.sent.length, 0);
+    assert.equal(pushDelivery.sent.length, 0);
+  });
+
+  it('delivers to nothing (no throw) when no channels are configured', async () => {
+    resetDeliveries();
+    await buildDelivery([]).deliver(makeNotification());
+    assert.equal(emailDelivery.sent.length, 0);
+    assert.equal(pushDelivery.sent.length, 0);
   });
 });

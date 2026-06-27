@@ -28,6 +28,18 @@ const envSchema = z
           .map((origin) => origin.trim())
           .filter((origin) => origin.length > 0),
       ),
+    // Comma-separated notification delivery channels to enable (e.g. "email,push").
+    // Empty (the default) sends to no external channel, so nothing is delivered by
+    // accident before real providers are configured. Unknown names are ignored.
+    NOTIFY_CHANNELS: z
+      .string()
+      .default('')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((channel) => channel.trim())
+          .filter((channel) => channel.length > 0),
+      ),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production' && env.JWT_SECRET === DEV_JWT_SECRET) {
