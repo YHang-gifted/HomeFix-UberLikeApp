@@ -8,6 +8,7 @@ import type {
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { paymentRepository } from '../repositories/paymentRepository.ts';
+import { quoteRepository } from '../repositories/quoteRepository.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { isRequestParty } from './serviceRequestService.ts';
 import { recordNotification } from './notificationService.ts';
@@ -53,6 +54,16 @@ export async function createPayment(
   const existing = await paymentRepository.findByRequest(requestId);
   if (existing) {
     throw new AppError('A payment already exists for this request', 409);
+  }
+
+  // Payment is gated on an accepted quote, and must match its agreed amount, so a
+  // customer cannot pay an arbitrary sum before a price has been agreed.
+  const quote = await quoteRepository.findByRequest(requestId);
+  if (!quote || quote.status !== 'accepted') {
+    throw new AppError('An accepted quote is required before payment', 422);
+  }
+  if (input.amountCents !== quote.amountCents) {
+    throw new AppError('Payment amount must match the accepted quote', 422);
   }
 
   const payment: Payment = {

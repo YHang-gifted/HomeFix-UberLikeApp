@@ -5,6 +5,7 @@ import { createApp } from '../server/src/app.ts';
 import { signToken } from '../server/src/auth/jwt.ts';
 import { resetServiceRequests } from '../server/src/services/serviceRequestService.ts';
 import { resetPayments } from '../server/src/services/paymentService.ts';
+import { resetQuotes } from '../server/src/services/quoteService.ts';
 import { resetNotifications } from '../server/src/services/notificationService.ts';
 
 const CUSTOMER_ID = '123e4567-e89b-12d3-a456-426614174000';
@@ -41,6 +42,7 @@ describe('request payments (mock)', () => {
   beforeEach(async () => {
     await resetServiceRequests();
     await resetPayments();
+    await resetQuotes();
     await resetNotifications();
   });
 
@@ -75,9 +77,24 @@ describe('request payments (mock)', () => {
     });
   }
 
+  // Payment is gated on an accepted quote of the same amount: the assigned worker
+  // proposes and the owning customer accepts before a payment can be created.
+  async function setupAcceptedQuote(id, amountCents) {
+    await fetch(`${baseUrl}/service-requests/${id}/quote`, {
+      method: 'POST',
+      headers: headers(WORKER_ID, 'worker'),
+      body: JSON.stringify({ amountCents }),
+    });
+    await fetch(`${baseUrl}/service-requests/${id}/quote/accept`, {
+      method: 'POST',
+      headers: headers(CUSTOMER_ID, 'customer'),
+    });
+  }
+
   it('lets the owning customer create a pending payment for an assigned request', async () => {
     const created = await createRequest();
     await assign(created.id);
+    await setupAcceptedQuote(created.id, 150000);
     const res = await createPayment(created.id, 150000);
     assert.equal(res.status, 201);
     const payment = await res.json();
@@ -90,6 +107,7 @@ describe('request payments (mock)', () => {
   it('marks the payment paid and notifies the worker', async () => {
     const created = await createRequest();
     await assign(created.id);
+    await setupAcceptedQuote(created.id, 150000);
     await createPayment(created.id, 150000);
 
     const pay = await fetch(`${baseUrl}/service-requests/${created.id}/payment/pay`, {
@@ -110,6 +128,7 @@ describe('request payments (mock)', () => {
   it('lets the assigned worker view the payment', async () => {
     const created = await createRequest();
     await assign(created.id);
+    await setupAcceptedQuote(created.id, 150000);
     await createPayment(created.id, 150000);
     const res = await fetch(`${baseUrl}/service-requests/${created.id}/payment`, {
       headers: headers(WORKER_ID, 'worker'),
@@ -126,14 +145,16 @@ describe('request payments (mock)', () => {
   it('refuses a second payment for the same request (409)', async () => {
     const created = await createRequest();
     await assign(created.id);
+    await setupAcceptedQuote(created.id, 150000);
     await createPayment(created.id, 150000);
-    const res = await createPayment(created.id, 999);
+    const res = await createPayment(created.id, 150000);
     assert.equal(res.status, 409);
   });
 
   it('refuses to pay twice (409)', async () => {
     const created = await createRequest();
     await assign(created.id);
+    await setupAcceptedQuote(created.id, 150000);
     await createPayment(created.id, 150000);
     await fetch(`${baseUrl}/service-requests/${created.id}/payment/pay`, {
       method: 'POST',
@@ -144,6 +165,21 @@ describe('request payments (mock)', () => {
       headers: headers(CUSTOMER_ID, 'customer'),
     });
     assert.equal(second.status, 409);
+  });
+
+  it('refuses a payment without an accepted quote (422)', async () => {
+    const created = await createRequest();
+    await assign(created.id);
+    const res = await createPayment(created.id, 150000);
+    assert.equal(res.status, 422);
+  });
+
+  it('refuses a payment whose amount does not match the accepted quote (422)', async () => {
+    const created = await createRequest();
+    await assign(created.id);
+    await setupAcceptedQuote(created.id, 150000);
+    const res = await createPayment(created.id, 999);
+    assert.equal(res.status, 422);
   });
 
   it('forbids a non-owner from creating a payment (403)', async () => {
