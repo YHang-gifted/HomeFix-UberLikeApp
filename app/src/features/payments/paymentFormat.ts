@@ -12,6 +12,18 @@ export function dollarsToCents(input: string): number | null {
   return cents > 0 ? cents : null;
 }
 
+/**
+ * Render an integer number of cents as a plain dollar string for an input field,
+ * e.g. 250000 → "2500", 150050 → "1500.5". Round-trips through `dollarsToCents`.
+ * Used to prefill the payment amount from an accepted quote.
+ */
+export function centsToDollars(cents: number): string {
+  return (cents / 100)
+    .toFixed(2)
+    .replace(/\.00$/, '')
+    .replace(/(\.\d)0$/, '$1');
+}
+
 /** Format an integer number of cents as a TWD amount string, e.g. "NT$1,500.00". */
 export function formatCents(cents: number): string {
   const dollars = (cents / 100).toLocaleString('en-US', {

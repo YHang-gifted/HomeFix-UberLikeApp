@@ -13,8 +13,13 @@ import {
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import { isApiError } from '../../../app/src/services/apiClient';
 import { customerCanCancel } from '../../../app/src/features/serviceRequests/customerStatus';
-import { dollarsToCents, formatCents } from '../../../app/src/features/payments/paymentFormat';
-import type { AuditEvent, Payment, ServiceRequest } from '../../../shared/schemas';
+import {
+  centsToDollars,
+  dollarsToCents,
+  formatCents,
+} from '../../../app/src/features/payments/paymentFormat';
+import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
+import type { AuditEvent, Payment, Quote, ServiceRequest } from '../../../shared/schemas';
 import { apiClient } from '../api';
 
 const RATINGS = [1, 2, 3, 4, 5];
@@ -74,6 +79,11 @@ export function RequestDetailScreen({
   const [amountText, setAmountText] = useState('');
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentBusy, setPaymentBusy] = useState(false);
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [quoteAmountText, setQuoteAmountText] = useState('');
+  const [quoteNote, setQuoteNote] = useState('');
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [quoteBusy, setQuoteBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -140,6 +150,14 @@ export function RequestDetailScreen({
         } catch {
           // No payment yet (404) or not a party; leave it unset.
         }
+        try {
+          const foundQuote = await activeClient.getQuote(requestId);
+          if (active) {
+            setQuote(foundQuote);
+          }
+        } catch {
+          // No quote yet (404) or not a party; leave it unset.
+        }
       } catch {
         if (active) {
           setError('Could not load this request.');
@@ -188,7 +206,9 @@ export function RequestDetailScreen({
   }
 
   async function setupPayment(): Promise<void> {
-    const amountCents = dollarsToCents(amountText);
+    // Fall back to an accepted quote's amount when the field is left untouched.
+    const prefill = quote !== null && quote.status === 'accepted' ? quote.amountCents : null;
+    const amountCents = amountText.trim() !== '' ? dollarsToCents(amountText) : prefill;
     if (amountCents === null) {
       setPaymentError('Enter a valid amount.');
       return;
@@ -220,6 +240,53 @@ export function RequestDetailScreen({
       setPaymentError(isApiError(payError) ? payError.message : 'Could not complete the payment.');
     } finally {
       setPaymentBusy(false);
+    }
+  }
+
+  async function proposeQuote(): Promise<void> {
+    const amountCents = dollarsToCents(quoteAmountText);
+    if (amountCents === null) {
+      setQuoteError('Enter a valid amount.');
+      return;
+    }
+    setQuoteError(null);
+    setQuoteBusy(true);
+    const trimmedNote = quoteNote.trim();
+    try {
+      const created = await activeClient.createQuote(requestId, {
+        amountCents,
+        ...(trimmedNote.length > 0 ? { note: trimmedNote } : {}),
+      });
+      setQuote(created);
+      setQuoteAmountText('');
+      setQuoteNote('');
+    } catch (proposeError) {
+      setQuoteError(
+        isApiError(proposeError)
+          ? proposeError.message
+          : 'Could not send the quote. Please try again.',
+      );
+    } finally {
+      setQuoteBusy(false);
+    }
+  }
+
+  async function respondToQuote(accept: boolean): Promise<void> {
+    setQuoteError(null);
+    setQuoteBusy(true);
+    try {
+      const updated = accept
+        ? await activeClient.acceptQuote(requestId)
+        : await activeClient.declineQuote(requestId);
+      setQuote(updated);
+    } catch (respondError) {
+      setQuoteError(
+        isApiError(respondError)
+          ? respondError.message
+          : 'Could not update the quote. Please try again.',
+      );
+    } finally {
+      setQuoteBusy(false);
     }
   }
 
@@ -267,6 +334,14 @@ export function RequestDetailScreen({
 
   const isOwner =
     principal !== null && principal.role === 'customer' && principal.id === request.customerId;
+
+  const quoteView = deriveQuoteView({ principal, request, quote });
+  const paymentAmountValue =
+    amountText !== ''
+      ? amountText
+      : quoteView.prefillAmountCents !== null
+        ? centsToDollars(quoteView.prefillAmountCents)
+        : '';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -352,6 +427,107 @@ export function RequestDetailScreen({
         </Pressable>
       )}
 
+      {request.workerId !== undefined && (quote !== null || quoteView.canPropose) && (
+        <View style={styles.quoteBox}>
+          <Text style={styles.label}>Quote</Text>
+
+          {quote !== null && (
+            <>
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentAmount}>{formatCents(quote.amountCents)}</Text>
+                <Text
+                  style={
+                    quote.status === 'accepted'
+                      ? styles.paymentPaid
+                      : quote.status === 'declined'
+                        ? styles.quoteDeclined
+                        : styles.paymentPending
+                  }
+                >
+                  {quoteView.statusLabel}
+                </Text>
+              </View>
+              {quote.note !== undefined && <Text style={styles.value}>{quote.note}</Text>}
+            </>
+          )}
+
+          {quoteView.canPropose && (
+            <>
+              <TextInput
+                style={styles.paymentInput}
+                value={quoteAmountText}
+                onChangeText={setQuoteAmountText}
+                placeholder="Amount in NT$ (e.g. 2500)"
+                keyboardType="numbers-and-punctuation"
+                accessibilityLabel="Quote amount"
+                editable={!quoteBusy}
+              />
+              <TextInput
+                style={[styles.paymentInput, styles.quoteNoteInput]}
+                value={quoteNote}
+                onChangeText={setQuoteNote}
+                placeholder="Note (optional)"
+                accessibilityLabel="Quote note"
+                editable={!quoteBusy}
+                multiline
+              />
+              <Pressable
+                style={({ pressed }) => [styles.payButton, pressed && styles.payButtonPressed]}
+                onPress={() => {
+                  void proposeQuote();
+                }}
+                disabled={quoteBusy}
+                accessibilityRole="button"
+                accessibilityLabel="Send quote"
+              >
+                {quoteBusy ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text style={styles.payButtonText}>Send quote</Text>
+                )}
+              </Pressable>
+            </>
+          )}
+
+          {quoteView.canRespond && (
+            <View style={styles.quoteActions}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.payButton,
+                  styles.quoteAction,
+                  pressed && styles.payButtonPressed,
+                ]}
+                onPress={() => {
+                  void respondToQuote(true);
+                }}
+                disabled={quoteBusy}
+                accessibilityRole="button"
+                accessibilityLabel="Accept quote"
+              >
+                <Text style={styles.payButtonText}>Accept</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.cancel,
+                  styles.quoteAction,
+                  pressed && styles.cancelPressed,
+                ]}
+                onPress={() => {
+                  void respondToQuote(false);
+                }}
+                disabled={quoteBusy}
+                accessibilityRole="button"
+                accessibilityLabel="Decline quote"
+              >
+                <Text style={styles.cancelText}>Decline</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {quoteError !== null && <Text style={styles.error}>{quoteError}</Text>}
+        </View>
+      )}
+
       {request.workerId !== undefined && (payment !== null || isOwner) && (
         <View style={styles.paymentBox}>
           <Text style={styles.label}>Payment</Text>
@@ -369,7 +545,7 @@ export function RequestDetailScreen({
             <>
               <TextInput
                 style={styles.paymentInput}
-                value={amountText}
+                value={paymentAmountValue}
                 onChangeText={setAmountText}
                 placeholder="Amount in NT$ (e.g. 1500)"
                 keyboardType="numbers-and-punctuation"
@@ -558,6 +734,11 @@ const styles = StyleSheet.create({
   historyText: { fontSize: 14, color: '#0f172a' },
   historyTime: { fontSize: 12, color: '#94a3b8' },
   paymentBox: { marginTop: 8 },
+  quoteBox: { marginTop: 8 },
+  quoteDeclined: { fontSize: 14, fontWeight: '600', color: '#dc2626' },
+  quoteNoteInput: { marginTop: 8, minHeight: 48, textAlignVertical: 'top' },
+  quoteActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  quoteAction: { flex: 1, marginTop: 0 },
   paymentRow: {
     flexDirection: 'row',
     alignItems: 'center',
