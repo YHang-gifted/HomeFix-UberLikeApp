@@ -415,6 +415,69 @@ describe('RequestDetailScreen', () => {
   });
 });
 
+describe('RequestDetailScreen review replies', () => {
+  const baseReview = {
+    id: '623e4567-e89b-12d3-a456-426614174999',
+    requestId: '523e4567-e89b-12d3-a456-426614174000',
+    customerId: CUSTOMER_ID,
+    workerId: WORKER_ID,
+    rating: 5,
+    comment: 'Great work',
+    createdAt: '2026-06-22T00:00:00.000Z',
+  };
+
+  it('lets the assigned worker reply to the review', async () => {
+    const request = makeRequest({ status: 'completed', workerId: WORKER_ID });
+    const replyToReview = jest
+      .fn()
+      .mockResolvedValue({
+        ...baseReview,
+        reply: 'Thank you!',
+        repliedAt: '2026-06-23T00:00:00.000Z',
+      });
+    const client = clientWith(
+      {
+        getServiceRequest: jest.fn().mockResolvedValue(request),
+        getReview: jest.fn().mockResolvedValue(baseReview),
+        replyToReview,
+      },
+      { id: WORKER_ID, role: 'worker' },
+    );
+
+    const { findByLabelText, findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    await fireEvent.changeText(await findByLabelText('Reply to review'), '  Thank you!  ');
+    await fireEvent.press(await findByLabelText('Send reply'));
+
+    await waitFor(() => {
+      expect(replyToReview).toHaveBeenCalledWith(request.id, 'Thank you!');
+    });
+    await findByText('Reply posted.');
+  });
+
+  it('shows the worker reply to the owning customer without a reply box', async () => {
+    const request = makeRequest({ status: 'completed', workerId: WORKER_ID });
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      getReview: jest.fn().mockResolvedValue({
+        ...baseReview,
+        reply: 'Thanks for the feedback',
+        repliedAt: '2026-06-23T00:00:00.000Z',
+      }),
+    });
+
+    const { findByText, queryByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    await findByText("Worker's reply");
+    await findByText('Thanks for the feedback');
+    expect(queryByLabelText('Reply to review')).toBeNull();
+  });
+});
+
 describe('RequestDetailScreen quotes', () => {
   it('lets the assigned worker propose a quote', async () => {
     const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
