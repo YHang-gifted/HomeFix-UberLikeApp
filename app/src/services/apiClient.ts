@@ -1,6 +1,7 @@
 import type {
   AuditEvent,
   AuditPage,
+  CreateQuoteInput,
   CreateReviewInput,
   CreateServiceRequestInput,
   Message,
@@ -9,6 +10,7 @@ import type {
   Payment,
   Principal,
   PublicUser,
+  Quote,
   RegisterInput,
   RequestContacts,
   Review,
@@ -30,6 +32,7 @@ import {
   paymentSchema,
   publicUserListSchema,
   publicUserSchema,
+  quoteSchema,
   requestContactsSchema,
   requestHistorySchema,
   reviewSchema,
@@ -165,6 +168,26 @@ export class ApiClient {
   public async payPayment(id: string): Promise<Payment> {
     const data = await this.send('POST', `/service-requests/${id}/payment/pay`, undefined, true);
     return paymentSchema.parse(data);
+  }
+
+  public async getQuote(id: string): Promise<Quote> {
+    const data = await this.send('GET', `/service-requests/${id}/quote`, undefined, true);
+    return quoteSchema.parse(data);
+  }
+
+  public async createQuote(id: string, input: CreateQuoteInput): Promise<Quote> {
+    const data = await this.send('POST', `/service-requests/${id}/quote`, input, true);
+    return quoteSchema.parse(data);
+  }
+
+  public async acceptQuote(id: string): Promise<Quote> {
+    const data = await this.send('POST', `/service-requests/${id}/quote/accept`, undefined, true);
+    return quoteSchema.parse(data);
+  }
+
+  public async declineQuote(id: string): Promise<Quote> {
+    const data = await this.send('POST', `/service-requests/${id}/quote/decline`, undefined, true);
+    return quoteSchema.parse(data);
   }
 
   public async postMessage(id: string, body: string): Promise<Message> {
