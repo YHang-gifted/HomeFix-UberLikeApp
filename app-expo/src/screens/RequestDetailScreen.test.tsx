@@ -428,13 +428,11 @@ describe('RequestDetailScreen review replies', () => {
 
   it('lets the assigned worker reply to the review', async () => {
     const request = makeRequest({ status: 'completed', workerId: WORKER_ID });
-    const replyToReview = jest
-      .fn()
-      .mockResolvedValue({
-        ...baseReview,
-        reply: 'Thank you!',
-        repliedAt: '2026-06-23T00:00:00.000Z',
-      });
+    const replyToReview = jest.fn().mockResolvedValue({
+      ...baseReview,
+      reply: 'Thank you!',
+      repliedAt: '2026-06-23T00:00:00.000Z',
+    });
     const client = clientWith(
       {
         getServiceRequest: jest.fn().mockResolvedValue(request),
