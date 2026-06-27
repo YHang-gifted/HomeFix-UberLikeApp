@@ -97,4 +97,17 @@ describe('WorkerJobsScreen', () => {
 
     expect(onSelectRequest).toHaveBeenCalledWith('523e4567-e89b-12d3-a456-426614174000');
   });
+
+  it('calls onViewPayments when the Payments header button is tapped', async () => {
+    const listServiceRequests = jest.fn().mockResolvedValue(makePage([]));
+    const client = baseClient({ listServiceRequests }) as unknown as ApiClient;
+    const onViewPayments = jest.fn();
+
+    const { getByLabelText } = await render(
+      <WorkerJobsScreen client={client} onViewPayments={onViewPayments} />,
+    );
+    await fireEvent.press(getByLabelText('Payments'));
+
+    expect(onViewPayments).toHaveBeenCalledTimes(1);
+  });
 });

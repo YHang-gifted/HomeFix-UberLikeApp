@@ -213,6 +213,9 @@ function WorkerJobsRoute({
       onViewAvailable={() => {
         navigation.navigate('AvailableJobs');
       }}
+      onViewPayments={() => {
+        navigation.navigate('Payments');
+      }}
       onSelectRequest={(id) => {
         navigation.navigate('RequestDetail', { id });
       }}
@@ -457,6 +460,11 @@ export default function App(): ReactElement {
                 name="Notifications"
                 component={NotificationsRoute}
                 options={{ title: 'Notifications' }}
+              />
+              <Stack.Screen
+                name="Payments"
+                component={PaymentsRoute}
+                options={{ title: 'Payments received' }}
               />
             </>
           )}
