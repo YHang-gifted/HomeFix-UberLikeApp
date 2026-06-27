@@ -15,8 +15,10 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { clearSession, persistSession, restoreSession } from '../app/src/auth/session';
+import { registerForPush } from '../app/src/features/notifications/pushRegistration';
 import { apiClient } from './src/api';
 import { deviceGeocoder, deviceLocationProvider } from './src/location';
+import { devicePushTokenProvider } from './src/push';
 import { tokenStore } from './src/tokenStore';
 import { AdminRequestsScreen } from './src/screens/AdminRequestsScreen';
 import { AuditLogScreen } from './src/screens/AuditLogScreen';
@@ -350,6 +352,14 @@ export default function App(): ReactElement {
       apiClient.setUnauthorizedHandler(undefined);
     };
   }, []);
+
+  useEffect(() => {
+    if (!signedIn) {
+      return;
+    }
+    // Best-effort: register this device for push once signed in. Never throws.
+    void registerForPush(devicePushTokenProvider, (token) => apiClient.registerDeviceToken(token));
+  }, [signedIn]);
 
   const actions: AuthActions = {
     signIn: (token) => {
