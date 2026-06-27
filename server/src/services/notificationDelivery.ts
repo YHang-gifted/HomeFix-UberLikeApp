@@ -5,6 +5,7 @@ import { deviceTokenRepository } from '../repositories/deviceTokenRepository.ts'
 import { userRepository } from '../repositories/userRepository.ts';
 import { logger } from '../utils/logger.ts';
 import { createHttpEmailSender } from './emailSender.ts';
+import { createExpoPushSender } from './pushSender.ts';
 import { ProviderDelivery, loggingSender } from './notificationProvider.ts';
 import type { MessageSender, RecipientResolver } from './notificationProvider.ts';
 
@@ -131,6 +132,9 @@ export function selectSenders(env: Env): Record<string, MessageSender> {
       apiKey: env.EMAIL_API_KEY,
       from: env.EMAIL_FROM,
     });
+  }
+  if (env.PUSH_API_URL !== undefined) {
+    senders['push'] = createExpoPushSender({ apiUrl: env.PUSH_API_URL });
   }
   return senders;
 }

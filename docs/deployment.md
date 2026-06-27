@@ -26,6 +26,10 @@ startup by `server/src/config/env.ts` (see `.env.example`). The active variables
   the `email` channel. Set all three to actually send emails; leave any unset and
   the email channel only logs. The provider receives a JSON
   `{ from, to, subject, text }` POST with `Authorization: Bearer EMAIL_API_KEY`.
+- `PUSH_API_URL` — the push endpoint for the `push` channel (e.g. the Expo push
+  API, `https://exp.host/--/api/v2/push/send`). Set it to actually send push;
+  leave unset and the push channel only logs. The endpoint receives a JSON
+  `{ to, title, body }` POST.
 
 ## Build and run with Docker
 
