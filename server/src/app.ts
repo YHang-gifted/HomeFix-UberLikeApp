@@ -1,9 +1,12 @@
+import process from 'node:process';
+
 import express from 'express';
 import type { Express } from 'express';
 
 import { loadEnv } from './config/env.ts';
 import { createCorsMiddleware } from './middlewares/cors.ts';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.ts';
+import { createRequestLogger } from './middlewares/requestLogger.ts';
 import { auditRouter } from './routes/audit.ts';
 import { authRouter } from './routes/auth.ts';
 import { favoriteRouter } from './routes/favorite.ts';
@@ -19,6 +22,10 @@ import { workerRouter } from './routes/worker.ts';
 export function createApp(): Express {
   const app = express();
   const env = loadEnv();
+  // Keep the test suites' output clean: silence the access log under test. jest
+  // sets NODE_ENV=test; `node --test` sets NODE_TEST_CONTEXT in its workers.
+  const underTest = env.NODE_ENV === 'test' || process.env['NODE_TEST_CONTEXT'] !== undefined;
+  app.use(createRequestLogger(underTest ? () => undefined : undefined));
   app.use(createCorsMiddleware(env.CORS_ALLOWED_ORIGINS));
   app.use(express.json());
   app.use(healthRouter);
