@@ -39,14 +39,14 @@ describe('GET /service-requests/available', () => {
     await resetServiceRequests();
   });
 
-  async function createRequest(description) {
+  async function createRequest(description, category = 'plumbing') {
     return (
       await fetch(`${baseUrl}/service-requests`, {
         method: 'POST',
         headers: headers(CUSTOMER_ID, 'customer'),
         body: JSON.stringify({
           customerId: CUSTOMER_ID,
-          category: 'plumbing',
+          category,
           description,
           location: { latitude: 25.03, longitude: 121.56 },
         }),
@@ -108,6 +108,31 @@ describe('GET /service-requests/available', () => {
     assert.equal(page.total, 3);
     assert.equal(page.items.length, 2);
     assert.equal(page.limit, 2);
+  });
+
+  it('filters by category (case-insensitive)', async () => {
+    await createRequest('Leaky tap', 'plumbing');
+    await createRequest('Broken socket', 'electrical');
+    await createRequest('Another leak', 'plumbing');
+
+    const page = await (
+      await fetch(`${baseUrl}/service-requests/available?category=Plumbing`, {
+        headers: headers(WORKER_ID, 'worker'),
+      })
+    ).json();
+    assert.equal(page.total, 2);
+    assert.ok(page.items.every((r) => r.category === 'plumbing'));
+  });
+
+  it('returns an empty page for a category with no available requests', async () => {
+    await createRequest('Leaky tap', 'plumbing');
+    const page = await (
+      await fetch(`${baseUrl}/service-requests/available?category=carpentry`, {
+        headers: headers(WORKER_ID, 'worker'),
+      })
+    ).json();
+    assert.equal(page.total, 0);
+    assert.equal(page.items.length, 0);
   });
 
   it('returns 401 without authentication', async () => {

@@ -121,13 +121,18 @@ export async function listAvailableRequests(
   principal: Principal,
   limit: number,
   offset: number,
+  category?: string,
 ): Promise<ServiceRequestPage> {
   if (principal.role !== 'worker' && principal.role !== 'admin') {
     throw new AppError('Only workers can browse available requests', 403);
   }
   const all = await serviceRequestRepository.findAll();
+  const needle = category?.trim().toLowerCase();
   const available = all.filter(
-    (request) => request.status === 'pending' && request.workerId === undefined,
+    (request) =>
+      request.status === 'pending' &&
+      request.workerId === undefined &&
+      (needle === undefined || needle === '' || request.category.toLowerCase() === needle),
   );
   const sorted = [...available].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const items = sorted.slice(offset, offset + limit);
