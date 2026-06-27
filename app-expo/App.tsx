@@ -16,7 +16,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { clearSession, persistSession, restoreSession } from '../app/src/auth/session';
 import { apiClient } from './src/api';
-import { deviceLocationProvider } from './src/location';
+import { deviceGeocoder, deviceLocationProvider } from './src/location';
 import { tokenStore } from './src/tokenStore';
 import { AdminRequestsScreen } from './src/screens/AdminRequestsScreen';
 import { AuditLogScreen } from './src/screens/AuditLogScreen';
@@ -139,6 +139,7 @@ function CreateRequestRoute({
     <CreateRequestScreen
       client={apiClient}
       locationProvider={deviceLocationProvider}
+      geocoder={deviceGeocoder}
       onCreated={() => {
         navigation.goBack();
       }}
