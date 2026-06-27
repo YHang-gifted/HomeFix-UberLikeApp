@@ -39,4 +39,15 @@ describe('loadEnv', () => {
     });
     assert.equal(env.NODE_ENV, 'production');
   });
+
+  it('defaults NOTIFY_CHANNELS to an empty list', () => {
+    assert.deepEqual(loadEnv({}).NOTIFY_CHANNELS, []);
+  });
+
+  it('parses NOTIFY_CHANNELS as a trimmed, comma-separated list', () => {
+    assert.deepEqual(loadEnv({ NOTIFY_CHANNELS: 'email, push' }).NOTIFY_CHANNELS, [
+      'email',
+      'push',
+    ]);
+  });
 });
