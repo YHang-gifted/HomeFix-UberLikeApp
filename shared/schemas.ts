@@ -252,8 +252,12 @@ export const paymentSchema = z.object({
 });
 export type Payment = z.infer<typeof paymentSchema>;
 
+// Minimum chargeable amount, NT$1.00. Guards against zero/near-zero quotes and
+// payments that are almost certainly mistakes.
+export const MIN_AMOUNT_CENTS = 100;
+
 export const createPaymentInputSchema = z.object({
-  amountCents: z.number().int().positive().max(100_000_000),
+  amountCents: z.number().int().min(MIN_AMOUNT_CENTS).max(100_000_000),
 });
 export type CreatePaymentInput = z.infer<typeof createPaymentInputSchema>;
 
@@ -277,7 +281,7 @@ export const quoteSchema = z.object({
 export type Quote = z.infer<typeof quoteSchema>;
 
 export const createQuoteInputSchema = z.object({
-  amountCents: z.number().int().positive().max(100_000_000),
+  amountCents: z.number().int().min(MIN_AMOUNT_CENTS).max(100_000_000),
   note: z.string().trim().max(500).optional(),
 });
 export type CreateQuoteInput = z.infer<typeof createQuoteInputSchema>;
