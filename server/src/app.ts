@@ -14,6 +14,7 @@ import { healthRouter } from './routes/health.ts';
 import { notificationRouter } from './routes/notification.ts';
 import { paymentRouter } from './routes/payment.ts';
 import { profileRouter } from './routes/profile.ts';
+import { quoteRouter } from './routes/quote.ts';
 import { reviewRouter } from './routes/review.ts';
 import { serviceRequestRouter } from './routes/serviceRequest.ts';
 import { userRouter } from './routes/user.ts';
@@ -38,6 +39,7 @@ export function createApp(): Express {
   app.use(notificationRouter);
   app.use(favoriteRouter);
   app.use(paymentRouter);
+  app.use(quoteRouter);
   app.use(auditRouter);
   app.use(notFoundHandler);
   app.use(errorHandler);

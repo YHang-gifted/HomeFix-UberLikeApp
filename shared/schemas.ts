@@ -256,3 +256,28 @@ export const createPaymentInputSchema = z.object({
   amountCents: z.number().int().positive().max(100_000_000),
 });
 export type CreatePaymentInput = z.infer<typeof createPaymentInputSchema>;
+
+// A price quote the assigned worker proposes for a request. The owning customer
+// accepts or declines it; an accepted quote is what the customer then pays.
+export const quoteStatusSchema = z.enum(['pending', 'accepted', 'declined']);
+export type QuoteStatus = z.infer<typeof quoteStatusSchema>;
+
+export const quoteSchema = z.object({
+  id: z.uuid(),
+  requestId: z.uuid(),
+  customerId: z.uuid(),
+  workerId: z.uuid(),
+  amountCents: z.number().int().positive(),
+  currency: z.literal('TWD'),
+  note: z.string().max(500).optional(),
+  status: quoteStatusSchema,
+  createdAt: z.iso.datetime(),
+  respondedAt: z.iso.datetime().optional(),
+});
+export type Quote = z.infer<typeof quoteSchema>;
+
+export const createQuoteInputSchema = z.object({
+  amountCents: z.number().int().positive().max(100_000_000),
+  note: z.string().trim().max(500).optional(),
+});
+export type CreateQuoteInput = z.infer<typeof createQuoteInputSchema>;
