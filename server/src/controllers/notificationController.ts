@@ -1,15 +1,12 @@
 import type { NextFunction, Request, Response } from 'express';
-import { z } from 'zod';
 
-import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
+import { parseUuidParam } from './parseUuidParam.ts';
 import {
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
 } from '../services/notificationService.ts';
-
-const idSchema = z.uuid();
 
 export async function getNotifications(
   req: Request,
@@ -36,13 +33,12 @@ export async function patchNotificationRead(
   if (!principal) {
     return;
   }
-  const idResult = idSchema.safeParse(req.params['id']);
-  if (!idResult.success) {
-    next(new AppError('Invalid notification id', 422));
+  const id = parseUuidParam(req, next, 'id', 'notification id');
+  if (id === undefined) {
     return;
   }
   try {
-    res.status(200).json(await markNotificationRead(principal, idResult.data));
+    res.status(200).json(await markNotificationRead(principal, id));
   } catch (error) {
     next(error);
   }

@@ -3,9 +3,9 @@ import { z } from 'zod';
 
 import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
+import { parseUuidParam } from './parseUuidParam.ts';
 import { getPublicUserById, getPublicUsersByIds } from '../services/userService.ts';
 
-const idSchema = z.uuid();
 const idsQuerySchema = z
   .string()
   .transform((value) =>
@@ -42,14 +42,13 @@ export async function getUser(req: Request, res: Response, next: NextFunction): 
     return;
   }
 
-  const idResult = idSchema.safeParse(req.params['id']);
-  if (!idResult.success) {
-    next(new AppError('Invalid user id', 422));
+  const id = parseUuidParam(req, next, 'id', 'user id');
+  if (id === undefined) {
     return;
   }
 
   try {
-    res.status(200).json(await getPublicUserById(idResult.data));
+    res.status(200).json(await getPublicUserById(id));
   } catch (error) {
     next(error);
   }

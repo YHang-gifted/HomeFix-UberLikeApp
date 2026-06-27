@@ -9,6 +9,7 @@ import {
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
+import { parseUuidParam } from './parseUuidParam.ts';
 import { listMessages, postMessage } from '../services/messageService.ts';
 import {
   assignWorker,
@@ -22,7 +23,9 @@ import {
   updateServiceRequestStatus,
 } from '../services/serviceRequestService.ts';
 
-const idParamSchema = z.uuid();
+function parseId(req: Request, next: NextFunction): string | undefined {
+  return parseUuidParam(req, next, 'id', 'service request id');
+}
 const statusBodySchema = z.object({
   status: serviceRequestStatusSchema,
   reason: z.string().trim().min(1).max(500).optional(),
@@ -123,14 +126,13 @@ export async function getServiceRequest(
     return;
   }
 
-  const idResult = idParamSchema.safeParse(req.params['id']);
-  if (!idResult.success) {
-    next(new AppError('Invalid service request id', 422));
+  const id = parseId(req, next);
+  if (id === undefined) {
     return;
   }
 
   try {
-    const request = await getServiceRequestForPrincipal(idResult.data, principal);
+    const request = await getServiceRequestForPrincipal(id, principal);
     res.status(200).json(request);
   } catch (error) {
     next(error);
@@ -147,14 +149,13 @@ export async function getServiceRequestContacts(
     return;
   }
 
-  const idResult = idParamSchema.safeParse(req.params['id']);
-  if (!idResult.success) {
-    next(new AppError('Invalid service request id', 422));
+  const id = parseId(req, next);
+  if (id === undefined) {
     return;
   }
 
   try {
-    res.status(200).json(await getRequestContacts(idResult.data, principal));
+    res.status(200).json(await getRequestContacts(id, principal));
   } catch (error) {
     next(error);
   }
@@ -170,14 +171,13 @@ export async function getServiceRequestHistory(
     return;
   }
 
-  const idResult = idParamSchema.safeParse(req.params['id']);
-  if (!idResult.success) {
-    next(new AppError('Invalid service request id', 422));
+  const id = parseId(req, next);
+  if (id === undefined) {
     return;
   }
 
   try {
-    res.status(200).json(await getRequestHistory(idResult.data, principal));
+    res.status(200).json(await getRequestHistory(id, principal));
   } catch (error) {
     next(error);
   }
@@ -193,14 +193,13 @@ export async function getServiceRequestMessages(
     return;
   }
 
-  const idResult = idParamSchema.safeParse(req.params['id']);
-  if (!idResult.success) {
-    next(new AppError('Invalid service request id', 422));
+  const id = parseId(req, next);
+  if (id === undefined) {
     return;
   }
 
   try {
-    res.status(200).json(await listMessages(idResult.data, principal));
+    res.status(200).json(await listMessages(id, principal));
   } catch (error) {
     next(error);
   }
@@ -216,9 +215,8 @@ export async function postServiceRequestMessage(
     return;
   }
 
-  const idResult = idParamSchema.safeParse(req.params['id']);
-  if (!idResult.success) {
-    next(new AppError('Invalid service request id', 422));
+  const id = parseId(req, next);
+  if (id === undefined) {
     return;
   }
 
@@ -229,7 +227,7 @@ export async function postServiceRequestMessage(
   }
 
   try {
-    res.status(201).json(await postMessage(idResult.data, parsed.data, principal));
+    res.status(201).json(await postMessage(id, parsed.data, principal));
   } catch (error) {
     next(error);
   }
@@ -245,9 +243,8 @@ export async function patchServiceRequestAssignment(
     return;
   }
 
-  const idResult = idParamSchema.safeParse(req.params['id']);
-  if (!idResult.success) {
-    next(new AppError('Invalid service request id', 422));
+  const id = parseId(req, next);
+  if (id === undefined) {
     return;
   }
 
@@ -259,7 +256,7 @@ export async function patchServiceRequestAssignment(
   }
 
   try {
-    const updated = await assignWorker(idResult.data, parsed.data.workerId, principal);
+    const updated = await assignWorker(id, parsed.data.workerId, principal);
     res.status(200).json(updated);
   } catch (error) {
     next(error);
@@ -276,14 +273,13 @@ export async function patchServiceRequestClaim(
     return;
   }
 
-  const idResult = idParamSchema.safeParse(req.params['id']);
-  if (!idResult.success) {
-    next(new AppError('Invalid service request id', 422));
+  const id = parseId(req, next);
+  if (id === undefined) {
     return;
   }
 
   try {
-    const updated = await claimRequest(idResult.data, principal);
+    const updated = await claimRequest(id, principal);
     res.status(200).json(updated);
   } catch (error) {
     next(error);
@@ -300,9 +296,8 @@ export async function patchServiceRequestStatus(
     return;
   }
 
-  const idResult = idParamSchema.safeParse(req.params['id']);
-  if (!idResult.success) {
-    next(new AppError('Invalid service request id', 422));
+  const id = parseId(req, next);
+  if (id === undefined) {
     return;
   }
 
@@ -315,7 +310,7 @@ export async function patchServiceRequestStatus(
 
   try {
     const updated = await updateServiceRequestStatus(
-      idResult.data,
+      id,
       parsed.data.status,
       principal,
       parsed.data.reason,

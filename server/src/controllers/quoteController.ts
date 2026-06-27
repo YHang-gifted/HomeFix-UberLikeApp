@@ -1,20 +1,13 @@
 import type { NextFunction, Request, Response } from 'express';
-import { z } from 'zod';
 
 import { createQuoteInputSchema } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
+import { parseUuidParam } from './parseUuidParam.ts';
 import { acceptQuote, createQuote, declineQuote, getQuote } from '../services/quoteService.ts';
 
-const idParamSchema = z.uuid();
-
 function parseId(req: Request, next: NextFunction): string | undefined {
-  const result = idParamSchema.safeParse(req.params['id']);
-  if (!result.success) {
-    next(new AppError('Invalid service request id', 422));
-    return undefined;
-  }
-  return result.data;
+  return parseUuidParam(req, next, 'id', 'service request id');
 }
 
 export async function getServiceRequestQuote(
