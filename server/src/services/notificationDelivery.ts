@@ -1,5 +1,6 @@
 import { loadEnv } from '../config/env.ts';
 import type { Notification } from '../../../shared/schemas.ts';
+import { deviceTokenRepository } from '../repositories/deviceTokenRepository.ts';
 import { userRepository } from '../repositories/userRepository.ts';
 import { logger } from '../utils/logger.ts';
 import { ProviderDelivery, loggingSender } from './notificationProvider.ts';
@@ -73,11 +74,11 @@ export class CompositeDelivery implements NotificationDelivery {
 }
 
 // How to resolve a recipient's address per channel. Email uses the user's
-// stored email; push has no device-token store yet, so it resolves to undefined
-// (the notification is skipped) until tokens are captured in a later slice.
+// stored email; push uses the user's most recently registered device token
+// (undefined when none is registered, so the notification is skipped).
 const DEFAULT_RESOLVERS: Readonly<Record<string, RecipientResolver>> = {
   email: async (userId) => (await userRepository.findById(userId))?.email,
-  push: () => Promise.resolve(undefined),
+  push: async (userId) => (await deviceTokenRepository.listTokens(userId))[0],
 };
 
 export interface BuildDeliveryOptions {

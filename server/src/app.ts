@@ -9,6 +9,7 @@ import { errorHandler, notFoundHandler } from './middlewares/errorHandler.ts';
 import { createRequestLogger } from './middlewares/requestLogger.ts';
 import { auditRouter } from './routes/audit.ts';
 import { authRouter } from './routes/auth.ts';
+import { deviceTokenRouter } from './routes/deviceToken.ts';
 import { favoriteRouter } from './routes/favorite.ts';
 import { healthRouter } from './routes/health.ts';
 import { notificationRouter } from './routes/notification.ts';
@@ -32,6 +33,7 @@ export function createApp(): Express {
   app.use(healthRouter);
   app.use(authRouter);
   app.use(profileRouter);
+  app.use(deviceTokenRouter);
   app.use(serviceRequestRouter);
   app.use(userRouter);
   app.use(workerRouter);

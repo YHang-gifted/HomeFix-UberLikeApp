@@ -285,3 +285,15 @@ export const createQuoteInputSchema = z.object({
   note: z.string().trim().max(500).optional(),
 });
 export type CreateQuoteInput = z.infer<typeof createQuoteInputSchema>;
+
+// A device's push-notification token, registered by a signed-in user so push
+// delivery can reach their device(s).
+export const registerDeviceTokenInputSchema = z.object({
+  token: z.string().trim().min(1).max(512),
+});
+export type RegisterDeviceTokenInput = z.infer<typeof registerDeviceTokenInputSchema>;
+
+export const deviceTokenListSchema = z.object({
+  tokens: z.array(z.string()),
+});
+export type DeviceTokenList = z.infer<typeof deviceTokenListSchema>;
