@@ -58,6 +58,10 @@ const envSchema = z
       z.string().min(1).optional(),
     ),
     EMAIL_FROM: z.preprocess((value) => (value === '' ? undefined : value), z.email().optional()),
+    // Push delivery endpoint (e.g. the Expo push API). Set it to actually send
+    // push (with NOTIFY_CHANNELS including "push"); unset and the push channel
+    // logs only. Empty is treated as unset.
+    PUSH_API_URL: z.preprocess((value) => (value === '' ? undefined : value), z.url().optional()),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production' && env.JWT_SECRET === DEV_JWT_SECRET) {
