@@ -8,6 +8,13 @@ export interface ServiceRequestRepository {
   save(request: ServiceRequest): Promise<void>;
   findById(id: string): Promise<ServiceRequest | undefined>;
   findAll(): Promise<ServiceRequest[]>;
+  /**
+   * Atomically assign a worker to a request only if it is still pending and
+   * unassigned, returning the updated request — or undefined when it was not
+   * claimable (missing, not pending, or already taken). This is a single
+   * check-and-set so two concurrent claims can never both succeed (TOCTOU-safe).
+   */
+  assignWorkerIfPending(id: string, workerId: string): Promise<ServiceRequest | undefined>;
   clear(): Promise<void>;
 }
 
@@ -25,6 +32,22 @@ export class InMemoryServiceRequestRepository implements ServiceRequestRepositor
 
   public findAll(): Promise<ServiceRequest[]> {
     return Promise.resolve([...this.store.values()]);
+  }
+
+  public assignWorkerIfPending(id: string, workerId: string): Promise<ServiceRequest | undefined> {
+    // Single synchronous check-and-set (no await between read and write), so two
+    // concurrent claims cannot both pass the guard.
+    const existing = this.store.get(id);
+    if (
+      existing === undefined ||
+      existing.status !== 'pending' ||
+      existing.workerId !== undefined
+    ) {
+      return Promise.resolve(undefined);
+    }
+    const updated: ServiceRequest = { ...existing, workerId, status: 'matched' };
+    this.store.set(id, updated);
+    return Promise.resolve(updated);
   }
 
   public clear(): Promise<void> {
