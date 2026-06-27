@@ -27,6 +27,8 @@ export interface WorkerJobsScreenProps {
   onViewNotifications?: () => void;
   /** Called when the user taps "Find work". */
   onViewAvailable?: () => void;
+  /** Called when the user taps "Payments". */
+  onViewPayments?: () => void;
   /** Called with the request id when a card is tapped. */
   onSelectRequest?: (id: string) => void;
   /** Bump this to force a reload (e.g. when the screen regains focus). */
@@ -46,6 +48,7 @@ export function WorkerJobsScreen({
   onViewProfile,
   onViewNotifications,
   onViewAvailable,
+  onViewPayments,
   onSelectRequest,
   refreshToken,
 }: WorkerJobsScreenProps): ReactElement {
@@ -150,6 +153,15 @@ export function WorkerJobsScreen({
             accessibilityLabel="Profile"
           >
             <Text style={styles.profileText}>Profile</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              onViewPayments?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Payments"
+          >
+            <Text style={styles.profileText}>Payments</Text>
           </Pressable>
           <AlertsButton
             client={activeClient}
