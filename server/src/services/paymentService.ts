@@ -35,6 +35,17 @@ export async function getPayment(requestId: string, principal: Principal): Promi
 }
 
 /**
+ * List the calling customer's own payments, most-recent-first. Customers only —
+ * each sees only their own receipts; other roles are forbidden.
+ */
+export async function listCustomerPayments(principal: Principal): Promise<Payment[]> {
+  if (principal.role !== 'customer') {
+    throw new AppError('Only customers have a payment history', 403);
+  }
+  return paymentRepository.findByCustomer(principal.id);
+}
+
+/**
  * Create a pending payment for a request. The owning customer only; the request
  * must have an assigned worker, and only one payment may exist per request.
  * Mock only — no money moves.

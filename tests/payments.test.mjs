@@ -210,4 +210,39 @@ describe('request payments (mock)', () => {
     const res = await fetch(`${baseUrl}/service-requests/${created.id}/payment`);
     assert.equal(res.status, 401);
   });
+
+  async function listMyPayments(id, role) {
+    return fetch(`${baseUrl}/payments`, { headers: headers(id, role) });
+  }
+
+  it('lists the calling customer their own payment, excluding other customers', async () => {
+    const created = await createRequest();
+    await assign(created.id);
+    await setupAcceptedQuote(created.id, 150000);
+    await createPayment(created.id, 150000);
+
+    const mine = await (await listMyPayments(CUSTOMER_ID, 'customer')).json();
+    assert.equal(mine.items.length, 1);
+    assert.equal(mine.items[0].requestId, created.id);
+    assert.equal(mine.items[0].customerId, CUSTOMER_ID);
+
+    const others = await (await listMyPayments(OTHER_CUSTOMER_ID, 'customer')).json();
+    assert.deepEqual(others.items, []);
+  });
+
+  it('returns an empty list for a customer with no payments', async () => {
+    const res = await listMyPayments(CUSTOMER_ID, 'customer');
+    assert.equal(res.status, 200);
+    assert.deepEqual((await res.json()).items, []);
+  });
+
+  it('forbids non-customers from the payment history (403)', async () => {
+    assert.equal((await listMyPayments(WORKER_ID, 'worker')).status, 403);
+    assert.equal((await listMyPayments(ADMIN_ID, 'admin')).status, 403);
+  });
+
+  it('returns 401 for payment history without authentication', async () => {
+    const res = await fetch(`${baseUrl}/payments`);
+    assert.equal(res.status, 401);
+  });
 });

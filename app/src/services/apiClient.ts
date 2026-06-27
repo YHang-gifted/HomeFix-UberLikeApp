@@ -30,6 +30,7 @@ import {
   messageSchema,
   notificationListSchema,
   notificationSchema,
+  paymentListSchema,
   paymentSchema,
   publicUserListSchema,
   publicUserSchema,
@@ -159,6 +160,11 @@ export class ApiClient {
   public async getPayment(id: string): Promise<Payment> {
     const data = await this.send('GET', `/service-requests/${id}/payment`, undefined, true);
     return paymentSchema.parse(data);
+  }
+
+  public async listMyPayments(): Promise<Payment[]> {
+    const data = await this.send('GET', '/payments', undefined, true);
+    return paymentListSchema.parse(data).items;
   }
 
   public async createPayment(id: string, amountCents: number): Promise<Payment> {

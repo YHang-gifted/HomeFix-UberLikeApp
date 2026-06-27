@@ -8,6 +8,8 @@ import { PostgresPaymentRepository } from './postgresPaymentRepository.ts';
 export interface PaymentRepository {
   save(payment: Payment): Promise<void>;
   findByRequest(requestId: string): Promise<Payment | undefined>;
+  /** A customer's payments, most-recent-first. */
+  findByCustomer(customerId: string): Promise<Payment[]>;
   clear(): Promise<void>;
 }
 
@@ -22,6 +24,14 @@ export class InMemoryPaymentRepository implements PaymentRepository {
   public findByRequest(requestId: string): Promise<Payment | undefined> {
     return Promise.resolve(
       [...this.payments.values()].find((payment) => payment.requestId === requestId),
+    );
+  }
+
+  public findByCustomer(customerId: string): Promise<Payment[]> {
+    return Promise.resolve(
+      [...this.payments.values()]
+        .filter((payment) => payment.customerId === customerId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     );
   }
 
