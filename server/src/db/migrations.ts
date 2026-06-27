@@ -123,4 +123,21 @@ export const migrations: Migration[] = [
       )
     `,
   },
+  {
+    id: '0010_quotes',
+    sql: `
+      CREATE TABLE IF NOT EXISTS quotes (
+        id uuid PRIMARY KEY,
+        request_id uuid NOT NULL UNIQUE,
+        customer_id uuid NOT NULL,
+        worker_id uuid NOT NULL,
+        amount_cents integer NOT NULL,
+        currency text NOT NULL,
+        note text,
+        status text NOT NULL,
+        created_at timestamptz NOT NULL,
+        responded_at timestamptz
+      )
+    `,
+  },
 ];

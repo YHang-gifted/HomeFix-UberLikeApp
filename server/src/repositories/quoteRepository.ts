@@ -1,4 +1,8 @@
+import process from 'node:process';
+
 import type { Quote } from '../../../shared/schemas.ts';
+import { createPoolQueryable } from '../config/db.ts';
+import { PostgresQuoteRepository } from './postgresQuoteRepository.ts';
 
 /** A request's price quote. At most one quote exists per request. */
 export interface QuoteRepository {
@@ -27,6 +31,11 @@ export class InMemoryQuoteRepository implements QuoteRepository {
   }
 }
 
-// In-memory only for now; a Postgres-backed repository + factory follow in the
-// next slice (mirroring payments).
-export const quoteRepository: QuoteRepository = new InMemoryQuoteRepository();
+export function selectQuoteRepository(databaseUrl: string | undefined): QuoteRepository {
+  if (databaseUrl !== undefined && databaseUrl !== '') {
+    return new PostgresQuoteRepository(createPoolQueryable(databaseUrl));
+  }
+  return new InMemoryQuoteRepository();
+}
+
+export const quoteRepository: QuoteRepository = selectQuoteRepository(process.env['DATABASE_URL']);
