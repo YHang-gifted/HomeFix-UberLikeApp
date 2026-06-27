@@ -61,6 +61,20 @@ describe('PostgresReviewRepository (PGlite)', () => {
     assert.equal(await repo.findByRequestId('999e4567-e89b-12d3-a456-426614174000'), undefined);
   });
 
+  it('round-trips a reply and updates it via upsert (by id)', async () => {
+    await repo.save(makeReview());
+    let found = await repo.findByRequestId(REQUEST_ID);
+    assert.equal(found?.reply, undefined);
+    assert.equal(found?.repliedAt, undefined);
+
+    await repo.save(makeReview({ reply: 'Thanks!', repliedAt: '2026-06-23T00:00:00.000Z' }));
+    found = await repo.findByRequestId(REQUEST_ID);
+    assert.equal(found?.reply, 'Thanks!');
+    assert.equal(found?.repliedAt, '2026-06-23T00:00:00.000Z');
+    // upsert by id keeps a single row
+    assert.equal((await repo.findByWorkerId(WORKER_ID)).length, 1);
+  });
+
   it('clear() empties the table', async () => {
     await repo.save(makeReview());
     await repo.clear();

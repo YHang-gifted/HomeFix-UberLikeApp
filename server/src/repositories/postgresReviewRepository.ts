@@ -3,10 +3,11 @@ import { reviewSchema } from '../../../shared/schemas.ts';
 import type { RatingAggregate, ReviewRepository } from './reviewRepository.ts';
 import type { Queryable } from '../db/queryable.ts';
 
-const INSERT = `
+const UPSERT = `
   INSERT INTO reviews
-    (id, request_id, customer_id, worker_id, rating, comment, created_at)
-  VALUES ($1, $2, $3, $4, $5, $6, $7)
+    (id, request_id, customer_id, worker_id, rating, comment, created_at, reply, replied_at)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+  ON CONFLICT (id) DO UPDATE SET reply = EXCLUDED.reply, replied_at = EXCLUDED.replied_at
 `;
 
 interface ReviewRow {
@@ -17,6 +18,8 @@ interface ReviewRow {
   rating: number;
   comment: string | null;
   created_at: string | Date;
+  reply: string | null;
+  replied_at: string | Date | null;
 }
 
 interface RatingRow {
@@ -35,6 +38,8 @@ function mapRow(row: unknown): Review {
     rating: r.rating,
     createdAt: new Date(r.created_at).toISOString(),
     ...(r.comment !== null ? { comment: r.comment } : {}),
+    ...(r.reply !== null ? { reply: r.reply } : {}),
+    ...(r.replied_at !== null ? { repliedAt: new Date(r.replied_at).toISOString() } : {}),
   };
   return reviewSchema.parse(candidate);
 }
@@ -47,7 +52,7 @@ export class PostgresReviewRepository implements ReviewRepository {
   }
 
   public async save(review: Review): Promise<void> {
-    await this.db.query(INSERT, [
+    await this.db.query(UPSERT, [
       review.id,
       review.requestId,
       review.customerId,
@@ -55,6 +60,8 @@ export class PostgresReviewRepository implements ReviewRepository {
       review.rating,
       review.comment ?? null,
       review.createdAt,
+      review.reply ?? null,
+      review.repliedAt ?? null,
     ]);
   }
 

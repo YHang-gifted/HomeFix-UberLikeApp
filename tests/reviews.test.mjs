@@ -137,4 +137,75 @@ describe('reviews', () => {
     assert.equal(body.averageRating, 3);
     assert.equal(body.items.length, 2);
   });
+
+  function reply(id, idActor, role, body) {
+    return fetch(`${baseUrl}/service-requests/${id}/review/reply`, {
+      method: 'POST',
+      headers: headers(idActor, role),
+      body: JSON.stringify(body),
+    });
+  }
+
+  it('lets the reviewed worker reply to the review (200) and exposes it', async () => {
+    const request = await completedRequest();
+    await review(request.id, CUSTOMER_ID, 'customer', { rating: 5, comment: 'Great' });
+
+    const res = await reply(request.id, WORKER_ID, 'worker', { reply: 'Thank you!' });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.reply, 'Thank you!');
+    assert.equal(typeof body.repliedAt, 'string');
+
+    const got = await (
+      await fetch(`${baseUrl}/service-requests/${request.id}/review`, {
+        headers: headers(CUSTOMER_ID, 'customer'),
+      })
+    ).json();
+    assert.equal(got.reply, 'Thank you!');
+  });
+
+  it('lets the worker update an existing reply', async () => {
+    const request = await completedRequest();
+    await review(request.id, CUSTOMER_ID, 'customer', { rating: 4 });
+    await reply(request.id, WORKER_ID, 'worker', { reply: 'First' });
+    const res = await reply(request.id, WORKER_ID, 'worker', { reply: 'Second' });
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).reply, 'Second');
+  });
+
+  it('forbids a worker who is not the reviewed one from replying (403)', async () => {
+    const request = await completedRequest();
+    await review(request.id, CUSTOMER_ID, 'customer', { rating: 5 });
+    const res = await reply(request.id, OTHER_ID, 'worker', { reply: 'Not mine' });
+    assert.equal(res.status, 403);
+  });
+
+  it('forbids the customer from replying (403)', async () => {
+    const request = await completedRequest();
+    await review(request.id, CUSTOMER_ID, 'customer', { rating: 5 });
+    const res = await reply(request.id, CUSTOMER_ID, 'customer', { reply: 'I am the customer' });
+    assert.equal(res.status, 403);
+  });
+
+  it('returns 404 when replying to a request with no review', async () => {
+    const request = await completedRequest();
+    const res = await reply(request.id, WORKER_ID, 'worker', { reply: 'Too early' });
+    assert.equal(res.status, 404);
+  });
+
+  it('rejects an empty reply (422)', async () => {
+    const request = await completedRequest();
+    await review(request.id, CUSTOMER_ID, 'customer', { rating: 5 });
+    const res = await reply(request.id, WORKER_ID, 'worker', { reply: '' });
+    assert.equal(res.status, 422);
+  });
+
+  it('forbids a non-party from reading the review (403)', async () => {
+    const request = await completedRequest();
+    await review(request.id, CUSTOMER_ID, 'customer', { rating: 5 });
+    const res = await fetch(`${baseUrl}/service-requests/${request.id}/review`, {
+      headers: headers(OTHER_ID, 'customer'),
+    });
+    assert.equal(res.status, 403);
+  });
 });

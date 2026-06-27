@@ -168,6 +168,9 @@ export const reviewSchema = z.object({
   rating: ratingSchema,
   comment: z.string().min(1).max(1000).optional(),
   createdAt: z.iso.datetime(),
+  // The reviewed worker's optional public reply, and when it was posted.
+  reply: z.string().min(1).max(1000).optional(),
+  repliedAt: z.iso.datetime().optional(),
 });
 export type Review = z.infer<typeof reviewSchema>;
 
@@ -176,6 +179,11 @@ export const createReviewInputSchema = z.object({
   comment: z.string().min(1).max(1000).optional(),
 });
 export type CreateReviewInput = z.infer<typeof createReviewInputSchema>;
+
+export const replyReviewInputSchema = z.object({
+  reply: z.string().min(1).max(1000),
+});
+export type ReplyReviewInput = z.infer<typeof replyReviewInputSchema>;
 
 export const workerReviewsSchema = z.object({
   workerId: z.uuid(),
