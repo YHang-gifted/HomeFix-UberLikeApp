@@ -1,10 +1,21 @@
 import process from 'node:process';
 
 import { createPoolQueryable } from '../config/db.ts';
+import { loadEnv } from '../config/env.ts';
+import type { Env } from '../config/env.ts';
 import type { Queryable } from './queryable.ts';
 import type { Migration } from './migrations.ts';
 import { migrations as defaultMigrations } from './migrations.ts';
 import { seedDemoUsers } from './seedUsers.ts';
+
+/**
+ * Whether to seed the demo users. An explicit `SEED_DEMO_USERS` wins; otherwise
+ * seed everywhere except production, so a real production deploy never creates
+ * demo accounts by default.
+ */
+export function shouldSeedDemoUsers(env: Pick<Env, 'NODE_ENV' | 'SEED_DEMO_USERS'>): boolean {
+  return env.SEED_DEMO_USERS ?? env.NODE_ENV !== 'production';
+}
 
 const CREATE_MIGRATIONS_TABLE = `
   CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -49,5 +60,7 @@ export async function initDatabase(): Promise<void> {
   }
   const db = createPoolQueryable(databaseUrl);
   await runMigrations(db);
-  await seedDemoUsers(db);
+  if (shouldSeedDemoUsers(loadEnv())) {
+    await seedDemoUsers(db);
+  }
 }
