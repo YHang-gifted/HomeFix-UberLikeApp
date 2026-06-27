@@ -24,6 +24,8 @@ export interface ServiceRequestsScreenProps {
   onViewNotifications?: () => void;
   /** Called when the user taps "Favorites". */
   onViewFavorites?: () => void;
+  /** Called when the user taps "Payments". */
+  onViewPayments?: () => void;
   /** Called with the request id when a card is tapped. */
   onSelectRequest?: (id: string) => void;
   /** Bump this to force a reload (e.g. when the screen regains focus). */
@@ -37,6 +39,7 @@ export function ServiceRequestsScreen({
   onViewProfile,
   onViewNotifications,
   onViewFavorites,
+  onViewPayments,
   onSelectRequest,
   refreshToken,
 }: ServiceRequestsScreenProps): ReactElement {
@@ -98,6 +101,16 @@ export function ServiceRequestsScreen({
           accessibilityLabel="Favorites"
         >
           <Text style={styles.profileText}>Favorites</Text>
+        </Pressable>
+        <Pressable
+          style={styles.logoutButton}
+          onPress={() => {
+            onViewPayments?.();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Payments"
+        >
+          <Text style={styles.profileText}>Payments</Text>
         </Pressable>
         <AlertsButton
           client={activeClient}
