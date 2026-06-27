@@ -30,6 +30,7 @@ import { MessagesScreen } from './src/screens/MessagesScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { RequestDetailScreen } from './src/screens/RequestDetailScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
+import { PaymentsScreen } from './src/screens/PaymentsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ServiceRequestsScreen } from './src/screens/ServiceRequestsScreen';
 import { WorkerJobsScreen } from './src/screens/WorkerJobsScreen';
@@ -47,6 +48,7 @@ export type RootStackParamList = {
   Profile: undefined;
   Notifications: undefined;
   Favorites: undefined;
+  Payments: undefined;
   Messages: { id: string };
 };
 
@@ -120,6 +122,9 @@ function ServiceRequestsRoute({
       }}
       onViewFavorites={() => {
         navigation.navigate('Favorites');
+      }}
+      onViewPayments={() => {
+        navigation.navigate('Payments');
       }}
       onNewRequest={() => {
         navigation.navigate('CreateRequest');
@@ -309,6 +314,28 @@ function FavoritesRoute(): ReactElement {
   );
 
   return <FavoritesScreen client={apiClient} refreshToken={refreshToken} />;
+}
+
+function PaymentsRoute({
+  navigation,
+}: NativeStackScreenProps<RootStackParamList, 'Payments'>): ReactElement {
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshToken((current) => current + 1);
+    }, []),
+  );
+
+  return (
+    <PaymentsScreen
+      client={apiClient}
+      refreshToken={refreshToken}
+      onSelectRequest={(id) => {
+        navigation.navigate('RequestDetail', { id });
+      }}
+    />
+  );
 }
 
 function ProfileRoute(): ReactElement {
@@ -503,6 +530,11 @@ export default function App(): ReactElement {
                 name="Favorites"
                 component={FavoritesRoute}
                 options={{ title: 'Favorite workers' }}
+              />
+              <Stack.Screen
+                name="Payments"
+                component={PaymentsRoute}
+                options={{ title: 'Payments' }}
               />
             </>
           )}
