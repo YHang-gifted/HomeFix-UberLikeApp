@@ -103,6 +103,53 @@ describe('CreateRequestScreen', () => {
     expect(queryByLabelText('Use my current location')).toBeNull();
   });
 
+  it('searches an address and fills coordinates from the chosen result', async () => {
+    const getPrincipal = jest.fn().mockReturnValue({ id: CUSTOMER_ID, role: 'customer' });
+    const client = { createServiceRequest: jest.fn(), getPrincipal } as unknown as ApiClient;
+    const geocoder = {
+      geocode: jest
+        .fn()
+        .mockResolvedValue([{ latitude: 25.033964, longitude: 121.564468, label: 'Taipei 101' }]),
+    };
+
+    const { getByLabelText, findByLabelText } = await render(
+      <CreateRequestScreen client={client} geocoder={geocoder} />,
+    );
+    await fireEvent.changeText(getByLabelText('Address search'), 'Taipei 101');
+    await fireEvent.press(getByLabelText('Search address'));
+
+    await fireEvent.press(await findByLabelText('Use Taipei 101'));
+    expect(getByLabelText('Latitude').props.value).toBe('25.033964');
+    expect(getByLabelText('Longitude').props.value).toBe('121.564468');
+    expect(geocoder.geocode).toHaveBeenCalledWith('Taipei 101');
+  });
+
+  it('shows a message when the address search has no matches', async () => {
+    const client = {
+      createServiceRequest: jest.fn(),
+      getPrincipal: jest.fn(),
+    } as unknown as ApiClient;
+    const geocoder = { geocode: jest.fn().mockResolvedValue([]) };
+
+    const { getByLabelText, findByText } = await render(
+      <CreateRequestScreen client={client} geocoder={geocoder} />,
+    );
+    await fireEvent.changeText(getByLabelText('Address search'), 'nowhere place');
+    await fireEvent.press(getByLabelText('Search address'));
+
+    await findByText('No matching places found. Try a different address.');
+  });
+
+  it('hides the address search when no geocoder is given', async () => {
+    const client = {
+      createServiceRequest: jest.fn(),
+      getPrincipal: jest.fn(),
+    } as unknown as ApiClient;
+
+    const { queryByLabelText } = await render(<CreateRequestScreen client={client} />);
+    expect(queryByLabelText('Address search')).toBeNull();
+  });
+
   it('includes photo URLs (one per line) when provided', async () => {
     const created = makeRequest();
     const createServiceRequest = jest.fn().mockResolvedValue(created);
