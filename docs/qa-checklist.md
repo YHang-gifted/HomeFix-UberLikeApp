@@ -18,8 +18,9 @@ real devices, native modules, and full user journeys._
 - [ ] App points at the correct API base URL.
 - [ ] Test accounts available: at least one customer, one worker, one admin
       (register new ones or use seeded demo users).
-- [ ] **Notifications:** `NOTIFY_CHANNELS` is set if you want delivery attempts in
-      the logs; note the default sender is **inert (logs only)** — see §7.
+- [ ] **Notifications:** set `NOTIFY_CHANNELS` to enable channels. With no
+      provider configured the sender is **inert (logs only)**; set `EMAIL_*`
+      (email) and/or `PUSH_API_URL` (push) to actually send — see §7.
 - [ ] **Push:** running on a physical device / dev build (Expo push token isn't
       available in a plain simulator/web); notification permission can be granted.
 - [ ] **Geocoding:** address search depends on the platform's geocoding provider;
@@ -106,12 +107,17 @@ real devices, native modules, and full user journeys._
 ## 7. Notifications delivery (caveats)
 
 - [ ] In-app notifications always work (created on the relevant actions).
-- [ ] With `NOTIFY_CHANNELS=email,push`, server logs show delivery attempts for
-      the resolved recipients (email = the user's email; push = a registered
-      device token).
-- [ ] **Known limitation:** the default sender is inert (logs only). No real email
-      or push is sent until a real provider sender is wired in. Confirm logs, not
-      an actual inbox/device banner.
+- [ ] With `NOTIFY_CHANNELS=email,push` but **no provider configured**, server
+      logs show delivery attempts for the resolved recipients (email = the user's
+      email; push = a registered device token) via the inert sender — logs only,
+      no real send.
+- [ ] With `EMAIL_API_URL`/`EMAIL_API_KEY`/`EMAIL_FROM` set, the `email` channel
+      **actually sends** (the provider receives a `{ from, to, subject, text }`
+      POST); confirm a real inbox, not just logs.
+- [ ] With `PUSH_API_URL` set (e.g. the Expo push API), the `push` channel
+      **actually sends** (a `{ to, title, body }` POST); confirm a real device
+      banner. A non-2xx provider response is logged and isolated — other channels
+      still deliver.
 - [ ] A user with no registered push token (or no email) is simply skipped — no
       error, the triggering action still succeeds.
 
@@ -140,12 +146,4 @@ real devices, native modules, and full user journeys._
 ## 11. Known limitations to confirm (not bugs)
 
 - [ ] Payments are **mock** — no real money moves.
-- [ ] Notification email/push is **wired but not actually sent** (inert sender).
-- [ ] Geocoding/push depend on platform/provider config and a physical device.
-- [ ] No production deploy target, log shipping, or managed Postgres is set up yet.
-
----
-
-**Build / commit:** \***\*\_\_\*\*** **Platform / device:** \***\*\_\_\*\*** **Date:** \***\*\_\_\*\***
-**Tester:** \***\*\_\_\*\*** **Result:** ☐ Pass ☐ Pass with notes ☐ Fail
-**Notes:**
+- [ ] Notification email/p
