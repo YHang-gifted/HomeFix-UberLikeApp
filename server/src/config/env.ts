@@ -49,6 +49,15 @@ const envSchema = z
         z.enum(['true', 'false']).optional(),
       )
       .transform((value) => (value === undefined ? undefined : value === 'true')),
+    // Email delivery provider. All three must be set for email to actually send;
+    // otherwise the email channel falls back to the inert logging sender. Empty
+    // values are treated as unset.
+    EMAIL_API_URL: z.preprocess((value) => (value === '' ? undefined : value), z.url().optional()),
+    EMAIL_API_KEY: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
+    EMAIL_FROM: z.preprocess((value) => (value === '' ? undefined : value), z.email().optional()),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production' && env.JWT_SECRET === DEV_JWT_SECRET) {
