@@ -252,6 +252,12 @@ export const paymentSchema = z.object({
 });
 export type Payment = z.infer<typeof paymentSchema>;
 
+// A customer's payment history (most-recent-first), returned by GET /payments.
+export const paymentListSchema = z.object({
+  items: z.array(paymentSchema),
+});
+export type PaymentList = z.infer<typeof paymentListSchema>;
+
 // Minimum chargeable amount, NT$1.00. Guards against zero/near-zero quotes and
 // payments that are almost certainly mistakes.
 export const MIN_AMOUNT_CENTS = 100;

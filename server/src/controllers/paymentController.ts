@@ -4,7 +4,12 @@ import { createPaymentInputSchema } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
 import { parseUuidParam } from './parseUuidParam.ts';
-import { createPayment, getPayment, payPayment } from '../services/paymentService.ts';
+import {
+  createPayment,
+  getPayment,
+  listCustomerPayments,
+  payPayment,
+} from '../services/paymentService.ts';
 
 function parseId(req: Request, next: NextFunction): string | undefined {
   return parseUuidParam(req, next, 'id', 'service request id');
@@ -27,6 +32,23 @@ export async function getServiceRequestPayment(
 
   try {
     res.status(200).json(await getPayment(id, principal));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getMyPayments(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  try {
+    res.status(200).json({ items: await listCustomerPayments(principal) });
   } catch (error) {
     next(error);
   }
