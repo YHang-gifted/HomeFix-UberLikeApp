@@ -2,7 +2,8 @@ import { type ReactElement, useCallback, useEffect, useMemo, useState } from 're
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
-import type { ServiceRequest } from '../../../shared/schemas';
+import type { ServiceCategory, ServiceRequest } from '../../../shared/schemas';
+import { CategoryFilter } from '../components/CategoryFilter';
 import { useCustomerNames } from '../hooks/useCustomerNames';
 import { apiClient } from '../api';
 
@@ -30,6 +31,7 @@ export function AvailableJobsScreen({
   const [reload, setReload] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [category, setCategory] = useState<ServiceCategory | null>(null);
 
   // Pass `items` (nullable) directly — `?? []` would create a new array every
   // render while loading, retriggering the hook's effect in an infinite loop.
@@ -40,7 +42,11 @@ export function AvailableJobsScreen({
 
     async function load(): Promise<void> {
       try {
-        const page = await activeClient.listAvailableRequests({ limit: 20, offset: 0 });
+        const page = await activeClient.listAvailableRequests({
+          limit: 20,
+          offset: 0,
+          ...(category !== null ? { category } : {}),
+        });
         if (active) {
           setItems(page.items);
           setError(null);
@@ -60,7 +66,7 @@ export function AvailableJobsScreen({
     return () => {
       active = false;
     };
-  }, [activeClient, refreshToken, reload]);
+  }, [activeClient, refreshToken, reload, category]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -105,6 +111,8 @@ export function AvailableJobsScreen({
 
   return (
     <View style={styles.root}>
+      <CategoryFilter value={category} onChange={setCategory} />
+
       {error !== null && (
         <View style={styles.banner}>
           <Text style={styles.bannerText}>{error}</Text>
@@ -113,7 +121,11 @@ export function AvailableJobsScreen({
 
       {items.length === 0 ? (
         <View style={styles.centered}>
-          <Text style={styles.empty}>No jobs available right now. Check back soon.</Text>
+          <Text style={styles.empty}>
+            {category === null
+              ? 'No jobs available right now. Check back soon.'
+              : `No ${category} jobs available right now.`}
+          </Text>
         </View>
       ) : (
         <FlatList
