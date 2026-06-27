@@ -1,0 +1,22 @@
+# Keep the build context small and the image free of things the server doesn't run.
+node_modules
+**/node_modules
+.git
+.github
+.expo
+coverage
+dist
+build
+
+# Mobile app and browser-only logic are not part of the API image.
+app-expo
+app
+
+# Tests, docs, and tooling are not needed at runtime.
+tests
+docs
+scripts
+
+# Never ship local env files; the image is configured via real env vars.
+.env
+.env.*
