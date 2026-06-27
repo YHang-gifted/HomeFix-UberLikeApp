@@ -79,6 +79,24 @@ export class PostgresServiceRequestRepository implements ServiceRequestRepositor
     return mapRow(row);
   }
 
+  public async assignWorkerIfPending(
+    id: string,
+    workerId: string,
+  ): Promise<ServiceRequest | undefined> {
+    // The WHERE guard makes this a single atomic claim: a concurrent second
+    // UPDATE finds worker_id already set (or status no longer pending) and
+    // matches no row, so only one claimant wins.
+    const result = await this.db.query(
+      `UPDATE service_requests
+          SET worker_id = $2, status = 'matched'
+        WHERE id = $1 AND status = 'pending' AND worker_id IS NULL
+        RETURNING *`,
+      [id, workerId],
+    );
+    const row = result.rows[0];
+    return row === undefined ? undefined : mapRow(row);
+  }
+
   public async findAll(): Promise<ServiceRequest[]> {
     const result = await this.db.query('SELECT * FROM service_requests');
     return result.rows.map((row) => mapRow(row));

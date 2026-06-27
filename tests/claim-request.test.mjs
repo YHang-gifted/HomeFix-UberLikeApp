@@ -117,6 +117,26 @@ describe('PATCH /service-requests/:id/claim', () => {
     assert.equal(res.status, 422);
   });
 
+  it('lets only one of two concurrent claims win (TOCTOU-safe)', async () => {
+    const created = await createRequest();
+    const OTHER_WORKER = '523e4567-e89b-12d3-a456-426614174999';
+    const [a, b] = await Promise.all([
+      claim(created.id, WORKER_ID),
+      claim(created.id, OTHER_WORKER),
+    ]);
+    assert.deepEqual([a.status, b.status].sort(), [200, 422]);
+
+    // Exactly one worker ended up assigned, matching the 200 response.
+    const winnerId = a.status === 200 ? WORKER_ID : OTHER_WORKER;
+    const detail = await (
+      await fetch(`${baseUrl}/service-requests/${created.id}`, {
+        headers: headers(ADMIN_ID, 'admin'),
+      })
+    ).json();
+    assert.equal(detail.status, 'matched');
+    assert.equal(detail.workerId, winnerId);
+  });
+
   it('forbids a customer or admin from claiming (403)', async () => {
     const created = await createRequest();
     const asCustomer = await fetch(`${baseUrl}/service-requests/${created.id}/claim`, {

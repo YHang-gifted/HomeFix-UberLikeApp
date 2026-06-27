@@ -147,12 +147,13 @@ export async function assignWorker(
   if (!request) {
     throw new AppError('Service request not found', 404);
   }
-  if (request.status !== 'pending') {
+
+  // Atomic claim: if a concurrent claim/assignment already took it, this returns
+  // undefined rather than overwriting the existing assignment.
+  const updated = await serviceRequestRepository.assignWorkerIfPending(id, workerId);
+  if (!updated) {
     throw new AppError('Only a pending request can be assigned', 422);
   }
-
-  const updated: ServiceRequest = { ...request, workerId, status: 'matched' };
-  await serviceRequestRepository.save(updated);
   // Snapshot the worker's name into the audit trail so the history reads
   // "Worker assigned: <name>" without a later lookup (and survives renames).
   const worker = await userRepository.findById(workerId);
@@ -189,12 +190,13 @@ export async function claimRequest(id: string, principal: Principal): Promise<Se
   if (!request) {
     throw new AppError('Service request not found', 404);
   }
-  if (request.status !== 'pending' || request.workerId !== undefined) {
+
+  // Atomic claim: two workers racing for the same request can never both win;
+  // the loser gets undefined here and a 422.
+  const updated = await serviceRequestRepository.assignWorkerIfPending(id, principal.id);
+  if (!updated) {
     throw new AppError('This request is no longer available to claim', 422);
   }
-
-  const updated: ServiceRequest = { ...request, workerId: principal.id, status: 'matched' };
-  await serviceRequestRepository.save(updated);
   const worker = await userRepository.findById(principal.id);
   await recordAuditEvent({
     actor: principal,
