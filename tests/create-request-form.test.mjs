@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { validateCreateRequestForm } from '../app/src/features/serviceRequests/createRequestForm.ts';
+import {
+  parseScheduledTime,
+  validateCreateRequestForm,
+} from '../app/src/features/serviceRequests/createRequestForm.ts';
 
 function validValues() {
   return {
@@ -35,5 +38,21 @@ describe('validateCreateRequestForm', () => {
     });
     assert.equal(typeof errors.latitude, 'string');
     assert.equal(typeof errors.longitude, 'string');
+  });
+});
+
+describe('parseScheduledTime', () => {
+  it('treats an empty value as no preference', () => {
+    assert.deepEqual(parseScheduledTime('   '), { ok: true, iso: undefined });
+  });
+
+  it('converts a parseable date to an ISO string', () => {
+    const result = parseScheduledTime('2026-07-01T09:00:00.000Z');
+    assert.equal(result.ok, true);
+    assert.equal(result.ok && result.iso, '2026-07-01T09:00:00.000Z');
+  });
+
+  it('rejects an unparseable value', () => {
+    assert.deepEqual(parseScheduledTime('next tuesday'), { ok: false });
   });
 });
