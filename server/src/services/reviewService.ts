@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type {
   CreateReviewInput,
   Principal,
+  ReplyReviewInput,
   Review,
   WorkerRating,
   WorkerReviews,
@@ -11,6 +12,8 @@ import { AppError } from '../errors/appError.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { reviewRepository } from '../repositories/reviewRepository.ts';
 import { userRepository } from '../repositories/userRepository.ts';
+import { isRequestParty } from './serviceRequestService.ts';
+import { recordNotification } from './notificationService.ts';
 
 /** A customer reviews the worker on their own completed request (one review per request). */
 export async function createReview(
@@ -48,6 +51,56 @@ export async function createReview(
   };
   await reviewRepository.save(review);
   return review;
+}
+
+/** The review for a request, visible to any party (owning customer, assigned worker, admin). */
+export async function getReviewForRequest(
+  requestId: string,
+  principal: Principal,
+): Promise<Review> {
+  const request = await serviceRequestRepository.findById(requestId);
+  if (!request) {
+    throw new AppError('Service request not found', 404);
+  }
+  if (!isRequestParty(request, principal)) {
+    throw new AppError('Not allowed to view this review', 403);
+  }
+  const review = await reviewRepository.findByRequestId(requestId);
+  if (!review) {
+    throw new AppError('This request has no review', 404);
+  }
+  return review;
+}
+
+/**
+ * The reviewed worker posts (or updates) a single public reply to the review on
+ * their request. Only the worker the review is about may reply.
+ */
+export async function replyToReview(
+  requestId: string,
+  input: ReplyReviewInput,
+  principal: Principal,
+): Promise<Review> {
+  const review = await reviewRepository.findByRequestId(requestId);
+  if (!review) {
+    throw new AppError('This request has no review', 404);
+  }
+  if (principal.role !== 'worker' || principal.id !== review.workerId) {
+    throw new AppError('Only the reviewed worker may reply', 403);
+  }
+
+  const updated: Review = {
+    ...review,
+    reply: input.reply,
+    repliedAt: new Date().toISOString(),
+  };
+  await reviewRepository.save(updated);
+  await recordNotification({
+    userId: review.customerId,
+    message: 'A worker replied to your review.',
+    requestId,
+  });
+  return updated;
 }
 
 /** Available to any authenticated user: a worker's reviews and average rating. */

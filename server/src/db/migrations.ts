@@ -151,4 +151,12 @@ export const migrations: Migration[] = [
       )
     `,
   },
+  {
+    id: '0012_review_reply',
+    sql: `
+      ALTER TABLE reviews
+        ADD COLUMN IF NOT EXISTS reply text,
+        ADD COLUMN IF NOT EXISTS replied_at timestamptz
+    `,
+  },
 ];

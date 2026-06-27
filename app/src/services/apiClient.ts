@@ -315,6 +315,21 @@ export class ApiClient {
     return reviewSchema.parse(data);
   }
 
+  public async getReview(requestId: string): Promise<Review> {
+    const data = await this.send('GET', `/service-requests/${requestId}/review`, undefined, true);
+    return reviewSchema.parse(data);
+  }
+
+  public async replyToReview(requestId: string, reply: string): Promise<Review> {
+    const data = await this.send(
+      'POST',
+      `/service-requests/${requestId}/review/reply`,
+      { reply },
+      true,
+    );
+    return reviewSchema.parse(data);
+  }
+
   public async getWorkerReviews(workerId: string): Promise<WorkerReviews> {
     const data = await this.send('GET', `/workers/${workerId}/reviews`, undefined, true);
     return workerReviewsSchema.parse(data);
