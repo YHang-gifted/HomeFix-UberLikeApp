@@ -19,7 +19,7 @@ import {
   formatCents,
 } from '../../../app/src/features/payments/paymentFormat';
 import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
-import type { AuditEvent, Payment, Quote, ServiceRequest } from '../../../shared/schemas';
+import type { AuditEvent, Payment, Quote, Review, ServiceRequest } from '../../../shared/schemas';
 import { apiClient } from '../api';
 
 const RATINGS = [1, 2, 3, 4, 5];
@@ -68,6 +68,10 @@ export function RequestDetailScreen({
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewDone, setReviewDone] = useState(false);
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
+  const [review, setReview] = useState<Review | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [replyBusy, setReplyBusy] = useState(false);
+  const [replyMessage, setReplyMessage] = useState<string | null>(null);
   const [history, setHistory] = useState<AuditEvent[] | null>(null);
   const [workerName, setWorkerName] = useState<string | null>(null);
   const [workerPhone, setWorkerPhone] = useState<string | null>(null);
@@ -157,6 +161,15 @@ export function RequestDetailScreen({
           }
         } catch {
           // No quote yet (404) or not a party; leave it unset.
+        }
+        try {
+          const foundReview = await activeClient.getReview(requestId);
+          if (active) {
+            setReview(foundReview);
+            setReplyText(foundReview.reply ?? '');
+          }
+        } catch {
+          // No review yet (404) or not a party; leave it unset.
         }
       } catch {
         if (active) {
@@ -298,10 +311,11 @@ export function RequestDetailScreen({
     setReviewMessage(null);
     const trimmed = comment.trim();
     try {
-      await activeClient.createReview(requestId, {
+      const created = await activeClient.createReview(requestId, {
         rating,
         ...(trimmed.length > 0 ? { comment: trimmed } : {}),
       });
+      setReview(created);
       setReviewDone(true);
       setReviewMessage('Thanks for your review!');
     } catch (submitError) {
@@ -313,6 +327,25 @@ export function RequestDetailScreen({
       }
     } finally {
       setSubmittingReview(false);
+    }
+  }
+
+  async function submitReply(): Promise<void> {
+    const trimmed = replyText.trim();
+    if (trimmed === '') {
+      return;
+    }
+    setReplyBusy(true);
+    setReplyMessage(null);
+    try {
+      const updated = await activeClient.replyToReview(requestId, trimmed);
+      setReview(updated);
+      setReplyText(updated.reply ?? '');
+      setReplyMessage('Reply posted.');
+    } catch {
+      setReplyMessage('Could not post your reply. Please try again.');
+    } finally {
+      setReplyBusy(false);
     }
   }
 
@@ -334,6 +367,8 @@ export function RequestDetailScreen({
 
   const isOwner =
     principal !== null && principal.role === 'customer' && principal.id === request.customerId;
+  const isAssignedWorker =
+    principal !== null && principal.role === 'worker' && principal.id === request.workerId;
 
   const quoteView = deriveQuoteView({ principal, request, quote });
   const paymentAmountValue =
@@ -690,6 +725,65 @@ export function RequestDetailScreen({
             </>
           )}
           {reviewMessage !== null && <Text style={styles.reviewMessage}>{reviewMessage}</Text>}
+        </View>
+      )}
+
+      {review !== null && (
+        <View style={styles.reviewBox}>
+          <Text style={styles.reviewHeading}>Review</Text>
+          <View style={styles.ratingRow}>
+            {RATINGS.map((value) => (
+              <Text
+                key={value}
+                style={[styles.star, value <= review.rating && styles.starSelected]}
+              >
+                ★
+              </Text>
+            ))}
+          </View>
+          {review.comment !== undefined && <Text style={styles.value}>{review.comment}</Text>}
+
+          {review.reply !== undefined && (
+            <>
+              <Text style={styles.label}>Worker&apos;s reply</Text>
+              <Text style={styles.value}>{review.reply}</Text>
+            </>
+          )}
+
+          {isAssignedWorker && (
+            <>
+              <TextInput
+                style={styles.commentInput}
+                value={replyText}
+                onChangeText={setReplyText}
+                placeholder="Write a public reply"
+                accessibilityLabel="Reply to review"
+                editable={!replyBusy}
+                multiline
+              />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.submit,
+                  (pressed || replyBusy || replyText.trim() === '') && styles.submitDisabled,
+                ]}
+                onPress={() => {
+                  void submitReply();
+                }}
+                disabled={replyBusy || replyText.trim() === ''}
+                accessibilityRole="button"
+                accessibilityLabel={review.reply !== undefined ? 'Update reply' : 'Send reply'}
+              >
+                {replyBusy ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text style={styles.submitText}>
+                    {review.reply !== undefined ? 'Update reply' : 'Send reply'}
+                  </Text>
+                )}
+              </Pressable>
+              {replyMessage !== null && <Text style={styles.reviewMessage}>{replyMessage}</Text>}
+            </>
+          )}
         </View>
       )}
     </ScrollView>
