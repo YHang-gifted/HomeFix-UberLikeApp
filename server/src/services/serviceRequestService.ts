@@ -58,6 +58,7 @@ export async function createServiceRequest(
     status: 'pending',
     createdAt: new Date().toISOString(),
     photoUrls: input.photoUrls ?? [],
+    ...(input.scheduledAt !== undefined ? { scheduledAt: input.scheduledAt } : {}),
   };
   await serviceRequestRepository.save(request);
   await recordAuditEvent({

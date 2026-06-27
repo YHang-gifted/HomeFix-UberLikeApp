@@ -60,6 +60,16 @@ describe('PostgresServiceRequestRepository (PGlite)', () => {
     assert.deepEqual(found?.photoUrls, urls);
   });
 
+  it('round-trips an optional scheduledAt and omits it when absent', async () => {
+    await repo.save(makeRequest({ scheduledAt: '2026-07-01T09:00:00.000Z' }));
+    const found = await repo.findById(REQUEST_ID);
+    assert.equal(found?.scheduledAt, '2026-07-01T09:00:00.000Z');
+
+    await repo.save(makeRequest({ id: '323e4567-e89b-12d3-a456-426614174999' }));
+    const noSchedule = await repo.findById('323e4567-e89b-12d3-a456-426614174999');
+    assert.equal(noSchedule?.scheduledAt, undefined);
+  });
+
   it('returns undefined for a missing id', async () => {
     assert.equal(await repo.findById('323e4567-e89b-12d3-a456-426614174000'), undefined);
   });
