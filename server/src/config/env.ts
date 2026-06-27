@@ -40,6 +40,15 @@ const envSchema = z
           .map((channel) => channel.trim())
           .filter((channel) => channel.length > 0),
       ),
+    // Whether to seed the demo users on boot. Unset (the default) seeds outside
+    // production but not in production, so a real deploy doesn't create demo
+    // accounts; set explicitly to override either way.
+    SEED_DEMO_USERS: z
+      .preprocess(
+        (value) => (value === '' ? undefined : value),
+        z.enum(['true', 'false']).optional(),
+      )
+      .transform((value) => (value === undefined ? undefined : value === 'true')),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production' && env.JWT_SECRET === DEV_JWT_SECRET) {
