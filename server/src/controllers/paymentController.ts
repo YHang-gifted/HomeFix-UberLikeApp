@@ -1,12 +1,14 @@
 import type { NextFunction, Request, Response } from 'express';
-import { z } from 'zod';
 
 import { createPaymentInputSchema } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
+import { parseUuidParam } from './parseUuidParam.ts';
 import { createPayment, getPayment, payPayment } from '../services/paymentService.ts';
 
-const idParamSchema = z.uuid();
+function parseId(req: Request, next: NextFunction): string | undefined {
+  return parseUuidParam(req, next, 'id', 'service request id');
+}
 
 export async function getServiceRequestPayment(
   req: Request,
@@ -18,14 +20,13 @@ export async function getServiceRequestPayment(
     return;
   }
 
-  const idResult = idParamSchema.safeParse(req.params['id']);
-  if (!idResult.success) {
-    next(new AppError('Invalid service request id', 422));
+  const id = parseId(req, next);
+  if (id === undefined) {
     return;
   }
 
   try {
-    res.status(200).json(await getPayment(idResult.data, principal));
+    res.status(200).json(await getPayment(id, principal));
   } catch (error) {
     next(error);
   }
@@ -41,9 +42,8 @@ export async function postServiceRequestPayment(
     return;
   }
 
-  const idResult = idParamSchema.safeParse(req.params['id']);
-  if (!idResult.success) {
-    next(new AppError('Invalid service request id', 422));
+  const id = parseId(req, next);
+  if (id === undefined) {
     return;
   }
 
@@ -54,7 +54,7 @@ export async function postServiceRequestPayment(
   }
 
   try {
-    res.status(201).json(await createPayment(idResult.data, parsed.data, principal));
+    res.status(201).json(await createPayment(id, parsed.data, principal));
   } catch (error) {
     next(error);
   }
@@ -70,14 +70,13 @@ export async function postServiceRequestPaymentPay(
     return;
   }
 
-  const idResult = idParamSchema.safeParse(req.params['id']);
-  if (!idResult.success) {
-    next(new AppError('Invalid service request id', 422));
+  const id = parseId(req, next);
+  if (id === undefined) {
     return;
   }
 
   try {
-    res.status(200).json(await payPayment(idResult.data, principal));
+    res.status(200).json(await payPayment(id, principal));
   } catch (error) {
     next(error);
   }

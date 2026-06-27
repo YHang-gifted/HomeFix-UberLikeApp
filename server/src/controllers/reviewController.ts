@@ -1,12 +1,10 @@
 import type { NextFunction, Request, Response } from 'express';
-import { z } from 'zod';
 
 import { createReviewInputSchema } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
+import { parseUuidParam } from './parseUuidParam.ts';
 import { createReview, getWorkerReviews, listWorkerRatings } from '../services/reviewService.ts';
-
-const idSchema = z.uuid();
 
 export async function postReview(req: Request, res: Response, next: NextFunction): Promise<void> {
   const principal = requirePrincipal(req, next);
@@ -14,9 +12,8 @@ export async function postReview(req: Request, res: Response, next: NextFunction
     return;
   }
 
-  const idResult = idSchema.safeParse(req.params['id']);
-  if (!idResult.success) {
-    next(new AppError('Invalid service request id', 422));
+  const id = parseUuidParam(req, next, 'id', 'service request id');
+  if (id === undefined) {
     return;
   }
 
@@ -27,7 +24,7 @@ export async function postReview(req: Request, res: Response, next: NextFunction
   }
 
   try {
-    const review = await createReview(idResult.data, parsed.data, principal);
+    const review = await createReview(id, parsed.data, principal);
     res.status(201).json(review);
   } catch (error) {
     next(error);
@@ -44,14 +41,13 @@ export async function getReviewsForWorker(
     return;
   }
 
-  const idResult = idSchema.safeParse(req.params['id']);
-  if (!idResult.success) {
-    next(new AppError('Invalid worker id', 422));
+  const id = parseUuidParam(req, next, 'id', 'worker id');
+  if (id === undefined) {
     return;
   }
 
   try {
-    const reviews = await getWorkerReviews(idResult.data);
+    const reviews = await getWorkerReviews(id);
     res.status(200).json(reviews);
   } catch (error) {
     next(error);
