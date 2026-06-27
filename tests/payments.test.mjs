@@ -236,8 +236,23 @@ describe('request payments (mock)', () => {
     assert.deepEqual((await res.json()).items, []);
   });
 
-  it('forbids non-customers from the payment history (403)', async () => {
-    assert.equal((await listMyPayments(WORKER_ID, 'worker')).status, 403);
+  it('lets the assigned worker list payments they received, excluding others', async () => {
+    const created = await createRequest();
+    await assign(created.id);
+    await setupAcceptedQuote(created.id, 150000);
+    await createPayment(created.id, 150000);
+
+    const received = await (await listMyPayments(WORKER_ID, 'worker')).json();
+    assert.equal(received.items.length, 1);
+    assert.equal(received.items[0].requestId, created.id);
+    assert.equal(received.items[0].workerId, WORKER_ID);
+
+    const otherWorker = '523e4567-e89b-12d3-a456-426614174999';
+    const none = await (await listMyPayments(otherWorker, 'worker')).json();
+    assert.deepEqual(none.items, []);
+  });
+
+  it('forbids an admin from the payment history (403)', async () => {
     assert.equal((await listMyPayments(ADMIN_ID, 'admin')).status, 403);
   });
 

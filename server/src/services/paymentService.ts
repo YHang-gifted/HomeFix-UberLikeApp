@@ -35,14 +35,18 @@ export async function getPayment(requestId: string, principal: Principal): Promi
 }
 
 /**
- * List the calling customer's own payments, most-recent-first. Customers only —
- * each sees only their own receipts; other roles are forbidden.
+ * List the caller's own payments, most-recent-first. A customer sees the payments
+ * they made; a worker sees the payments they received. Admins have no personal
+ * payment history and are forbidden.
  */
-export async function listCustomerPayments(principal: Principal): Promise<Payment[]> {
-  if (principal.role !== 'customer') {
-    throw new AppError('Only customers have a payment history', 403);
+export async function listMyPayments(principal: Principal): Promise<Payment[]> {
+  if (principal.role === 'customer') {
+    return paymentRepository.findByCustomer(principal.id);
   }
-  return paymentRepository.findByCustomer(principal.id);
+  if (principal.role === 'worker') {
+    return paymentRepository.findByWorker(principal.id);
+  }
+  throw new AppError('No payment history for this role', 403);
 }
 
 /**
