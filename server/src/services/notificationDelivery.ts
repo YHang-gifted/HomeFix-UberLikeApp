@@ -1,6 +1,9 @@
 import { loadEnv } from '../config/env.ts';
 import type { Notification } from '../../../shared/schemas.ts';
+import { userRepository } from '../repositories/userRepository.ts';
 import { logger } from '../utils/logger.ts';
+import { ProviderDelivery, loggingSender } from './notificationProvider.ts';
+import type { MessageSender, RecipientResolver } from './notificationProvider.ts';
 
 /** A single outbound channel that delivers a notification (email, push, …). */
 export interface NotificationDelivery {
@@ -69,32 +72,41 @@ export class CompositeDelivery implements NotificationDelivery {
   }
 }
 
-// Known channels: recording mocks for email and push. Swap these for real
-// provider-backed implementations in a later slice without changing callers.
-export const emailDelivery = new RecordingDelivery('email');
-export const pushDelivery = new RecordingDelivery('push');
-
-const KNOWN_CHANNELS: Readonly<Record<string, NotificationDelivery>> = {
-  email: emailDelivery,
-  push: pushDelivery,
+// How to resolve a recipient's address per channel. Email uses the user's
+// stored email; push has no device-token store yet, so it resolves to undefined
+// (the notification is skipped) until tokens are captured in a later slice.
+const DEFAULT_RESOLVERS: Readonly<Record<string, RecipientResolver>> = {
+  email: async (userId) => (await userRepository.findById(userId))?.email,
+  push: () => Promise.resolve(undefined),
 };
 
+export interface BuildDeliveryOptions {
+  /** Per-channel recipient resolvers (defaults to email-from-user-record / push-none). */
+  resolvers?: Readonly<Record<string, RecipientResolver>>;
+  /** The provider sender to use (defaults to the inert logging sender). */
+  sender?: MessageSender;
+}
+
 /**
- * Build a delivery from the configured channel names, keeping only known ones
- * (unknown names are ignored). An empty list yields a no-op delivery, so nothing
- * is sent unless a channel is explicitly enabled via `NOTIFY_CHANNELS`.
+ * Build a delivery from the configured channel names. Each known channel becomes
+ * a provider-backed {@link ProviderDelivery}; unknown names (no resolver) are
+ * ignored, and an empty list yields a no-op delivery, so nothing is sent unless a
+ * channel is explicitly enabled via `NOTIFY_CHANNELS`. The sender defaults to the
+ * inert logging sender — supply a real provider-backed sender to actually send.
  */
-export function buildDelivery(channelNames: readonly string[]): NotificationDelivery {
+export function buildDelivery(
+  channelNames: readonly string[],
+  options?: BuildDeliveryOptions,
+): NotificationDelivery {
+  const resolvers = options?.resolvers ?? DEFAULT_RESOLVERS;
+  const sender = options?.sender ?? loggingSender;
   const channels = channelNames
-    .map((name) => KNOWN_CHANNELS[name])
-    .filter((channel): channel is NotificationDelivery => channel !== undefined);
+    .map((name) => {
+      const resolve = resolvers[name];
+      return resolve === undefined ? undefined : new ProviderDelivery(name, resolve, sender);
+    })
+    .filter((channel): channel is ProviderDelivery => channel !== undefined);
   return new CompositeDelivery(channels);
 }
 
 export const notificationDelivery: NotificationDelivery = buildDelivery(loadEnv().NOTIFY_CHANNELS);
-
-/** Clear the recorded delivery attempts (used by tests and reset flows). */
-export function resetDeliveries(): void {
-  emailDelivery.clear();
-  pushDelivery.clear();
-}
