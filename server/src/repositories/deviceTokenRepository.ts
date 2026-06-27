@@ -1,3 +1,8 @@
+import process from 'node:process';
+
+import { createPoolQueryable } from '../config/db.ts';
+import { PostgresDeviceTokenRepository } from './postgresDeviceTokenRepository.ts';
+
 /** A user's set of registered device push tokens. Membership is unique per (user, token). */
 export interface DeviceTokenRepository {
   add(userId: string, token: string): Promise<void>;
@@ -25,6 +30,15 @@ export class InMemoryDeviceTokenRepository implements DeviceTokenRepository {
   }
 }
 
-// In-memory only for now; a Postgres-backed repository + factory follow in the
-// next slice (mirroring favorites).
-export const deviceTokenRepository: DeviceTokenRepository = new InMemoryDeviceTokenRepository();
+export function selectDeviceTokenRepository(
+  databaseUrl: string | undefined,
+): DeviceTokenRepository {
+  if (databaseUrl !== undefined && databaseUrl !== '') {
+    return new PostgresDeviceTokenRepository(createPoolQueryable(databaseUrl));
+  }
+  return new InMemoryDeviceTokenRepository();
+}
+
+export const deviceTokenRepository: DeviceTokenRepository = selectDeviceTokenRepository(
+  process.env['DATABASE_URL'],
+);

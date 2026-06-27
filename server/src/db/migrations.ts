@@ -140,4 +140,15 @@ export const migrations: Migration[] = [
       )
     `,
   },
+  {
+    id: '0011_device_tokens',
+    sql: `
+      CREATE TABLE IF NOT EXISTS device_tokens (
+        user_id uuid NOT NULL,
+        token text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, token)
+      )
+    `,
+  },
 ];
