@@ -8,7 +8,8 @@
   },
   "scripts": {
     "dev": "node --import tsx server/src/server.ts",
-    "start": "node --import tsx server/src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server/src/server.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",

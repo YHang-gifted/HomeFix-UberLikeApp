@@ -31,7 +31,26 @@ startup by `server/src/config/env.ts` (see `.env.example`). The active variables
   leave unset and the push channel only logs. The endpoint receives a JSON
   `{ to, title, body }` POST.
 
+## Build
+
+The server ships as compiled JavaScript. `tsconfig.build.json` emits CommonJS to
+`dist/` (relative `.ts` imports are rewritten to `.js` on emit); the entrypoint is
+`dist/server/src/server.js`.
+
+```bash
+npm run build   # tsc -p tsconfig.build.json -> dist/
+npm start       # node dist/server/src/server.js
+```
+
+`npm run dev` still runs the TypeScript sources directly via `tsx` for local
+development; only production runs the compiled output.
+
 ## Build and run with Docker
+
+The image is multi-stage: a build stage installs all dependencies and runs
+`npm run build`, and a slim runtime stage installs production dependencies only
+(`npm ci --omit=dev`) and copies in `dist/`. Neither `tsx` nor the TypeScript
+toolchain is present in the deployed image.
 
 ```bash
 docker build -t homefix-api .
@@ -44,7 +63,13 @@ docker run --rm -p 3000:3000 \
   homefix-api
 ```
 
-The image runs the server with `tsx` (no compile step yet — see below).
+## Deploying on Railway
+
+Railway auto-detects the `Dockerfile` and builds the image. Provision a Postgres
+plugin and the server picks up the injected `DATABASE_URL`; Railway also injects
+`PORT`, which the server already reads. Set `NODE_ENV=production`, a strong
+`JWT_SECRET`, and `CORS_ALLOWED_ORIGINS` for the real web origin(s) in the service
+variables. Pending migrations run automatically on boot.
 
 ## Health probes
 
@@ -61,10 +86,7 @@ inbound one) that matches the structured access log line for that request.
 
 ## Notes and future work
 
-- The image installs all dependencies and runs TypeScript via `tsx`. A future
-  ops slice should add a `tsc` build and a dev-dependency-free image for a
-  smaller, leaner production artifact.
 - Demo users are seeded outside production only (see `SEED_DEMO_USERS`); a real
   production deploy creates no demo accounts by default.
-- A managed Postgres, log shipping/rotation, and a deploy target (the platform
-  that runs this image) are still to be provisioned.
+- Log shipping/rotation and a managed Postgres backup policy are still to be
+  configured on the deploy target.
