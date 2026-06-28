@@ -5,6 +5,7 @@ import type { UserProfile } from '../../../shared/schemas';
 import { ProfileScreen } from './ProfileScreen';
 
 const CUSTOMER_ID = '123e4567-e89b-12d3-a456-426614174000';
+const WORKER_ID = '423e4567-e89b-12d3-a456-426614174000';
 
 function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
   return {
@@ -49,6 +50,45 @@ describe('ProfileScreen', () => {
       displayName: 'Demo Customer',
       phone: '+1 (555) 012-3456',
     });
+  });
+
+  it('lets a worker edit bio and specialties', async () => {
+    const workerProfile = makeProfile({
+      id: WORKER_ID,
+      email: 'worker@homefix.test',
+      role: 'worker',
+      displayName: 'Demo Worker',
+    });
+    const getMe = jest.fn().mockResolvedValue(workerProfile);
+    const updateProfile = jest
+      .fn()
+      .mockResolvedValue({ ...workerProfile, bio: 'Pro plumber', skills: ['plumbing'] });
+    const client = { getMe, updateProfile } as unknown as ApiClient;
+
+    const { findByLabelText, findByText, getByLabelText } = await render(
+      <ProfileScreen client={client} />,
+    );
+
+    await fireEvent.changeText(await findByLabelText('Bio'), 'Pro plumber');
+    await fireEvent.press(getByLabelText('Specialty plumbing'));
+    await fireEvent.press(getByLabelText('Save profile'));
+
+    await findByText('Saved');
+    expect(updateProfile).toHaveBeenCalledWith({
+      displayName: 'Demo Worker',
+      phone: undefined,
+      bio: 'Pro plumber',
+      skills: ['plumbing'],
+    });
+  });
+
+  it('hides bio and specialties for a non-worker', async () => {
+    const getMe = jest.fn().mockResolvedValue(makeProfile());
+    const client = { getMe, updateProfile: jest.fn() } as unknown as ApiClient;
+
+    const { findByText, queryByLabelText } = await render(<ProfileScreen client={client} />);
+    await findByText('customer@homefix.test');
+    expect(queryByLabelText('Bio')).toBeNull();
   });
 
   it('rejects an empty display name without calling the API', async () => {
