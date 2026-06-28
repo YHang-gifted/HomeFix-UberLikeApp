@@ -38,6 +38,39 @@ describe('createExpoPushSender', () => {
     const sender = createExpoPushSender(CONFIG, () => Promise.resolve({ ok: false, status: 400 }));
     await assert.rejects(sender(MESSAGE), /400/);
   });
+
+  it('throws when a 200 response reports a failed push ticket', async () => {
+    const sender = createExpoPushSender(CONFIG, () =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        data: { data: [{ status: 'error', message: 'DeviceNotRegistered' }] },
+      }),
+    );
+    await assert.rejects(sender(MESSAGE), /DeviceNotRegistered/);
+  });
+
+  it('handles a single ticket object (not an array)', async () => {
+    const sender = createExpoPushSender(CONFIG, () =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        data: { data: { status: 'error', message: 'boom' } },
+      }),
+    );
+    await assert.rejects(sender(MESSAGE), /boom/);
+  });
+
+  it('resolves when the ticket status is ok', async () => {
+    const sender = createExpoPushSender(CONFIG, () =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        data: { data: [{ status: 'ok', id: 'receipt-1' }] },
+      }),
+    );
+    await sender(MESSAGE);
+  });
 });
 
 describe('PUSH_API_URL env parsing', () => {
