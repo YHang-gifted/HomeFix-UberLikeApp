@@ -319,6 +319,39 @@ describe('RequestDetailScreen', () => {
     await findByText('+1 555 444 5555');
   });
 
+  it('lets the assigned worker release an active job', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const releaseRequest = jest.fn().mockResolvedValue({ ...request, status: 'pending' });
+    const client = clientWith(
+      { getServiceRequest: jest.fn().mockResolvedValue(request), releaseRequest },
+      { id: WORKER_ID, role: 'worker' },
+    );
+    const onReleased = jest.fn();
+
+    const { findByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} onReleased={onReleased} />,
+    );
+    await fireEvent.press(await findByLabelText('Release job'));
+
+    await waitFor(() => {
+      expect(releaseRequest).toHaveBeenCalledWith(request.id);
+    });
+    await waitFor(() => {
+      expect(onReleased).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('does not show release to the owning customer', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const client = clientWith({ getServiceRequest: jest.fn().mockResolvedValue(request) });
+
+    const { findByText, queryByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+    await findByText('Leaking kitchen sink');
+    expect(queryByLabelText('Release job')).toBeNull();
+  });
+
   it('shows the assigned worker bio and specialties', async () => {
     const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
     const client = clientWith({
