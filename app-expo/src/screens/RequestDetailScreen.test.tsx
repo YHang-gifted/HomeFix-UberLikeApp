@@ -319,6 +319,26 @@ describe('RequestDetailScreen', () => {
     await findByText('+1 555 444 5555');
   });
 
+  it('shows the assigned worker bio and specialties', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      getWorker: jest.fn().mockResolvedValue({
+        id: WORKER_ID,
+        email: 'worker@homefix.test',
+        displayName: 'Demo Worker',
+        bio: 'Master electrician.',
+        skills: ['electrical'],
+      }),
+    });
+
+    const { findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+    await findByText('Master electrician.');
+    await findByText('Specialties: electrical');
+  });
+
   it('lets the customer favorite the assigned worker', async () => {
     const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
     const addFavorite = jest

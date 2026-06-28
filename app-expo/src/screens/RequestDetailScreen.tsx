@@ -74,6 +74,8 @@ export function RequestDetailScreen({
   const [replyMessage, setReplyMessage] = useState<string | null>(null);
   const [history, setHistory] = useState<AuditEvent[] | null>(null);
   const [workerName, setWorkerName] = useState<string | null>(null);
+  const [workerBio, setWorkerBio] = useState<string | null>(null);
+  const [workerSkills, setWorkerSkills] = useState<string[]>([]);
   const [workerPhone, setWorkerPhone] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState<string | null>(null);
   const [customerPhone, setCustomerPhone] = useState<string | null>(null);
@@ -112,6 +114,8 @@ export function RequestDetailScreen({
             const worker = await activeClient.getWorker(found.workerId);
             if (active) {
               setWorkerName(worker.displayName);
+              setWorkerBio(worker.bio ?? null);
+              setWorkerSkills(worker.skills ?? []);
             }
           } catch {
             // Fall back to showing the worker id.
@@ -453,6 +457,10 @@ export function RequestDetailScreen({
             )}
           </View>
           {workerPhone !== null && <Text style={styles.value}>{workerPhone}</Text>}
+          {workerBio !== null && <Text style={styles.value}>{workerBio}</Text>}
+          {workerSkills.length > 0 && (
+            <Text style={styles.value}>Specialties: {workerSkills.join(', ')}</Text>
+          )}
         </>
       )}
 
