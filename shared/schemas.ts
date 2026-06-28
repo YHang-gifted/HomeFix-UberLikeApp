@@ -130,6 +130,9 @@ export type RequestContacts = z.infer<typeof requestContactsSchema>;
 // A worker's self-description and the categories they serve, shown to customers.
 export const workerBioSchema = z.string().min(1).max(1000);
 export const workerSkillsSchema = z.array(serviceCategorySchema).max(12);
+// Whether a worker is currently accepting work. Unset is treated as available.
+export const workerAvailabilitySchema = z.enum(['available', 'away']);
+export type WorkerAvailability = z.infer<typeof workerAvailabilitySchema>;
 
 export const workerSummarySchema = z.object({
   id: z.uuid(),
@@ -137,6 +140,7 @@ export const workerSummarySchema = z.object({
   displayName: z.string().min(1).max(120),
   bio: workerBioSchema.optional(),
   skills: workerSkillsSchema.optional(),
+  availability: workerAvailabilitySchema.optional(),
 });
 export type WorkerSummary = z.infer<typeof workerSummarySchema>;
 
@@ -241,6 +245,7 @@ export const userProfileSchema = z.object({
   phone: phoneSchema.optional(),
   bio: workerBioSchema.optional(),
   skills: workerSkillsSchema.optional(),
+  availability: workerAvailabilitySchema.optional(),
 });
 export type UserProfile = z.infer<typeof userProfileSchema>;
 
@@ -258,6 +263,7 @@ export const updateProfileInputSchema = z.object({
   phone: phoneSchema.optional(),
   bio: workerBioSchema.optional(),
   skills: workerSkillsSchema.optional(),
+  availability: workerAvailabilitySchema.optional(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileInputSchema>;
 

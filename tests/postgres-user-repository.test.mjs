@@ -84,6 +84,20 @@ describe('PostgresUserRepository (PGlite)', () => {
     assert.equal(cleared?.skills, undefined);
   });
 
+  it('round-trips availability and clears it when omitted', async () => {
+    const updated = await repo.updateProfile(WORKER_ID, {
+      displayName: 'Demo Worker',
+      availability: 'away',
+    });
+    assert.equal(updated?.availability, 'away');
+
+    const persisted = await repo.findById(WORKER_ID);
+    assert.equal(persisted?.availability, 'away');
+
+    const cleared = await repo.updateProfile(WORKER_ID, { displayName: 'Demo Worker' });
+    assert.equal(cleared?.availability, undefined);
+  });
+
   it('returns undefined for an unknown email or id', async () => {
     assert.equal(await repo.findByEmail('nobody@homefix.test'), undefined);
     assert.equal(await repo.findById('999e4567-e89b-12d3-a456-426614174000'), undefined);

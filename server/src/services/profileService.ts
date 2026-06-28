@@ -12,6 +12,7 @@ function toProfile(user: UserRecord): UserProfile {
     ...(user.phone !== undefined ? { phone: user.phone } : {}),
     ...(user.bio !== undefined ? { bio: user.bio } : {}),
     ...(user.skills !== undefined ? { skills: user.skills } : {}),
+    ...(user.availability !== undefined ? { availability: user.availability } : {}),
   };
 }
 

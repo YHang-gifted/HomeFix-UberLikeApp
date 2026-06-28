@@ -120,6 +120,35 @@ describe('profile (/me)', () => {
     assert.equal(res.status, 422);
   });
 
+  it('updates and clears the worker availability', async () => {
+    const set = await (
+      await fetch(`${baseUrl}/me`, {
+        method: 'PATCH',
+        headers: headers(WORKER_ID, 'worker'),
+        body: JSON.stringify({ displayName: 'Demo Worker', availability: 'away' }),
+      })
+    ).json();
+    assert.equal(set.availability, 'away');
+
+    const cleared = await (
+      await fetch(`${baseUrl}/me`, {
+        method: 'PATCH',
+        headers: headers(WORKER_ID, 'worker'),
+        body: JSON.stringify({ displayName: 'Demo Worker' }),
+      })
+    ).json();
+    assert.equal(cleared.availability, undefined);
+  });
+
+  it('rejects an invalid availability (422)', async () => {
+    const res = await fetch(`${baseUrl}/me`, {
+      method: 'PATCH',
+      headers: headers(WORKER_ID, 'worker'),
+      body: JSON.stringify({ displayName: 'Demo Worker', availability: 'sleeping' }),
+    });
+    assert.equal(res.status, 422);
+  });
+
   it('rejects an invalid phone (422)', async () => {
     const res = await fetch(`${baseUrl}/me`, {
       method: 'PATCH',
