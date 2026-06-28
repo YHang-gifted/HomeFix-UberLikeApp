@@ -22,6 +22,13 @@ export interface ServiceRequestRepository {
    * or undefined when it was not releasable (not theirs, completed, or cancelled).
    */
   releaseIfAssignedWorker(id: string, workerId: string): Promise<ServiceRequest | undefined>;
+  /**
+   * Admin override: return an assigned request to the pool regardless of which
+   * worker holds it, as long as it is still active (matched/accepted/in_progress).
+   * Clears the worker and sets `pending`; undefined when not resettable (missing
+   * or terminal/already pending).
+   */
+  releaseToPending(id: string): Promise<ServiceRequest | undefined>;
   clear(): Promise<void>;
 }
 
@@ -65,6 +72,22 @@ export class InMemoryServiceRequestRepository implements ServiceRequestRepositor
     if (
       existing === undefined ||
       existing.workerId !== workerId ||
+      (existing.status !== 'matched' &&
+        existing.status !== 'accepted' &&
+        existing.status !== 'in_progress')
+    ) {
+      return Promise.resolve(undefined);
+    }
+    const updated: ServiceRequest = { ...existing, status: 'pending' };
+    delete updated.workerId;
+    this.store.set(id, updated);
+    return Promise.resolve(updated);
+  }
+
+  public releaseToPending(id: string): Promise<ServiceRequest | undefined> {
+    const existing = this.store.get(id);
+    if (
+      existing === undefined ||
       (existing.status !== 'matched' &&
         existing.status !== 'accepted' &&
         existing.status !== 'in_progress')

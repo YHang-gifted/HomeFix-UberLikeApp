@@ -10,6 +10,7 @@ import {
   patchServiceRequestAssignment,
   patchServiceRequestClaim,
   patchServiceRequestRelease,
+  patchServiceRequestReset,
   patchServiceRequestStatus,
   postServiceRequest,
   postServiceRequestMessage,
@@ -41,4 +42,5 @@ serviceRequestRouter.patch(
   authenticate,
   patchServiceRequestRelease,
 );
+serviceRequestRouter.patch('/service-requests/:id/reset', authenticate, patchServiceRequestReset);
 serviceRequestRouter.patch('/service-requests/:id/status', authenticate, patchServiceRequestStatus);

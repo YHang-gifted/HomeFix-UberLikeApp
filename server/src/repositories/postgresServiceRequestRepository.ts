@@ -120,6 +120,19 @@ export class PostgresServiceRequestRepository implements ServiceRequestRepositor
     return row === undefined ? undefined : mapRow(row);
   }
 
+  public async releaseToPending(id: string): Promise<ServiceRequest | undefined> {
+    // Admin override: no worker_id constraint, only the active-status guard.
+    const result = await this.db.query(
+      `UPDATE service_requests
+          SET worker_id = NULL, status = 'pending'
+        WHERE id = $1 AND status IN ('matched', 'accepted', 'in_progress')
+        RETURNING *`,
+      [id],
+    );
+    const row = result.rows[0];
+    return row === undefined ? undefined : mapRow(row);
+  }
+
   public async findAll(): Promise<ServiceRequest[]> {
     const result = await this.db.query('SELECT * FROM service_requests');
     return result.rows.map((row) => mapRow(row));
