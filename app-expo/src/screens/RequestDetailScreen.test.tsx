@@ -6,6 +6,7 @@ import { RequestDetailScreen } from './RequestDetailScreen';
 
 const CUSTOMER_ID = '123e4567-e89b-12d3-a456-426614174000';
 const WORKER_ID = '423e4567-e89b-12d3-a456-426614174000';
+const ADMIN_ID = '323e4567-e89b-12d3-a456-426614174000';
 const OWNER: Principal = { id: CUSTOMER_ID, role: 'customer' };
 
 function makeRequest(overrides: Partial<ServiceRequest> = {}): ServiceRequest {
@@ -338,6 +339,28 @@ describe('RequestDetailScreen', () => {
     });
     await waitFor(() => {
       expect(onReleased).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('lets an admin reset an assigned job', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const resetRequest = jest.fn().mockResolvedValue({ ...request, status: 'pending' });
+    const client = clientWith(
+      { getServiceRequest: jest.fn().mockResolvedValue(request), resetRequest },
+      { id: ADMIN_ID, role: 'admin' },
+    );
+    const onReset = jest.fn();
+
+    const { findByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} onReset={onReset} />,
+    );
+    await fireEvent.press(await findByLabelText('Reset assignment'));
+
+    await waitFor(() => {
+      expect(resetRequest).toHaveBeenCalledWith(request.id);
+    });
+    await waitFor(() => {
+      expect(onReset).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -47,6 +47,8 @@ export interface RequestDetailScreenProps {
   onCancelled?: () => void;
   /** Called after the assigned worker releases the job back to the pool. */
   onReleased?: () => void;
+  /** Called after an admin resets the request back to the pool for reassignment. */
+  onReset?: () => void;
   /** Called when the user opens the request's message thread. */
   onViewMessages?: () => void;
 }
@@ -56,6 +58,7 @@ export function RequestDetailScreen({
   client,
   onCancelled,
   onReleased,
+  onReset,
   onViewMessages,
 }: RequestDetailScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
@@ -67,6 +70,8 @@ export function RequestDetailScreen({
   const [cancelReason, setCancelReason] = useState('');
   const [releasing, setReleasing] = useState(false);
   const [releaseError, setReleaseError] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const [rating, setRating] = useState<number | null>(null);
   const [comment, setComment] = useState('');
@@ -222,6 +227,22 @@ export function RequestDetailScreen({
           : 'Could not release the job. Please try again.',
       );
       setReleasing(false);
+    }
+  }
+
+  async function resetJob(): Promise<void> {
+    setResetting(true);
+    setResetError(null);
+    try {
+      await activeClient.resetRequest(requestId);
+      onReset?.();
+    } catch (resetFailure) {
+      setResetError(
+        isApiError(resetFailure)
+          ? resetFailure.message
+          : 'Could not reset the request. Please try again.',
+      );
+      setResetting(false);
     }
   }
 
@@ -394,6 +415,12 @@ export function RequestDetailScreen({
     principal !== null && principal.role === 'customer' && principal.id === request.customerId;
   const isAssignedWorker =
     principal !== null && principal.role === 'worker' && principal.id === request.workerId;
+  const isAdmin = principal !== null && principal.role === 'admin';
+  const isActiveAssignment =
+    request.workerId !== undefined &&
+    (request.status === 'matched' ||
+      request.status === 'accepted' ||
+      request.status === 'in_progress');
 
   const quoteView = deriveQuoteView({ principal, request, quote });
   const paymentAmountValue =
@@ -734,6 +761,27 @@ export function RequestDetailScreen({
             {releaseError !== null && <Text style={styles.error}>{releaseError}</Text>}
           </>
         )}
+
+      {isAdmin && isActiveAssignment && (
+        <>
+          <Pressable
+            style={({ pressed }) => [styles.cancel, (pressed || resetting) && styles.cancelPressed]}
+            onPress={() => {
+              void resetJob();
+            }}
+            disabled={resetting}
+            accessibilityRole="button"
+            accessibilityLabel="Reset assignment"
+          >
+            {resetting ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.cancelText}>Reset assignment</Text>
+            )}
+          </Pressable>
+          {resetError !== null && <Text style={styles.error}>{resetError}</Text>}
+        </>
+      )}
 
       {isOwner && request.status === 'completed' && (
         <View style={styles.reviewBox}>
