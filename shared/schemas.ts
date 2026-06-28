@@ -71,6 +71,27 @@ export const serviceRequestPageSchema = z.object({
 });
 export type ServiceRequestPage = z.infer<typeof serviceRequestPageSchema>;
 
+// Admin dashboard summary: request counts by status plus payment/worker totals.
+const countField = z.number().int().nonnegative();
+export const requestsByStatusSchema = z.object({
+  pending: countField,
+  matched: countField,
+  accepted: countField,
+  in_progress: countField,
+  completed: countField,
+  cancelled: countField,
+});
+export type RequestsByStatus = z.infer<typeof requestsByStatusSchema>;
+
+export const adminStatsSchema = z.object({
+  totalRequests: countField,
+  requestsByStatus: requestsByStatusSchema,
+  paidPaymentsCount: countField,
+  paidAmountCents: countField,
+  workerCount: countField,
+});
+export type AdminStats = z.infer<typeof adminStatsSchema>;
+
 export const principalSchema = z.object({
   id: z.uuid(),
   role: roleSchema,

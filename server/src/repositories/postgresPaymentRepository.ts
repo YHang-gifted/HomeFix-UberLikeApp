@@ -80,6 +80,16 @@ export class PostgresPaymentRepository implements PaymentRepository {
     return result.rows.map(mapRow);
   }
 
+  public async paidTotals(): Promise<{ count: number; amountCents: number }> {
+    const result = await this.db.query(
+      `SELECT COUNT(*)::int AS count, COALESCE(SUM(amount_cents), 0)::bigint AS amount_cents
+         FROM payments
+        WHERE status = 'paid'`,
+    );
+    const row = result.rows[0] as { count: number; amount_cents: string | number };
+    return { count: Number(row.count), amountCents: Number(row.amount_cents) };
+  }
+
   public async clear(): Promise<void> {
     await this.db.query('DELETE FROM payments');
   }
