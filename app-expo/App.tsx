@@ -158,6 +158,9 @@ function RequestDetailRoute({
       onReleased={() => {
         navigation.goBack();
       }}
+      onReset={() => {
+        navigation.goBack();
+      }}
       onViewMessages={() => {
         navigation.navigate('Messages', { id: route.params.id });
       }}
