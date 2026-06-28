@@ -165,4 +165,12 @@ export const migrations: Migration[] = [
       ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS scheduled_at timestamptz
     `,
   },
+  {
+    id: '0014_user_bio_skills',
+    sql: `
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS bio text,
+        ADD COLUMN IF NOT EXISTS skills jsonb
+    `,
+  },
 ];

@@ -10,6 +10,8 @@ function toProfile(user: UserRecord): UserProfile {
     role: user.role,
     displayName: user.displayName,
     ...(user.phone !== undefined ? { phone: user.phone } : {}),
+    ...(user.bio !== undefined ? { bio: user.bio } : {}),
+    ...(user.skills !== undefined ? { skills: user.skills } : {}),
   };
 }
 
@@ -27,7 +29,7 @@ export async function updateProfile(
   principal: Principal,
   input: UpdateProfileInput,
 ): Promise<UserProfile> {
-  const updated = await userRepository.updateProfile(principal.id, input.displayName, input.phone);
+  const updated = await userRepository.updateProfile(principal.id, input);
   if (!updated) {
     throw new AppError('User not found', 404);
   }

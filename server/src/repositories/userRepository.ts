@@ -1,6 +1,6 @@
 import process from 'node:process';
 
-import type { Role } from '../../../shared/schemas.ts';
+import type { Role, ServiceCategory, UpdateProfileInput } from '../../../shared/schemas.ts';
 import { hashPassword } from '../auth/passwords.ts';
 import { createPoolQueryable } from '../config/db.ts';
 import { PostgresUserRepository } from './postgresUserRepository.ts';
@@ -11,6 +11,8 @@ export interface UserRecord {
   role: Role;
   displayName: string;
   phone?: string;
+  bio?: string;
+  skills?: ServiceCategory[];
   passwordHash: string;
 }
 
@@ -19,11 +21,8 @@ export interface UserRepository {
   listByRole(role: Role): Promise<UserRecord[]>;
   findById(id: string): Promise<UserRecord | undefined>;
   create(user: UserRecord): Promise<void>;
-  updateProfile(
-    id: string,
-    displayName: string,
-    phone: string | undefined,
-  ): Promise<UserRecord | undefined>;
+  /** Replace the user's editable profile fields; omitted optional fields are cleared. */
+  updateProfile(id: string, patch: UpdateProfileInput): Promise<UserRecord | undefined>;
 }
 
 /** Demo seed users for local development only. Replace with a real user store. */
@@ -91,23 +90,30 @@ export class InMemoryUserRepository implements UserRepository {
     return Promise.resolve();
   }
 
-  public updateProfile(
-    id: string,
-    displayName: string,
-    phone: string | undefined,
-  ): Promise<UserRecord | undefined> {
+  public updateProfile(id: string, patch: UpdateProfileInput): Promise<UserRecord | undefined> {
     const user = [...this.users.values()].find((candidate) => candidate.id === id);
     if (!user) {
       return Promise.resolve(undefined);
     }
-    const updated: UserRecord = { ...user, displayName };
-    if (phone === undefined) {
-      delete updated.phone;
-    } else {
-      updated.phone = phone;
-    }
+    const updated: UserRecord = { ...user, displayName: patch.displayName };
+    applyOptional(updated, 'phone', patch.phone);
+    applyOptional(updated, 'bio', patch.bio);
+    applyOptional(updated, 'skills', patch.skills);
     this.users.set(user.email.toLowerCase(), updated);
     return Promise.resolve(updated);
+  }
+}
+
+/** Set an optional field when present, otherwise delete it (PATCH-as-PUT semantics). */
+function applyOptional<K extends 'phone' | 'bio' | 'skills'>(
+  record: UserRecord,
+  key: K,
+  value: UserRecord[K],
+): void {
+  if (value === undefined) {
+    delete record[key];
+  } else {
+    record[key] = value;
   }
 }
 

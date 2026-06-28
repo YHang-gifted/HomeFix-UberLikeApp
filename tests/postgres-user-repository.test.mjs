@@ -52,15 +52,36 @@ describe('PostgresUserRepository (PGlite)', () => {
   });
 
   it('updates display name and phone, and clears phone when omitted', async () => {
-    const updated = await repo.updateProfile(CUSTOMER_ID, 'Renamed', '+1 555 010 2030');
+    const updated = await repo.updateProfile(CUSTOMER_ID, {
+      displayName: 'Renamed',
+      phone: '+1 555 010 2030',
+    });
     assert.equal(updated?.displayName, 'Renamed');
     assert.equal(updated?.phone, '+1 555 010 2030');
 
     const persisted = await repo.findById(CUSTOMER_ID);
     assert.equal(persisted?.phone, '+1 555 010 2030');
 
-    const cleared = await repo.updateProfile(CUSTOMER_ID, 'Renamed', undefined);
+    const cleared = await repo.updateProfile(CUSTOMER_ID, { displayName: 'Renamed' });
     assert.equal(cleared?.phone, undefined);
+  });
+
+  it('round-trips bio and skills through jsonb, and clears them when omitted', async () => {
+    const updated = await repo.updateProfile(WORKER_ID, {
+      displayName: 'Demo Worker',
+      bio: 'Master electrician.',
+      skills: ['electrical', 'plumbing'],
+    });
+    assert.equal(updated?.bio, 'Master electrician.');
+    assert.deepEqual(updated?.skills, ['electrical', 'plumbing']);
+
+    const persisted = await repo.findById(WORKER_ID);
+    assert.equal(persisted?.bio, 'Master electrician.');
+    assert.deepEqual(persisted?.skills, ['electrical', 'plumbing']);
+
+    const cleared = await repo.updateProfile(WORKER_ID, { displayName: 'Demo Worker' });
+    assert.equal(cleared?.bio, undefined);
+    assert.equal(cleared?.skills, undefined);
   });
 
   it('returns undefined for an unknown email or id', async () => {
