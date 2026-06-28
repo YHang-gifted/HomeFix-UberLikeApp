@@ -10,6 +10,7 @@ function toSummary(user: UserRecord): WorkerSummary {
     displayName: user.displayName,
     ...(user.bio !== undefined ? { bio: user.bio } : {}),
     ...(user.skills !== undefined ? { skills: user.skills } : {}),
+    ...(user.availability !== undefined ? { availability: user.availability } : {}),
   };
 }
 

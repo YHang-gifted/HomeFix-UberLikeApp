@@ -127,6 +127,13 @@ export async function listAvailableRequests(
   if (principal.role !== 'worker' && principal.role !== 'admin') {
     throw new AppError('Only workers can browse available requests', 403);
   }
+  // An "away" worker is off duty: they see no available jobs to claim.
+  if (principal.role === 'worker') {
+    const worker = await userRepository.findById(principal.id);
+    if (worker?.availability === 'away') {
+      return { items: [], total: 0, limit, offset };
+    }
+  }
   const all = await serviceRequestRepository.findAll();
   const needle = category?.trim().toLowerCase();
   const available = all.filter(

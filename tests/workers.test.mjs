@@ -95,6 +95,21 @@ describe('GET /workers', () => {
     assert.equal(body.phone, undefined);
   });
 
+  it('exposes the worker availability in the public summary', async () => {
+    await fetch(`${baseUrl}/me`, {
+      method: 'PATCH',
+      headers: { ...authHeader(WORKER_ID, 'worker'), 'content-type': 'application/json' },
+      body: JSON.stringify({ displayName: 'Demo Worker', availability: 'away' }),
+    });
+
+    const single = await (
+      await fetch(`${baseUrl}/workers/${WORKER_ID}`, {
+        headers: authHeader(CUSTOMER_ID, 'customer'),
+      })
+    ).json();
+    assert.equal(single.availability, 'away');
+  });
+
   it('exposes the worker bio and skills in the public summary', async () => {
     await fetch(`${baseUrl}/me`, {
       method: 'PATCH',

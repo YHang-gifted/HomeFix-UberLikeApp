@@ -173,4 +173,10 @@ export const migrations: Migration[] = [
         ADD COLUMN IF NOT EXISTS skills jsonb
     `,
   },
+  {
+    id: '0015_user_availability',
+    sql: `
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS availability text
+    `,
+  },
 ];

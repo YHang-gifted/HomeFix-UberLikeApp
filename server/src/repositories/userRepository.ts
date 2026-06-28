@@ -1,6 +1,11 @@
 import process from 'node:process';
 
-import type { Role, ServiceCategory, UpdateProfileInput } from '../../../shared/schemas.ts';
+import type {
+  Role,
+  ServiceCategory,
+  UpdateProfileInput,
+  WorkerAvailability,
+} from '../../../shared/schemas.ts';
 import { hashPassword } from '../auth/passwords.ts';
 import { createPoolQueryable } from '../config/db.ts';
 import { PostgresUserRepository } from './postgresUserRepository.ts';
@@ -13,6 +18,7 @@ export interface UserRecord {
   phone?: string;
   bio?: string;
   skills?: ServiceCategory[];
+  availability?: WorkerAvailability;
   passwordHash: string;
 }
 
@@ -106,6 +112,7 @@ export class InMemoryUserRepository implements UserRepository {
       ...(patch.phone !== undefined ? { phone: patch.phone } : {}),
       ...(patch.bio !== undefined ? { bio: patch.bio } : {}),
       ...(patch.skills !== undefined ? { skills: patch.skills } : {}),
+      ...(patch.availability !== undefined ? { availability: patch.availability } : {}),
     };
     this.users.set(user.email.toLowerCase(), updated);
     return Promise.resolve(updated);

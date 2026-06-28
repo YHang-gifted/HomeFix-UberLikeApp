@@ -65,6 +65,35 @@ describe('GET /service-requests/available', () => {
     assert.equal(page.items[0].description, 'Pending one');
   });
 
+  async function setAvailability(value) {
+    await fetch(`${baseUrl}/me`, {
+      method: 'PATCH',
+      headers: headers(WORKER_ID, 'worker'),
+      body: JSON.stringify({ displayName: 'Demo Worker', availability: value }),
+    });
+  }
+
+  it('hides available jobs from an away worker and restores them when available', async () => {
+    await createRequest('Pending for away test');
+
+    await setAvailability('away');
+    const away = await (
+      await fetch(`${baseUrl}/service-requests/available`, {
+        headers: headers(WORKER_ID, 'worker'),
+      })
+    ).json();
+    assert.equal(away.total, 0);
+    assert.deepEqual(away.items, []);
+
+    await setAvailability('available');
+    const back = await (
+      await fetch(`${baseUrl}/service-requests/available`, {
+        headers: headers(WORKER_ID, 'worker'),
+      })
+    ).json();
+    assert.equal(back.total, 1);
+  });
+
   it('excludes requests that already have a worker assigned', async () => {
     const created = await createRequest('Will be assigned');
     await fetch(`${baseUrl}/service-requests/${created.id}/assignment`, {

@@ -1,5 +1,14 @@
-import type { Role, ServiceCategory, UpdateProfileInput } from '../../../shared/schemas.ts';
-import { roleSchema, workerSkillsSchema } from '../../../shared/schemas.ts';
+import type {
+  Role,
+  ServiceCategory,
+  UpdateProfileInput,
+  WorkerAvailability,
+} from '../../../shared/schemas.ts';
+import {
+  roleSchema,
+  workerAvailabilitySchema,
+  workerSkillsSchema,
+} from '../../../shared/schemas.ts';
 import type { UserRecord, UserRepository } from './userRepository.ts';
 import type { Queryable } from '../db/queryable.ts';
 
@@ -11,7 +20,13 @@ interface UserRow {
   phone: string | null;
   bio: string | null;
   skills: unknown;
+  availability: string | null;
   password_hash: string;
+}
+
+function parseAvailability(value: unknown): WorkerAvailability | undefined {
+  const parsed = workerAvailabilitySchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
 }
 
 function parseSkills(value: unknown): ServiceCategory[] | undefined {
@@ -26,6 +41,7 @@ function mapRow(row: unknown): UserRecord {
   const r = row as UserRow;
   const role: Role = roleSchema.parse(r.role);
   const skills = parseSkills(r.skills);
+  const availability = parseAvailability(r.availability);
   return {
     id: r.id,
     email: r.email,
@@ -35,6 +51,7 @@ function mapRow(row: unknown): UserRecord {
     ...(r.phone !== null ? { phone: r.phone } : {}),
     ...(r.bio !== null ? { bio: r.bio } : {}),
     ...(skills !== undefined ? { skills } : {}),
+    ...(availability !== undefined ? { availability } : {}),
   };
 }
 
@@ -78,7 +95,7 @@ export class PostgresUserRepository implements UserRepository {
   ): Promise<UserRecord | undefined> {
     const result = await this.db.query(
       `UPDATE users
-          SET display_name = $2, phone = $3, bio = $4, skills = $5::jsonb
+          SET display_name = $2, phone = $3, bio = $4, skills = $5::jsonb, availability = $6
         WHERE id = $1
         RETURNING *`,
       [
@@ -87,6 +104,7 @@ export class PostgresUserRepository implements UserRepository {
         patch.phone ?? null,
         patch.bio ?? null,
         patch.skills !== undefined ? JSON.stringify(patch.skills) : null,
+        patch.availability ?? null,
       ],
     );
     const row = result.rows[0];
