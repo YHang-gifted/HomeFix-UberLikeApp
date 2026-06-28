@@ -45,6 +45,8 @@ export interface RequestDetailScreenProps {
   client?: ApiClient;
   /** Called after the request is cancelled. */
   onCancelled?: () => void;
+  /** Called after the assigned worker releases the job back to the pool. */
+  onReleased?: () => void;
   /** Called when the user opens the request's message thread. */
   onViewMessages?: () => void;
 }
@@ -53,6 +55,7 @@ export function RequestDetailScreen({
   requestId,
   client,
   onCancelled,
+  onReleased,
   onViewMessages,
 }: RequestDetailScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
@@ -62,6 +65,8 @@ export function RequestDetailScreen({
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [releasing, setReleasing] = useState(false);
+  const [releaseError, setReleaseError] = useState<string | null>(null);
 
   const [rating, setRating] = useState<number | null>(null);
   const [comment, setComment] = useState('');
@@ -201,6 +206,22 @@ export function RequestDetailScreen({
     } catch {
       setError('Could not cancel the request. Please try again.');
       setCancelling(false);
+    }
+  }
+
+  async function releaseJob(): Promise<void> {
+    setReleasing(true);
+    setReleaseError(null);
+    try {
+      await activeClient.releaseRequest(requestId);
+      onReleased?.();
+    } catch (releaseFailure) {
+      setReleaseError(
+        isApiError(releaseFailure)
+          ? releaseFailure.message
+          : 'Could not release the job. Please try again.',
+      );
+      setReleasing(false);
     }
   }
 
@@ -686,6 +707,33 @@ export function RequestDetailScreen({
           </Pressable>
         </>
       )}
+
+      {isAssignedWorker &&
+        (request.status === 'matched' ||
+          request.status === 'accepted' ||
+          request.status === 'in_progress') && (
+          <>
+            <Pressable
+              style={({ pressed }) => [
+                styles.cancel,
+                (pressed || releasing) && styles.cancelPressed,
+              ]}
+              onPress={() => {
+                void releaseJob();
+              }}
+              disabled={releasing}
+              accessibilityRole="button"
+              accessibilityLabel="Release job"
+            >
+              {releasing ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.cancelText}>Release job</Text>
+              )}
+            </Pressable>
+            {releaseError !== null && <Text style={styles.error}>{releaseError}</Text>}
+          </>
+        )}
 
       {isOwner && request.status === 'completed' && (
         <View style={styles.reviewBox}>

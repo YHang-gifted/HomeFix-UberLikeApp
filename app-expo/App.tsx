@@ -155,6 +155,9 @@ function RequestDetailRoute({
       onCancelled={() => {
         navigation.goBack();
       }}
+      onReleased={() => {
+        navigation.goBack();
+      }}
       onViewMessages={() => {
         navigation.navigate('Messages', { id: route.params.id });
       }}
