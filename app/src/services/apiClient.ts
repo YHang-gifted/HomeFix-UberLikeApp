@@ -312,6 +312,11 @@ export class ApiClient {
     return serviceRequestSchema.parse(data);
   }
 
+  public async releaseRequest(id: string): Promise<ServiceRequest> {
+    const data = await this.send('PATCH', `/service-requests/${id}/release`, undefined, true);
+    return serviceRequestSchema.parse(data);
+  }
+
   public async createReview(requestId: string, input: CreateReviewInput): Promise<Review> {
     const data = await this.send('POST', `/service-requests/${requestId}/review`, input, true);
     return reviewSchema.parse(data);

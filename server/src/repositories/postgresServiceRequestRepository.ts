@@ -101,6 +101,25 @@ export class PostgresServiceRequestRepository implements ServiceRequestRepositor
     return row === undefined ? undefined : mapRow(row);
   }
 
+  public async releaseIfAssignedWorker(
+    id: string,
+    workerId: string,
+  ): Promise<ServiceRequest | undefined> {
+    // Single atomic check-and-set: only the assigned worker releases, and only
+    // from an active state; the request returns to the pool as pending.
+    const result = await this.db.query(
+      `UPDATE service_requests
+          SET worker_id = NULL, status = 'pending'
+        WHERE id = $1
+          AND worker_id = $2
+          AND status IN ('matched', 'accepted', 'in_progress')
+        RETURNING *`,
+      [id, workerId],
+    );
+    const row = result.rows[0];
+    return row === undefined ? undefined : mapRow(row);
+  }
+
   public async findAll(): Promise<ServiceRequest[]> {
     const result = await this.db.query('SELECT * FROM service_requests');
     return result.rows.map((row) => mapRow(row));
