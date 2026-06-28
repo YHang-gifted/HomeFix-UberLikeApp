@@ -21,6 +21,7 @@ import { deviceGeocoder, deviceLocationProvider } from './src/location';
 import { devicePushTokenProvider } from './src/push';
 import { tokenStore } from './src/tokenStore';
 import { AdminRequestsScreen } from './src/screens/AdminRequestsScreen';
+import { AdminStatsScreen } from './src/screens/AdminStatsScreen';
 import { AuditLogScreen } from './src/screens/AuditLogScreen';
 import { AvailableJobsScreen } from './src/screens/AvailableJobsScreen';
 import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
@@ -44,6 +45,7 @@ export type RootStackParamList = {
   WorkerJobs: undefined;
   AvailableJobs: undefined;
   AdminRequests: undefined;
+  AdminStats: undefined;
   AuditLog: undefined;
   Profile: undefined;
   Notifications: undefined;
@@ -276,11 +278,26 @@ function AdminRequestsRoute({
       onViewAudit={() => {
         navigation.navigate('AuditLog');
       }}
+      onViewStats={() => {
+        navigation.navigate('AdminStats');
+      }}
       onLogout={() => {
         signOut();
       }}
     />
   );
+}
+
+function AdminStatsRoute(): ReactElement {
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshToken((current) => current + 1);
+    }, []),
+  );
+
+  return <AdminStatsScreen client={apiClient} refreshToken={refreshToken} />;
 }
 
 function AuditLogRoute(): ReactElement {
@@ -474,6 +491,11 @@ export default function App(): ReactElement {
                 name="AdminRequests"
                 component={AdminRequestsRoute}
                 options={{ title: 'All requests' }}
+              />
+              <Stack.Screen
+                name="AdminStats"
+                component={AdminStatsRoute}
+                options={{ title: 'Dashboard' }}
               />
               <Stack.Screen
                 name="AuditLog"
