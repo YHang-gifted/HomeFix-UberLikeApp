@@ -11,11 +11,12 @@ import {
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import { isApiError } from '../../../app/src/services/apiClient';
-import type { ServiceCategory, UserProfile } from '../../../shared/schemas';
-import { serviceCategorySchema } from '../../../shared/schemas';
+import type { ServiceCategory, UserProfile, WorkerAvailability } from '../../../shared/schemas';
+import { serviceCategorySchema, workerAvailabilitySchema } from '../../../shared/schemas';
 import { apiClient } from '../api';
 
 const CATEGORIES = serviceCategorySchema.options;
+const AVAILABILITY_OPTIONS = workerAvailabilitySchema.options;
 
 export interface ProfileScreenProps {
   /** Optional client override (used by tests). Defaults to the app singleton. */
@@ -30,6 +31,7 @@ export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
   const [phone, setPhone] = useState('');
   const [bio, setBio] = useState('');
   const [skills, setSkills] = useState<ServiceCategory[]>([]);
+  const [availability, setAvailability] = useState<WorkerAvailability>('available');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -46,6 +48,7 @@ export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
           setPhone(found.phone ?? '');
           setBio(found.bio ?? '');
           setSkills(found.skills ?? []);
+          setAvailability(found.availability ?? 'available');
           setError(null);
         }
       } catch {
@@ -77,12 +80,14 @@ export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
         phone: trimmedPhone === '' ? undefined : trimmedPhone,
         bio: trimmedBio === '' ? undefined : trimmedBio,
         skills: skills.length > 0 ? skills : undefined,
+        availability: profile?.role === 'worker' ? availability : undefined,
       });
       setProfile(updated);
       setName(updated.displayName);
       setPhone(updated.phone ?? '');
       setBio(updated.bio ?? '');
       setSkills(updated.skills ?? []);
+      setAvailability(updated.availability ?? 'available');
       setMessage('Saved');
     } catch (saveError) {
       setMessage(isApiError(saveError) ? saveError.message : 'Could not save. Please try again.');
@@ -145,6 +150,29 @@ export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
 
       {profile.role === 'worker' && (
         <>
+          <Text style={styles.label}>Availability</Text>
+          <View style={styles.chips}>
+            {AVAILABILITY_OPTIONS.map((option) => {
+              const selected = availability === option;
+              return (
+                <Pressable
+                  key={option}
+                  onPress={() => {
+                    setAvailability(option);
+                  }}
+                  disabled={saving}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Set ${option}`}
+                  style={[styles.chip, selected && styles.chipSelected]}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                    {option}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
           <Text style={styles.label}>Bio</Text>
           <TextInput
             style={[styles.input, styles.multiline]}
