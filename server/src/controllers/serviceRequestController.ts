@@ -20,6 +20,7 @@ import {
   getServiceRequestForPrincipal,
   listAvailableRequests,
   listServiceRequests,
+  releaseRequest,
   updateServiceRequestStatus,
 } from '../services/serviceRequestService.ts';
 
@@ -289,6 +290,28 @@ export async function patchServiceRequestClaim(
   try {
     const updated = await claimRequest(id, principal);
     res.status(200).json(updated);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function patchServiceRequestRelease(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  const id = parseId(req, next);
+  if (id === undefined) {
+    return;
+  }
+
+  try {
+    res.status(200).json(await releaseRequest(id, principal));
   } catch (error) {
     next(error);
   }

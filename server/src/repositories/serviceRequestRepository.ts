@@ -15,6 +15,13 @@ export interface ServiceRequestRepository {
    * check-and-set so two concurrent claims can never both succeed (TOCTOU-safe).
    */
   assignWorkerIfPending(id: string, workerId: string): Promise<ServiceRequest | undefined>;
+  /**
+   * Atomically release a request back to the pool — only if it is currently
+   * assigned to this worker and still in an active, non-terminal state. Clears
+   * the worker and returns the request to `pending`, returning the updated row,
+   * or undefined when it was not releasable (not theirs, completed, or cancelled).
+   */
+  releaseIfAssignedWorker(id: string, workerId: string): Promise<ServiceRequest | undefined>;
   clear(): Promise<void>;
 }
 
@@ -46,6 +53,26 @@ export class InMemoryServiceRequestRepository implements ServiceRequestRepositor
       return Promise.resolve(undefined);
     }
     const updated: ServiceRequest = { ...existing, workerId, status: 'matched' };
+    this.store.set(id, updated);
+    return Promise.resolve(updated);
+  }
+
+  public releaseIfAssignedWorker(
+    id: string,
+    workerId: string,
+  ): Promise<ServiceRequest | undefined> {
+    const existing = this.store.get(id);
+    if (
+      existing === undefined ||
+      existing.workerId !== workerId ||
+      (existing.status !== 'matched' &&
+        existing.status !== 'accepted' &&
+        existing.status !== 'in_progress')
+    ) {
+      return Promise.resolve(undefined);
+    }
+    const updated: ServiceRequest = { ...existing, status: 'pending' };
+    delete updated.workerId;
     this.store.set(id, updated);
     return Promise.resolve(updated);
   }

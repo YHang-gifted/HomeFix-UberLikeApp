@@ -228,6 +228,43 @@ export async function claimRequest(id: string, principal: Principal): Promise<Se
   return updated;
 }
 
+/**
+ * The assigned worker releases a job they cannot finish, returning it to the
+ * pool as `pending` so another worker can claim it. Worker-only, and only from
+ * an active state (matched/accepted/in_progress); the owning customer is
+ * notified. 404 if missing, 403 if not the assigned worker, 422 once terminal.
+ */
+export async function releaseRequest(id: string, principal: Principal): Promise<ServiceRequest> {
+  if (principal.role !== 'worker') {
+    throw new AppError('Only a worker may release a job', 403);
+  }
+
+  const released = await serviceRequestRepository.releaseIfAssignedWorker(id, principal.id);
+  if (!released) {
+    const request = await serviceRequestRepository.findById(id);
+    if (!request) {
+      throw new AppError('Service request not found', 404);
+    }
+    if (request.workerId !== principal.id) {
+      throw new AppError('You can only release a job assigned to you', 403);
+    }
+    throw new AppError('This job can no longer be released', 422);
+  }
+
+  await recordAuditEvent({
+    actor: principal,
+    action: 'service_request.status_changed',
+    resourceId: id,
+    details: { to: 'pending', reason: 'released by worker' },
+  });
+  await recordNotification({
+    userId: released.customerId,
+    message: 'A worker released your request; it is open for others to claim.',
+    requestId: id,
+  });
+  return released;
+}
+
 export async function updateServiceRequestStatus(
   id: string,
   nextStatus: ServiceRequestStatus,

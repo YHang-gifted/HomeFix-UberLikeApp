@@ -25,6 +25,10 @@ function makePending() {
   };
 }
 
+function makeAssigned(status = 'matched') {
+  return { ...makePending(), status, workerId: WORKER_ID };
+}
+
 function sharedContract(makeRepo) {
   it('assigns a worker to a pending request and returns the updated row', async () => {
     const repo = await makeRepo();
@@ -66,6 +70,43 @@ function sharedContract(makeRepo) {
     assert.equal(winners.length, 1);
     const current = await repo.findById(REQUEST_ID);
     assert.equal(current?.workerId, winners[0]?.workerId);
+  });
+
+  it('releases an assigned active request back to pending and clears the worker', async () => {
+    const repo = await makeRepo();
+    await repo.save(makeAssigned('matched'));
+    const released = await repo.releaseIfAssignedWorker(REQUEST_ID, WORKER_ID);
+    assert.equal(released?.status, 'pending');
+    assert.equal(released?.workerId, undefined);
+    const current = await repo.findById(REQUEST_ID);
+    assert.equal(current?.status, 'pending');
+    assert.equal(current?.workerId, undefined);
+  });
+
+  it('releases from in_progress too', async () => {
+    const repo = await makeRepo();
+    await repo.save(makeAssigned('in_progress'));
+    const released = await repo.releaseIfAssignedWorker(REQUEST_ID, WORKER_ID);
+    assert.equal(released?.status, 'pending');
+  });
+
+  it('does not release a job assigned to a different worker', async () => {
+    const repo = await makeRepo();
+    await repo.save(makeAssigned('matched'));
+    assert.equal(await repo.releaseIfAssignedWorker(REQUEST_ID, OTHER_WORKER), undefined);
+    const current = await repo.findById(REQUEST_ID);
+    assert.equal(current?.workerId, WORKER_ID);
+  });
+
+  it('does not release a completed job', async () => {
+    const repo = await makeRepo();
+    await repo.save(makeAssigned('completed'));
+    assert.equal(await repo.releaseIfAssignedWorker(REQUEST_ID, WORKER_ID), undefined);
+  });
+
+  it('returns undefined releasing a missing request', async () => {
+    const repo = await makeRepo();
+    assert.equal(await repo.releaseIfAssignedWorker(REQUEST_ID, WORKER_ID), undefined);
   });
 }
 
