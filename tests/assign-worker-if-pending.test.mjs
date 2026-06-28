@@ -108,6 +108,25 @@ function sharedContract(makeRepo) {
     const repo = await makeRepo();
     assert.equal(await repo.releaseIfAssignedWorker(REQUEST_ID, WORKER_ID), undefined);
   });
+
+  it('admin-resets an active request to pending regardless of which worker holds it', async () => {
+    const repo = await makeRepo();
+    await repo.save(makeAssigned('accepted'));
+    const reset = await repo.releaseToPending(REQUEST_ID);
+    assert.equal(reset?.status, 'pending');
+    assert.equal(reset?.workerId, undefined);
+  });
+
+  it('does not reset a terminal request', async () => {
+    const repo = await makeRepo();
+    await repo.save(makeAssigned('completed'));
+    assert.equal(await repo.releaseToPending(REQUEST_ID), undefined);
+  });
+
+  it('returns undefined resetting a missing request', async () => {
+    const repo = await makeRepo();
+    assert.equal(await repo.releaseToPending(REQUEST_ID), undefined);
+  });
 }
 
 describe('InMemoryServiceRequestRepository.assignWorkerIfPending', () => {

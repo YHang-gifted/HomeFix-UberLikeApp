@@ -265,6 +265,47 @@ export async function releaseRequest(id: string, principal: Principal): Promise<
   return released;
 }
 
+/**
+ * Admin override: return a stuck assigned request to the pool so it can be
+ * re-claimed or re-assigned. Admin-only, only from an active state; both the
+ * customer and the previously assigned worker are notified. 404 if missing,
+ * 422 once terminal or already pending.
+ */
+export async function resetRequest(id: string, principal: Principal): Promise<ServiceRequest> {
+  if (principal.role !== 'admin') {
+    throw new AppError('Only an admin may reset a request', 403);
+  }
+
+  const before = await serviceRequestRepository.findById(id);
+  const reset = await serviceRequestRepository.releaseToPending(id);
+  if (!reset) {
+    if (!before) {
+      throw new AppError('Service request not found', 404);
+    }
+    throw new AppError('This request is not assigned and cannot be reset', 422);
+  }
+
+  await recordAuditEvent({
+    actor: principal,
+    action: 'service_request.status_changed',
+    resourceId: id,
+    details: { to: 'pending', reason: 'reset by admin' },
+  });
+  await recordNotification({
+    userId: reset.customerId,
+    message: 'An admin returned your request to the pool for reassignment.',
+    requestId: id,
+  });
+  if (before?.workerId !== undefined) {
+    await recordNotification({
+      userId: before.workerId,
+      message: 'An admin reassigned a job that was assigned to you.',
+      requestId: id,
+    });
+  }
+  return reset;
+}
+
 export async function updateServiceRequestStatus(
   id: string,
   nextStatus: ServiceRequestStatus,

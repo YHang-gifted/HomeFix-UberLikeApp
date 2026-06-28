@@ -21,6 +21,7 @@ import {
   listAvailableRequests,
   listServiceRequests,
   releaseRequest,
+  resetRequest,
   updateServiceRequestStatus,
 } from '../services/serviceRequestService.ts';
 
@@ -312,6 +313,28 @@ export async function patchServiceRequestRelease(
 
   try {
     res.status(200).json(await releaseRequest(id, principal));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function patchServiceRequestReset(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  const id = parseId(req, next);
+  if (id === undefined) {
+    return;
+  }
+
+  try {
+    res.status(200).json(await resetRequest(id, principal));
   } catch (error) {
     next(error);
   }
