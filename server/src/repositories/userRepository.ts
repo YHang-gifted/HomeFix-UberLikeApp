@@ -95,25 +95,20 @@ export class InMemoryUserRepository implements UserRepository {
     if (!user) {
       return Promise.resolve(undefined);
     }
-    const updated: UserRecord = { ...user, displayName: patch.displayName };
-    applyOptional(updated, 'phone', patch.phone);
-    applyOptional(updated, 'bio', patch.bio);
-    applyOptional(updated, 'skills', patch.skills);
+    // Rebuild the record so omitted optional fields are cleared (PATCH-as-PUT),
+    // keeping only the non-editable identity fields plus what the patch provides.
+    const updated: UserRecord = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      passwordHash: user.passwordHash,
+      displayName: patch.displayName,
+      ...(patch.phone !== undefined ? { phone: patch.phone } : {}),
+      ...(patch.bio !== undefined ? { bio: patch.bio } : {}),
+      ...(patch.skills !== undefined ? { skills: patch.skills } : {}),
+    };
     this.users.set(user.email.toLowerCase(), updated);
     return Promise.resolve(updated);
-  }
-}
-
-/** Set an optional field when present, otherwise delete it (PATCH-as-PUT semantics). */
-function applyOptional<K extends 'phone' | 'bio' | 'skills'>(
-  record: UserRecord,
-  key: K,
-  value: UserRecord[K],
-): void {
-  if (value === undefined) {
-    delete record[key];
-  } else {
-    record[key] = value;
   }
 }
 
