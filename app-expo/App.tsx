@@ -1,12 +1,5 @@
-import {
-  type ReactElement,
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
-import { NavigationContainer, useFocusEffect } from '@react-navigation/native';
+import { type ReactElement, createContext, useContext, useEffect, useState } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
 import {
   createNativeStackNavigator,
   type NativeStackScreenProps,
@@ -20,6 +13,7 @@ import { apiClient } from './src/api';
 import { deviceGeocoder, deviceLocationProvider } from './src/location';
 import { devicePushTokenProvider } from './src/push';
 import { tokenStore } from './src/tokenStore';
+import { useFocusRefreshToken } from './src/hooks/useFocusRefreshToken';
 import { AdminRequestsScreen } from './src/screens/AdminRequestsScreen';
 import { AdminStatsScreen } from './src/screens/AdminStatsScreen';
 import { AuditLogScreen } from './src/screens/AuditLogScreen';
@@ -104,13 +98,7 @@ function ServiceRequestsRoute({
   navigation,
 }: NativeStackScreenProps<RootStackParamList, 'ServiceRequests'>): ReactElement {
   const { signOut } = useContext(AuthContext);
-  const [refreshToken, setRefreshToken] = useState(0);
-
-  useFocusEffect(
-    useCallback(() => {
-      setRefreshToken((current) => current + 1);
-    }, []),
-  );
+  const refreshToken = useFocusRefreshToken();
 
   return (
     <ServiceRequestsScreen
@@ -177,13 +165,7 @@ function RequestDetailRoute({
 function MessagesRoute({
   route,
 }: NativeStackScreenProps<RootStackParamList, 'Messages'>): ReactElement {
-  const [refreshToken, setRefreshToken] = useState(0);
-
-  useFocusEffect(
-    useCallback(() => {
-      setRefreshToken((current) => current + 1);
-    }, []),
-  );
+  const refreshToken = useFocusRefreshToken();
 
   return (
     <MessagesScreen client={apiClient} requestId={route.params.id} refreshToken={refreshToken} />
@@ -194,13 +176,7 @@ function WorkerJobsRoute({
   navigation,
 }: NativeStackScreenProps<RootStackParamList, 'WorkerJobs'>): ReactElement {
   const { signOut } = useContext(AuthContext);
-  const [refreshToken, setRefreshToken] = useState(0);
-
-  useFocusEffect(
-    useCallback(() => {
-      setRefreshToken((current) => current + 1);
-    }, []),
-  );
+  const refreshToken = useFocusRefreshToken();
 
   return (
     <WorkerJobsScreen
@@ -231,13 +207,7 @@ function WorkerJobsRoute({
 function AvailableJobsRoute({
   navigation,
 }: NativeStackScreenProps<RootStackParamList, 'AvailableJobs'>): ReactElement {
-  const [refreshToken, setRefreshToken] = useState(0);
-
-  useFocusEffect(
-    useCallback(() => {
-      setRefreshToken((current) => current + 1);
-    }, []),
-  );
+  const refreshToken = useFocusRefreshToken();
 
   return (
     <AvailableJobsScreen
@@ -257,13 +227,7 @@ function AdminRequestsRoute({
   navigation,
 }: NativeStackScreenProps<RootStackParamList, 'AdminRequests'>): ReactElement {
   const { signOut } = useContext(AuthContext);
-  const [refreshToken, setRefreshToken] = useState(0);
-
-  useFocusEffect(
-    useCallback(() => {
-      setRefreshToken((current) => current + 1);
-    }, []),
-  );
+  const refreshToken = useFocusRefreshToken();
 
   return (
     <AdminRequestsScreen
@@ -289,49 +253,25 @@ function AdminRequestsRoute({
 }
 
 function AdminStatsRoute(): ReactElement {
-  const [refreshToken, setRefreshToken] = useState(0);
-
-  useFocusEffect(
-    useCallback(() => {
-      setRefreshToken((current) => current + 1);
-    }, []),
-  );
+  const refreshToken = useFocusRefreshToken();
 
   return <AdminStatsScreen client={apiClient} refreshToken={refreshToken} />;
 }
 
 function AuditLogRoute(): ReactElement {
-  const [refreshToken, setRefreshToken] = useState(0);
-
-  useFocusEffect(
-    useCallback(() => {
-      setRefreshToken((current) => current + 1);
-    }, []),
-  );
+  const refreshToken = useFocusRefreshToken();
 
   return <AuditLogScreen client={apiClient} refreshToken={refreshToken} />;
 }
 
 function NotificationsRoute(): ReactElement {
-  const [refreshToken, setRefreshToken] = useState(0);
-
-  useFocusEffect(
-    useCallback(() => {
-      setRefreshToken((current) => current + 1);
-    }, []),
-  );
+  const refreshToken = useFocusRefreshToken();
 
   return <NotificationsScreen client={apiClient} refreshToken={refreshToken} />;
 }
 
 function FavoritesRoute(): ReactElement {
-  const [refreshToken, setRefreshToken] = useState(0);
-
-  useFocusEffect(
-    useCallback(() => {
-      setRefreshToken((current) => current + 1);
-    }, []),
-  );
+  const refreshToken = useFocusRefreshToken();
 
   return <FavoritesScreen client={apiClient} refreshToken={refreshToken} />;
 }
@@ -339,13 +279,7 @@ function FavoritesRoute(): ReactElement {
 function PaymentsRoute({
   navigation,
 }: NativeStackScreenProps<RootStackParamList, 'Payments'>): ReactElement {
-  const [refreshToken, setRefreshToken] = useState(0);
-
-  useFocusEffect(
-    useCallback(() => {
-      setRefreshToken((current) => current + 1);
-    }, []),
-  );
+  const refreshToken = useFocusRefreshToken();
 
   return (
     <PaymentsScreen
