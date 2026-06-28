@@ -79,6 +79,47 @@ describe('profile (/me)', () => {
     assert.equal((await cleared.json()).phone, undefined);
   });
 
+  it('updates and clears the worker bio and skills', async () => {
+    const set = await fetch(`${baseUrl}/me`, {
+      method: 'PATCH',
+      headers: headers(WORKER_ID, 'worker'),
+      body: JSON.stringify({
+        displayName: 'Demo Worker',
+        bio: 'Licensed plumber, 10 years experience.',
+        skills: ['plumbing', 'electrical'],
+      }),
+    });
+    assert.equal(set.status, 200);
+    const setBody = await set.json();
+    assert.equal(setBody.bio, 'Licensed plumber, 10 years experience.');
+    assert.deepEqual(setBody.skills, ['plumbing', 'electrical']);
+
+    const persisted = await (
+      await fetch(`${baseUrl}/me`, { headers: headers(WORKER_ID, 'worker') })
+    ).json();
+    assert.equal(persisted.bio, 'Licensed plumber, 10 years experience.');
+    assert.deepEqual(persisted.skills, ['plumbing', 'electrical']);
+
+    const cleared = await (
+      await fetch(`${baseUrl}/me`, {
+        method: 'PATCH',
+        headers: headers(WORKER_ID, 'worker'),
+        body: JSON.stringify({ displayName: 'Demo Worker' }),
+      })
+    ).json();
+    assert.equal(cleared.bio, undefined);
+    assert.equal(cleared.skills, undefined);
+  });
+
+  it('rejects an unknown skill category (422)', async () => {
+    const res = await fetch(`${baseUrl}/me`, {
+      method: 'PATCH',
+      headers: headers(WORKER_ID, 'worker'),
+      body: JSON.stringify({ displayName: 'Demo Worker', skills: ['spaceship'] }),
+    });
+    assert.equal(res.status, 422);
+  });
+
   it('rejects an invalid phone (422)', async () => {
     const res = await fetch(`${baseUrl}/me`, {
       method: 'PATCH',

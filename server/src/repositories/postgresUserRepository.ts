@@ -1,5 +1,5 @@
-import type { Role } from '../../../shared/schemas.ts';
-import { roleSchema } from '../../../shared/schemas.ts';
+import type { Role, ServiceCategory, UpdateProfileInput } from '../../../shared/schemas.ts';
+import { roleSchema, workerSkillsSchema } from '../../../shared/schemas.ts';
 import type { UserRecord, UserRepository } from './userRepository.ts';
 import type { Queryable } from '../db/queryable.ts';
 
@@ -9,12 +9,23 @@ interface UserRow {
   role: string;
   display_name: string;
   phone: string | null;
+  bio: string | null;
+  skills: unknown;
   password_hash: string;
+}
+
+function parseSkills(value: unknown): ServiceCategory[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const parsed = workerSkillsSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
 }
 
 function mapRow(row: unknown): UserRecord {
   const r = row as UserRow;
   const role: Role = roleSchema.parse(r.role);
+  const skills = parseSkills(r.skills);
   return {
     id: r.id,
     email: r.email,
@@ -22,6 +33,8 @@ function mapRow(row: unknown): UserRecord {
     displayName: r.display_name,
     passwordHash: r.password_hash,
     ...(r.phone !== null ? { phone: r.phone } : {}),
+    ...(r.bio !== null ? { bio: r.bio } : {}),
+    ...(skills !== undefined ? { skills } : {}),
   };
 }
 
@@ -61,12 +74,20 @@ export class PostgresUserRepository implements UserRepository {
 
   public async updateProfile(
     id: string,
-    displayName: string,
-    phone: string | undefined,
+    patch: UpdateProfileInput,
   ): Promise<UserRecord | undefined> {
     const result = await this.db.query(
-      'UPDATE users SET display_name = $2, phone = $3 WHERE id = $1 RETURNING *',
-      [id, displayName, phone ?? null],
+      `UPDATE users
+          SET display_name = $2, phone = $3, bio = $4, skills = $5::jsonb
+        WHERE id = $1
+        RETURNING *`,
+      [
+        id,
+        patch.displayName,
+        patch.phone ?? null,
+        patch.bio ?? null,
+        patch.skills !== undefined ? JSON.stringify(patch.skills) : null,
+      ],
     );
     const row = result.rows[0];
     return row === undefined ? undefined : mapRow(row);

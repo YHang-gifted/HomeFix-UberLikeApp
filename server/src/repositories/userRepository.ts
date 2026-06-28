@@ -1,6 +1,6 @@
 import process from 'node:process';
 
-import type { Role } from '../../../shared/schemas.ts';
+import type { Role, ServiceCategory, UpdateProfileInput } from '../../../shared/schemas.ts';
 import { hashPassword } from '../auth/passwords.ts';
 import { createPoolQueryable } from '../config/db.ts';
 import { PostgresUserRepository } from './postgresUserRepository.ts';
@@ -11,6 +11,8 @@ export interface UserRecord {
   role: Role;
   displayName: string;
   phone?: string;
+  bio?: string;
+  skills?: ServiceCategory[];
   passwordHash: string;
 }
 
@@ -19,11 +21,8 @@ export interface UserRepository {
   listByRole(role: Role): Promise<UserRecord[]>;
   findById(id: string): Promise<UserRecord | undefined>;
   create(user: UserRecord): Promise<void>;
-  updateProfile(
-    id: string,
-    displayName: string,
-    phone: string | undefined,
-  ): Promise<UserRecord | undefined>;
+  /** Replace the user's editable profile fields; omitted optional fields are cleared. */
+  updateProfile(id: string, patch: UpdateProfileInput): Promise<UserRecord | undefined>;
 }
 
 /** Demo seed users for local development only. Replace with a real user store. */
@@ -91,21 +90,23 @@ export class InMemoryUserRepository implements UserRepository {
     return Promise.resolve();
   }
 
-  public updateProfile(
-    id: string,
-    displayName: string,
-    phone: string | undefined,
-  ): Promise<UserRecord | undefined> {
+  public updateProfile(id: string, patch: UpdateProfileInput): Promise<UserRecord | undefined> {
     const user = [...this.users.values()].find((candidate) => candidate.id === id);
     if (!user) {
       return Promise.resolve(undefined);
     }
-    const updated: UserRecord = { ...user, displayName };
-    if (phone === undefined) {
-      delete updated.phone;
-    } else {
-      updated.phone = phone;
-    }
+    // Rebuild the record so omitted optional fields are cleared (PATCH-as-PUT),
+    // keeping only the non-editable identity fields plus what the patch provides.
+    const updated: UserRecord = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      passwordHash: user.passwordHash,
+      displayName: patch.displayName,
+      ...(patch.phone !== undefined ? { phone: patch.phone } : {}),
+      ...(patch.bio !== undefined ? { bio: patch.bio } : {}),
+      ...(patch.skills !== undefined ? { skills: patch.skills } : {}),
+    };
     this.users.set(user.email.toLowerCase(), updated);
     return Promise.resolve(updated);
   }
