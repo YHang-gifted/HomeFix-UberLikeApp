@@ -79,6 +79,35 @@ describe('ProfileScreen', () => {
       phone: undefined,
       bio: 'Pro plumber',
       skills: ['plumbing'],
+      availability: 'available',
+    });
+  });
+
+  it('lets a worker toggle availability to away', async () => {
+    const workerProfile = makeProfile({
+      id: WORKER_ID,
+      email: 'worker@homefix.test',
+      role: 'worker',
+      displayName: 'Demo Worker',
+    });
+    const getMe = jest.fn().mockResolvedValue(workerProfile);
+    const updateProfile = jest.fn().mockResolvedValue({ ...workerProfile, availability: 'away' });
+    const client = { getMe, updateProfile } as unknown as ApiClient;
+
+    const { findByLabelText, findByText, getByLabelText } = await render(
+      <ProfileScreen client={client} />,
+    );
+
+    await fireEvent.press(await findByLabelText('Set away'));
+    await fireEvent.press(getByLabelText('Save profile'));
+
+    await findByText('Saved');
+    expect(updateProfile).toHaveBeenCalledWith({
+      displayName: 'Demo Worker',
+      phone: undefined,
+      bio: undefined,
+      skills: undefined,
+      availability: 'away',
     });
   });
 
