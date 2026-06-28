@@ -12,6 +12,8 @@ export interface PaymentRepository {
   findByCustomer(customerId: string): Promise<Payment[]>;
   /** A worker's received payments, most-recent-first. */
   findByWorker(workerId: string): Promise<Payment[]>;
+  /** Count and summed amount of paid payments (for the admin dashboard). */
+  paidTotals(): Promise<{ count: number; amountCents: number }>;
   clear(): Promise<void>;
 }
 
@@ -43,6 +45,12 @@ export class InMemoryPaymentRepository implements PaymentRepository {
         .filter((payment) => payment.workerId === workerId)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     );
+  }
+
+  public paidTotals(): Promise<{ count: number; amountCents: number }> {
+    const paid = [...this.payments.values()].filter((payment) => payment.status === 'paid');
+    const amountCents = paid.reduce((sum, payment) => sum + payment.amountCents, 0);
+    return Promise.resolve({ count: paid.length, amountCents });
   }
 
   public clear(): Promise<void> {

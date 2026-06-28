@@ -129,6 +129,41 @@ describe('PostgresPaymentRepository (PGlite)', () => {
     assert.deepEqual(await repo.findByWorker('023e4567-e89b-12d3-a456-426614174000'), []);
   });
 
+  it('paidTotals counts and sums only paid payments', async () => {
+    await repo.save(
+      makePayment({
+        id: '623e4567-e89b-12d3-a456-426614174021',
+        status: 'paid',
+        amountCents: 150000,
+      }),
+    );
+    await repo.save(
+      makePayment({
+        id: '623e4567-e89b-12d3-a456-426614174022',
+        requestId: OTHER_REQUEST,
+        status: 'paid',
+        amountCents: 50000,
+      }),
+    );
+    await repo.save(
+      makePayment({
+        id: '623e4567-e89b-12d3-a456-426614174023',
+        requestId: '523e4567-e89b-12d3-a456-426614174444',
+        status: 'pending',
+        amountCents: 99999,
+      }),
+    );
+
+    const totals = await repo.paidTotals();
+    assert.equal(totals.count, 2);
+    assert.equal(totals.amountCents, 200000);
+  });
+
+  it('paidTotals is zero when there are no paid payments', async () => {
+    const totals = await repo.paidTotals();
+    assert.deepEqual(totals, { count: 0, amountCents: 0 });
+  });
+
   it('clear empties the table', async () => {
     await repo.save(makePayment());
     await repo.clear();

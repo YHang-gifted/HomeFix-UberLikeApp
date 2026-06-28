@@ -7,6 +7,7 @@ import { loadEnv } from './config/env.ts';
 import { createCorsMiddleware } from './middlewares/cors.ts';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.ts';
 import { createRequestLogger } from './middlewares/requestLogger.ts';
+import { adminRouter } from './routes/admin.ts';
 import { auditRouter } from './routes/audit.ts';
 import { authRouter } from './routes/auth.ts';
 import { deviceTokenRouter } from './routes/deviceToken.ts';
@@ -43,6 +44,7 @@ export function createApp(): Express {
   app.use(paymentRouter);
   app.use(quoteRouter);
   app.use(auditRouter);
+  app.use(adminRouter);
   app.use(notFoundHandler);
   app.use(errorHandler);
   return app;

@@ -1,4 +1,5 @@
 import type {
+  AdminStats,
   AuditEvent,
   AuditPage,
   CreateQuoteInput,
@@ -24,6 +25,7 @@ import type {
   WorkerSummary,
 } from '../../../shared/schemas.ts';
 import {
+  adminStatsSchema,
   auditPageSchema,
   deviceTokenListSchema,
   messageListSchema,
@@ -338,6 +340,11 @@ export class ApiClient {
   public async listWorkerRatings(): Promise<WorkerRating[]> {
     const data = await this.send('GET', '/worker-ratings', undefined, true);
     return workerRatingListSchema.parse(data);
+  }
+
+  public async getAdminStats(): Promise<AdminStats> {
+    const data = await this.send('GET', '/admin/stats', undefined, true);
+    return adminStatsSchema.parse(data);
   }
 
   public async listNotifications(): Promise<NotificationList> {
