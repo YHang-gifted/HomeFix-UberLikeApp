@@ -35,6 +35,35 @@ describe('PostgresPaymentRepository (PGlite)', () => {
     const queryable = { query: (text, params) => db.query(text, params) };
     repo = new PostgresPaymentRepository(queryable);
     await runMigrations(queryable);
+    // payments FK → users(id) + service_requests(id) (migration 0019): seed all
+    // referenced parents — two customers, two workers, and the five requests the
+    // tests below use.
+    await queryable.query(
+      `INSERT INTO users (id, email, role, display_name, password_hash)
+       VALUES ($1, 'c1@homefix.test', 'customer', 'C1', 'h'),
+              ($2, 'c2@homefix.test', 'customer', 'C2', 'h'),
+              ($3, 'w1@homefix.test', 'worker', 'W1', 'h'),
+              ($4, 'w2@homefix.test', 'worker', 'W2', 'h')`,
+      [CUSTOMER_ID, OTHER_CUSTOMER_ID, WORKER_ID, '423e4567-e89b-12d3-a456-426614174999'],
+    );
+    await queryable.query(
+      `INSERT INTO service_requests
+         (id, customer_id, category, description, latitude, longitude, status, created_at)
+       VALUES ($1, $6, 'plumbing', 'x', 25, 121, 'pending', $7),
+              ($2, $6, 'plumbing', 'x', 25, 121, 'pending', $7),
+              ($3, $6, 'plumbing', 'x', 25, 121, 'pending', $7),
+              ($4, $6, 'plumbing', 'x', 25, 121, 'pending', $7),
+              ($5, $6, 'plumbing', 'x', 25, 121, 'pending', $7)`,
+      [
+        REQUEST_ID,
+        OTHER_REQUEST,
+        '523e4567-e89b-12d3-a456-426614174222',
+        '523e4567-e89b-12d3-a456-426614174333',
+        '523e4567-e89b-12d3-a456-426614174444',
+        CUSTOMER_ID,
+        '2026-06-22T00:00:00.000Z',
+      ],
+    );
   });
 
   after(async () => {
