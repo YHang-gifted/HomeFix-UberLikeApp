@@ -200,4 +200,30 @@ export const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_audit_events_resource_id ON audit_events (resource_id)
     `,
   },
+  {
+    // CHECK constraints that enforce the domain invariants the app already
+    // validates at its boundary (status/role/availability enums, rating range,
+    // positive money amounts) at the database level too. Each is written as a
+    // DROP IF EXISTS + ADD pair so the migration is idempotent (a multi-statement
+    // migration is not transactional and may re-run after a partial failure).
+    id: '0017_check_constraints',
+    sql: `
+      ALTER TABLE service_requests DROP CONSTRAINT IF EXISTS chk_service_requests_status;
+      ALTER TABLE service_requests ADD CONSTRAINT chk_service_requests_status CHECK (status IN ('pending', 'matched', 'accepted', 'in_progress', 'completed', 'cancelled'));
+      ALTER TABLE users DROP CONSTRAINT IF EXISTS chk_users_role;
+      ALTER TABLE users ADD CONSTRAINT chk_users_role CHECK (role IN ('customer', 'worker', 'admin'));
+      ALTER TABLE users DROP CONSTRAINT IF EXISTS chk_users_availability;
+      ALTER TABLE users ADD CONSTRAINT chk_users_availability CHECK (availability IS NULL OR availability IN ('available', 'away'));
+      ALTER TABLE reviews DROP CONSTRAINT IF EXISTS chk_reviews_rating;
+      ALTER TABLE reviews ADD CONSTRAINT chk_reviews_rating CHECK (rating BETWEEN 1 AND 5);
+      ALTER TABLE quotes DROP CONSTRAINT IF EXISTS chk_quotes_status;
+      ALTER TABLE quotes ADD CONSTRAINT chk_quotes_status CHECK (status IN ('pending', 'accepted', 'declined'));
+      ALTER TABLE quotes DROP CONSTRAINT IF EXISTS chk_quotes_amount;
+      ALTER TABLE quotes ADD CONSTRAINT chk_quotes_amount CHECK (amount_cents > 0);
+      ALTER TABLE payments DROP CONSTRAINT IF EXISTS chk_payments_status;
+      ALTER TABLE payments ADD CONSTRAINT chk_payments_status CHECK (status IN ('pending', 'paid'));
+      ALTER TABLE payments DROP CONSTRAINT IF EXISTS chk_payments_amount;
+      ALTER TABLE payments ADD CONSTRAINT chk_payments_amount CHECK (amount_cents > 0)
+    `,
+  },
 ];
