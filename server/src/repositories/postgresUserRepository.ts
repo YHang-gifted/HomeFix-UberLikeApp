@@ -110,4 +110,13 @@ export class PostgresUserRepository implements UserRepository {
     const row = result.rows[0];
     return row === undefined ? undefined : mapRow(row);
   }
+
+  public async updatePassword(id: string, passwordHash: string): Promise<UserRecord | undefined> {
+    const result = await this.db.query(
+      'UPDATE users SET password_hash = $2 WHERE id = $1 RETURNING *',
+      [id, passwordHash],
+    );
+    const row = result.rows[0];
+    return row === undefined ? undefined : mapRow(row);
+  }
 }

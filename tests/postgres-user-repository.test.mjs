@@ -103,6 +103,21 @@ describe('PostgresUserRepository (PGlite)', () => {
     assert.equal(await repo.findById('999e4567-e89b-12d3-a456-426614174000'), undefined);
   });
 
+  it('updates the password hash and returns undefined for an unknown id', async () => {
+    const before = await repo.findById(WORKER_ID);
+    const updated = await repo.updatePassword(WORKER_ID, 'newsalt:newhash');
+    assert.equal(updated?.passwordHash, 'newsalt:newhash');
+
+    const persisted = await repo.findById(WORKER_ID);
+    assert.equal(persisted?.passwordHash, 'newsalt:newhash');
+    assert.notEqual(persisted?.passwordHash, before?.passwordHash);
+
+    assert.equal(
+      await repo.updatePassword('999e4567-e89b-12d3-a456-426614174000', 'x:y'),
+      undefined,
+    );
+  });
+
   it('seedDemoUsers is idempotent (no duplicate rows)', async () => {
     await seedDemoUsers({ query: (text, params) => db.query(text, params) });
     const result = await db.query('SELECT count(*)::int AS n FROM users');

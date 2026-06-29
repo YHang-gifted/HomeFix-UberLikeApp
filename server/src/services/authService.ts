@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
-import type { LoginInput, Principal, RegisterInput } from '../../../shared/schemas.ts';
+import type {
+  ChangePasswordInput,
+  LoginInput,
+  Principal,
+  RegisterInput,
+} from '../../../shared/schemas.ts';
 import { signToken } from '../auth/jwt.ts';
 import { hashPassword, verifyPassword } from '../auth/passwords.ts';
 import { AppError } from '../errors/appError.ts';
@@ -37,4 +42,23 @@ export async function registerUser(input: RegisterInput): Promise<LoginResult> {
   await userRepository.create(user);
   const principal: Principal = { id: user.id, role: user.role };
   return { token: signToken(principal), principal };
+}
+
+/**
+ * Change the authenticated user's own password. The current password is
+ * re-verified server-side before the new hash is stored. 404 if the account is
+ * gone, 401 if the current password is wrong.
+ */
+export async function changePassword(
+  principal: Principal,
+  input: ChangePasswordInput,
+): Promise<void> {
+  const user = await userRepository.findById(principal.id);
+  if (!user) {
+    throw new AppError('Account not found', 404);
+  }
+  if (!verifyPassword(input.currentPassword, user.passwordHash)) {
+    throw new AppError('Current password is incorrect', 401);
+  }
+  await userRepository.updatePassword(user.id, hashPassword(input.newPassword));
 }
