@@ -22,6 +22,14 @@ export async function login(input: LoginInput): Promise<LoginResult> {
   if (!user || !verifyPassword(input.password, user.passwordHash)) {
     throw new AppError('Invalid email or password', 401);
   }
+  if (user.status === 'suspended') {
+    throw new AppError('This account has been suspended. Please contact support.', 403);
+  }
+  if (user.status !== 'active') {
+    // A deleted (soft-deleted) account must not be distinguishable from a wrong
+    // password, so it gets the same generic 401 as bad credentials.
+    throw new AppError('Invalid email or password', 401);
+  }
   const principal: Principal = { id: user.id, role: user.role };
   return { token: signToken(principal, user.tokenVersion), principal };
 }
@@ -39,6 +47,7 @@ export async function registerUser(input: RegisterInput): Promise<LoginResult> {
     displayName: input.displayName,
     passwordHash: hashPassword(input.password),
     tokenVersion: 0,
+    status: 'active',
   };
   await userRepository.create(user);
   const principal: Principal = { id: user.id, role: user.role };

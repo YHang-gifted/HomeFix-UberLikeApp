@@ -36,6 +36,12 @@ export async function authenticate(
       next(new AppError('Session expired. Please sign in again.', 401));
       return;
     }
+    // A suspended or soft-deleted account is rejected even with an otherwise
+    // valid, current token, so an admin's suspension takes effect immediately.
+    if (user !== undefined && user.status !== 'active') {
+      next(new AppError('This account is no longer active.', 403));
+      return;
+    }
   } catch (error) {
     next(error instanceof AppError ? error : new AppError('Authentication failed', 401));
     return;

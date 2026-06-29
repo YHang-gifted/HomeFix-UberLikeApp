@@ -34,6 +34,7 @@ describe('PostgresUserRepository (PGlite)', () => {
       'Demo Customer',
     ]);
     await db.query('UPDATE users SET token_version = 0');
+    await db.query("UPDATE users SET status = 'active'");
   });
 
   it('finds a seeded user by email (case-insensitive)', async () => {
@@ -128,6 +129,22 @@ describe('PostgresUserRepository (PGlite)', () => {
     assert.equal(after?.tokenVersion, 1);
 
     assert.equal(await repo.bumpTokenVersion('999e4567-e89b-12d3-a456-426614174000'), undefined);
+  });
+
+  it('defaults seeded users to active and sets status, returning undefined for unknown id', async () => {
+    const before = await repo.findById(WORKER_ID);
+    assert.equal(before?.status, 'active');
+
+    const suspended = await repo.setStatus(WORKER_ID, 'suspended');
+    assert.equal(suspended?.status, 'suspended');
+    const persisted = await repo.findById(WORKER_ID);
+    assert.equal(persisted?.status, 'suspended');
+
+    await repo.setStatus(WORKER_ID, 'active');
+    assert.equal(
+      await repo.setStatus('999e4567-e89b-12d3-a456-426614174000', 'suspended'),
+      undefined,
+    );
   });
 
   it('seedDemoUsers is idempotent (no duplicate rows)', async () => {
