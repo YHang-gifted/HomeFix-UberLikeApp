@@ -226,4 +226,19 @@ export const migrations: Migration[] = [
       ALTER TABLE payments ADD CONSTRAINT chk_payments_amount CHECK (amount_cents > 0)
     `,
   },
+  {
+    // Foreign keys, part 1 of the FK hardening: the central service_requests
+    // table references users. Added NOT VALID so the constraint is enforced for
+    // all new/updated rows but the existing rows on the live database are not
+    // re-checked on boot (this app has no delete flows, so no orphans are
+    // expected, but NOT VALID keeps a stray legacy row from blocking startup).
+    // DROP IF EXISTS + ADD keeps each statement idempotent.
+    id: '0018_fk_service_requests',
+    sql: `
+      ALTER TABLE service_requests DROP CONSTRAINT IF EXISTS fk_service_requests_customer;
+      ALTER TABLE service_requests ADD CONSTRAINT fk_service_requests_customer FOREIGN KEY (customer_id) REFERENCES users (id) NOT VALID;
+      ALTER TABLE service_requests DROP CONSTRAINT IF EXISTS fk_service_requests_worker;
+      ALTER TABLE service_requests ADD CONSTRAINT fk_service_requests_worker FOREIGN KEY (worker_id) REFERENCES users (id) NOT VALID
+    `,
+  },
 ];

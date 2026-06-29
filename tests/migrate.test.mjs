@@ -17,6 +17,13 @@ describe('runMigrations (PGlite)', () => {
     const first = await runMigrations(queryable);
     assert.ok(first.includes('0001_service_requests'));
 
+    // service_requests.customer_id is a FK → users(id) (migration 0018), so the
+    // referenced user must exist first.
+    await queryable.query(
+      `INSERT INTO users (id, email, role, display_name, password_hash)
+       VALUES ('223e4567-e89b-12d3-a456-426614174000', 'c@homefix.test', 'customer', 'Demo', 'h')`,
+    );
+
     // The service_requests table now exists and is usable.
     await queryable.query(
       `INSERT INTO service_requests
