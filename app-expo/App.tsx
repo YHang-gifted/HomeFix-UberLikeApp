@@ -20,6 +20,7 @@ import { AuditLogScreen } from './src/screens/AuditLogScreen';
 import { AvailableJobsScreen } from './src/screens/AvailableJobsScreen';
 import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
 import { FavoritesScreen } from './src/screens/FavoritesScreen';
+import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { MessagesScreen } from './src/screens/MessagesScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
@@ -33,6 +34,7 @@ import { WorkerJobsScreen } from './src/screens/WorkerJobsScreen';
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
+  ForgotPassword: undefined;
   ServiceRequests: undefined;
   CreateRequest: undefined;
   RequestDetail: { id: string };
@@ -72,6 +74,22 @@ function LoginRoute({
       }}
       onRegister={() => {
         navigation.navigate('Register');
+      }}
+      onForgotPassword={() => {
+        navigation.navigate('ForgotPassword');
+      }}
+    />
+  );
+}
+
+function ForgotPasswordRoute({
+  navigation,
+}: NativeStackScreenProps<RootStackParamList, 'ForgotPassword'>): ReactElement {
+  return (
+    <ForgotPasswordScreen
+      client={apiClient}
+      onDone={() => {
+        navigation.navigate('Login');
       }}
     />
   );
@@ -392,6 +410,11 @@ export default function App(): ReactElement {
                 name="Register"
                 component={RegisterRoute}
                 options={{ title: 'Create account' }}
+              />
+              <Stack.Screen
+                name="ForgotPassword"
+                component={ForgotPasswordRoute}
+                options={{ title: 'Reset password' }}
               />
             </>
           )}
