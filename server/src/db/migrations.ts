@@ -179,4 +179,25 @@ export const migrations: Migration[] = [
       ALTER TABLE users ADD COLUMN IF NOT EXISTS availability text
     `,
   },
+  {
+    // Indexes on the columns that back WHERE-filtered repository queries
+    // (payments by customer/worker/status, reviews by worker/request,
+    // notifications by user, messages by request, audit by resource) and the
+    // natural access paths on service_requests. Performance only — no behaviour
+    // change. Each statement is idempotent (IF NOT EXISTS).
+    id: '0016_indexes',
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_service_requests_customer_id ON service_requests (customer_id);
+      CREATE INDEX IF NOT EXISTS idx_service_requests_worker_id ON service_requests (worker_id);
+      CREATE INDEX IF NOT EXISTS idx_service_requests_status ON service_requests (status);
+      CREATE INDEX IF NOT EXISTS idx_payments_customer_id ON payments (customer_id);
+      CREATE INDEX IF NOT EXISTS idx_payments_worker_id ON payments (worker_id);
+      CREATE INDEX IF NOT EXISTS idx_payments_status ON payments (status);
+      CREATE INDEX IF NOT EXISTS idx_reviews_worker_id ON reviews (worker_id);
+      CREATE INDEX IF NOT EXISTS idx_reviews_request_id ON reviews (request_id);
+      CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications (user_id);
+      CREATE INDEX IF NOT EXISTS idx_messages_request_id ON messages (request_id);
+      CREATE INDEX IF NOT EXISTS idx_audit_events_resource_id ON audit_events (resource_id)
+    `,
+  },
 ];

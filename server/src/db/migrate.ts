@@ -29,6 +29,22 @@ interface MigrationRow {
 }
 
 /**
+ * Split a migration's SQL into individual statements. The runner executes them
+ * one at a time because some drivers (PGlite) accept only a single statement per
+ * `query()` call. Migration SQL is project-controlled and never contains a
+ * semicolon inside a string literal, so a plain split is safe. Each statement
+ * should be individually idempotent (use `IF NOT EXISTS`), because a multi-
+ * statement migration is not wrapped in a transaction and may re-run after a
+ * partial failure.
+ */
+function splitSqlStatements(sql: string): string[] {
+  return sql
+    .split(';')
+    .map((statement) => statement.trim())
+    .filter((statement) => statement.length > 0);
+}
+
+/**
  * Apply any not-yet-applied migrations in order. Idempotent: already-applied
  * migrations are skipped. Returns the ids applied during this run.
  */
@@ -45,7 +61,9 @@ export async function runMigrations(
     if (applied.has(migration.id)) {
       continue;
     }
-    await db.query(migration.sql);
+    for (const statement of splitSqlStatements(migration.sql)) {
+      await db.query(statement);
+    }
     await db.query('INSERT INTO schema_migrations (id) VALUES ($1)', [migration.id]);
     newlyApplied.push(migration.id);
   }
