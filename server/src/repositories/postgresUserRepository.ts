@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type {
   AccountStatus,
   Role,
@@ -11,6 +13,8 @@ import {
   workerAvailabilitySchema,
   workerSkillsSchema,
 } from '../../../shared/schemas.ts';
+import { hashPassword } from '../auth/passwords.ts';
+import { deletedEmail } from './userRepository.ts';
 import type { UserRecord, UserRepository } from './userRepository.ts';
 import type { Queryable } from '../db/queryable.ts';
 
@@ -141,6 +145,26 @@ export class PostgresUserRepository implements UserRepository {
       id,
       status,
     ]);
+    const row = result.rows[0];
+    return row === undefined ? undefined : mapRow(row);
+  }
+
+  public async anonymize(id: string): Promise<UserRecord | undefined> {
+    const result = await this.db.query(
+      `UPDATE users
+          SET email = $2,
+              display_name = 'Deleted account',
+              phone = NULL,
+              bio = NULL,
+              skills = NULL,
+              availability = NULL,
+              password_hash = $3,
+              status = 'deleted',
+              token_version = token_version + 1
+        WHERE id = $1
+        RETURNING *`,
+      [id, deletedEmail(id), hashPassword(randomUUID())],
+    );
     const row = result.rows[0];
     return row === undefined ? undefined : mapRow(row);
   }

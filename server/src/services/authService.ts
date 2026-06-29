@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type {
   ChangePasswordInput,
+  DeleteAccountInput,
   LoginInput,
   Principal,
   RegisterInput,
@@ -11,6 +12,7 @@ import { hashPassword, verifyPassword } from '../auth/passwords.ts';
 import { AppError } from '../errors/appError.ts';
 import { userRepository } from '../repositories/userRepository.ts';
 import type { UserRecord } from '../repositories/userRepository.ts';
+import { recordAuditEvent } from './auditService.ts';
 
 export interface LoginResult {
   token: string;
@@ -87,4 +89,30 @@ export async function logoutAllDevices(principal: Principal): Promise<{ token: s
     throw new AppError('Account not found', 404);
   }
   return { token: signToken(principal, newVersion) };
+}
+
+/**
+ * Soft-delete the authenticated user's own account. The current password is
+ * re-verified, then the account's personal data is scrubbed and its status set
+ * to `deleted` (every token is revoked). The row is retained so foreign keys and
+ * de-identified history stay intact. 404 if the account is gone, 401 on a wrong
+ * password.
+ */
+export async function deleteAccount(
+  principal: Principal,
+  input: DeleteAccountInput,
+): Promise<void> {
+  const user = await userRepository.findById(principal.id);
+  if (!user) {
+    throw new AppError('Account not found', 404);
+  }
+  if (!verifyPassword(input.currentPassword, user.passwordHash)) {
+    throw new AppError('Current password is incorrect', 401);
+  }
+  await userRepository.anonymize(user.id);
+  await recordAuditEvent({
+    actor: principal,
+    action: 'account.deleted',
+    resourceId: user.id,
+  });
 }

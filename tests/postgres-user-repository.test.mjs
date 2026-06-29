@@ -147,6 +147,26 @@ describe('PostgresUserRepository (PGlite)', () => {
     );
   });
 
+  it('anonymizes an account: scrubs PII, deletes status, bumps token_version', async () => {
+    const before = await repo.findById(WORKER_ID);
+    const scrubbed = await repo.anonymize(WORKER_ID);
+    assert.equal(scrubbed?.status, 'deleted');
+    assert.equal(scrubbed?.email, `deleted+${WORKER_ID}@deleted.invalid`);
+    assert.equal(scrubbed?.displayName, 'Deleted account');
+    assert.equal(scrubbed?.phone, undefined);
+    assert.notEqual(scrubbed?.passwordHash, before?.passwordHash);
+    assert.equal(scrubbed?.tokenVersion, (before?.tokenVersion ?? 0) + 1);
+
+    assert.equal(await repo.findByEmail('worker@homefix.test'), undefined);
+    assert.equal(await repo.anonymize('999e4567-e89b-12d3-a456-426614174000'), undefined);
+
+    // Restore the seed row so later tests see the original worker.
+    await db.query(
+      "UPDATE users SET email = $2, display_name = 'Demo Worker', status = 'active' WHERE id = $1",
+      [WORKER_ID, 'worker@homefix.test'],
+    );
+  });
+
   it('seedDemoUsers is idempotent (no duplicate rows)', async () => {
     await seedDemoUsers({ query: (text, params) => db.query(text, params) });
     const result = await db.query('SELECT count(*)::int AS n FROM users');

@@ -2,6 +2,7 @@ import express from 'express';
 
 import {
   postChangePassword,
+  postDeleteAccount,
   postForgotPassword,
   postLogin,
   postLogoutAll,
@@ -26,3 +27,5 @@ authRouter.post('/auth/reset-password', authRateLimiter, postResetPassword);
 authRouter.post('/auth/change-password', authenticate, postChangePassword);
 // Log out of all devices by invalidating every previously issued token.
 authRouter.post('/auth/logout-all', authenticate, postLogoutAll);
+// Authenticated self-service account deletion (soft-delete / anonymize).
+authRouter.post('/auth/delete-account', authenticate, postDeleteAccount);
