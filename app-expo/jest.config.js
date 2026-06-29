@@ -12,6 +12,13 @@
 // own copy regardless of the importing file's location.
 module.exports = {
   preset: 'jest-expo',
+  // Only crawl src/ for tests and the haste map. This keeps generated build
+  // artifacts that may sit on disk — the ./.shared web-export mirror and ./dist
+  // — out of Jest entirely; crawling those duplicate/huge trees exhausted file
+  // handles on Windows (EMFILE read errors) and caused widespread timeouts.
+  // Relative imports of ../app/src and ../shared and node_modules still resolve
+  // normally (they don't depend on the crawl roots).
+  roots: ['<rootDir>/src'],
   moduleNameMapper: {
     '^@babel/runtime/(.*)$': '<rootDir>/node_modules/@babel/runtime/$1',
   },

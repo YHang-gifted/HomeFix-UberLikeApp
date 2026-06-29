@@ -6,6 +6,8 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = [
   ...expoConfig,
   {
-    ignores: ['node_modules/**', '.expo/**', 'dist/**', 'web-build/**'],
+    // `.shared/` is the generated web-export mirror (see metro.config.js +
+    // scripts/sync-shared.mjs) — a gitignored build artifact, never linted.
+    ignores: ['node_modules/**', '.expo/**', 'dist/**', 'web-build/**', '.shared/**'],
   },
 ];

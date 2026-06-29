@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo/metro-runtime": "~56.0.15",
     "@react-navigation/native": "^7.3.3",
     "@react-navigation/native-stack": "^7.17.5",
     "expo": "~56.0.12",
@@ -32,8 +33,10 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "jest",
-    "test:ci": "jest --ci",
+    "sync-shared": "node scripts/sync-shared.mjs",
+    "export:web": "node scripts/export-web.mjs",
+    "test": "jest --runInBand",
+    "test:ci": "jest --ci --runInBand",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
