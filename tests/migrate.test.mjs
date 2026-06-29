@@ -52,6 +52,20 @@ describe('runMigrations (PGlite)', () => {
     await db.close();
   });
 
+  it('runs every statement in a multi-statement migration', async () => {
+    const db = new PGlite();
+    const queryable = queryableFor(db);
+
+    await runMigrations(queryable, [
+      { id: '0001_multi', sql: 'CREATE TABLE a (id int); CREATE TABLE b (id int);' },
+    ]);
+    // Both statements ran: inserting into each table succeeds.
+    await queryable.query('INSERT INTO a (id) VALUES (1)');
+    await queryable.query('INSERT INTO b (id) VALUES (1)');
+
+    await db.close();
+  });
+
   it('only applies a new migration the next run', async () => {
     const db = new PGlite();
     const queryable = queryableFor(db);
