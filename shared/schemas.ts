@@ -119,6 +119,14 @@ export const registerInputSchema = z.object({
 });
 export type RegisterInput = z.infer<typeof registerInputSchema>;
 
+// Authenticated self-service password change. The new password uses the same
+// strength rule as sign-up; the current password is re-verified server-side.
+export const changePasswordInputSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8).max(200),
+});
+export type ChangePasswordInput = z.infer<typeof changePasswordInputSchema>;
+
 export const phoneSchema = z.string().regex(/^[+]?[\d ()-]{7,20}$/, 'Enter a valid phone number');
 
 export const requestContactsSchema = z.object({

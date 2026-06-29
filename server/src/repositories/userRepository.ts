@@ -29,6 +29,8 @@ export interface UserRepository {
   create(user: UserRecord): Promise<void>;
   /** Replace the user's editable profile fields; omitted optional fields are cleared. */
   updateProfile(id: string, patch: UpdateProfileInput): Promise<UserRecord | undefined>;
+  /** Set the user's password hash. Returns the updated record, or undefined if unknown. */
+  updatePassword(id: string, passwordHash: string): Promise<UserRecord | undefined>;
 }
 
 /** Demo seed users for local development only. Replace with a real user store. */
@@ -114,6 +116,16 @@ export class InMemoryUserRepository implements UserRepository {
       ...(patch.skills !== undefined ? { skills: patch.skills } : {}),
       ...(patch.availability !== undefined ? { availability: patch.availability } : {}),
     };
+    this.users.set(user.email.toLowerCase(), updated);
+    return Promise.resolve(updated);
+  }
+
+  public updatePassword(id: string, passwordHash: string): Promise<UserRecord | undefined> {
+    const user = [...this.users.values()].find((candidate) => candidate.id === id);
+    if (!user) {
+      return Promise.resolve(undefined);
+    }
+    const updated: UserRecord = { ...user, passwordHash };
     this.users.set(user.email.toLowerCase(), updated);
     return Promise.resolve(updated);
   }

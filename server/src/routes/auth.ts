@@ -1,6 +1,7 @@
 import express from 'express';
 
-import { postLogin, postRegister } from '../controllers/authController.ts';
+import { postChangePassword, postLogin, postRegister } from '../controllers/authController.ts';
+import { authenticate } from '../middlewares/auth.ts';
 import { createRateLimiter } from '../middlewares/rateLimit.ts';
 
 export const authRouter = express.Router();
@@ -11,3 +12,5 @@ const authRateLimiter = createRateLimiter({ windowMs: 60_000, max: 30 });
 
 authRouter.post('/auth/register', authRateLimiter, postRegister);
 authRouter.post('/auth/login', authRateLimiter, postLogin);
+// Authenticated self-service password change (re-verifies the current password).
+authRouter.post('/auth/change-password', authenticate, postChangePassword);
