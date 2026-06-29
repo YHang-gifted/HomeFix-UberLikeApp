@@ -11,6 +11,8 @@ import {
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import { isApiError } from '../../../app/src/services/apiClient';
+import type { ChangePasswordFieldErrors } from '../../../app/src/features/auth/changePasswordForm';
+import { validateChangePasswordForm } from '../../../app/src/features/auth/changePasswordForm';
 import type { ServiceCategory, UserProfile, WorkerAvailability } from '../../../shared/schemas';
 import { serviceCategorySchema, workerAvailabilitySchema } from '../../../shared/schemas';
 import { apiClient } from '../api';
@@ -35,6 +37,13 @@ export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwErrors, setPwErrors] = useState<ChangePasswordFieldErrors>({});
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMessage, setPwMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -93,6 +102,31 @@ export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
       setMessage(isApiError(saveError) ? saveError.message : 'Could not save. Please try again.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function submitPasswordChange(): Promise<void> {
+    const fieldErrors = validateChangePasswordForm({
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    });
+    setPwErrors(fieldErrors);
+    if (Object.keys(fieldErrors).length > 0) {
+      return;
+    }
+    setPwSaving(true);
+    setPwMessage(null);
+    try {
+      await activeClient.changePassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPwMessage('Password changed');
+    } catch (changeError) {
+      setPwMessage(isApiError(changeError) ? changeError.message : 'Could not change password.');
+    } finally {
+      setPwSaving(false);
     }
   }
 
@@ -222,6 +256,65 @@ export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
       </Pressable>
 
       {message !== null && <Text style={styles.message}>{message}</Text>}
+
+      <Text style={styles.sectionHeader}>Change password</Text>
+
+      <Text style={styles.label}>Current password</Text>
+      <TextInput
+        style={styles.input}
+        value={currentPassword}
+        onChangeText={setCurrentPassword}
+        accessibilityLabel="Current password"
+        secureTextEntry
+        editable={!pwSaving}
+      />
+      {pwErrors.currentPassword !== undefined && (
+        <Text style={styles.fieldError}>{pwErrors.currentPassword}</Text>
+      )}
+
+      <Text style={styles.label}>New password</Text>
+      <TextInput
+        style={styles.input}
+        value={newPassword}
+        onChangeText={setNewPassword}
+        accessibilityLabel="New password"
+        secureTextEntry
+        editable={!pwSaving}
+      />
+      {pwErrors.newPassword !== undefined && (
+        <Text style={styles.fieldError}>{pwErrors.newPassword}</Text>
+      )}
+
+      <Text style={styles.label}>Confirm new password</Text>
+      <TextInput
+        style={styles.input}
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
+        accessibilityLabel="Confirm new password"
+        secureTextEntry
+        editable={!pwSaving}
+      />
+      {pwErrors.confirmPassword !== undefined && (
+        <Text style={styles.fieldError}>{pwErrors.confirmPassword}</Text>
+      )}
+
+      <Pressable
+        style={({ pressed }) => [styles.save, (pressed || pwSaving) && styles.savePressed]}
+        onPress={() => {
+          void submitPasswordChange();
+        }}
+        disabled={pwSaving}
+        accessibilityRole="button"
+        accessibilityLabel="Change password"
+      >
+        {pwSaving ? (
+          <ActivityIndicator color="#ffffff" />
+        ) : (
+          <Text style={styles.saveText}>Change password</Text>
+        )}
+      </Pressable>
+
+      {pwMessage !== null && <Text style={styles.message}>{pwMessage}</Text>}
     </ScrollView>
   );
 }
@@ -267,4 +360,6 @@ const styles = StyleSheet.create({
   savePressed: { backgroundColor: '#1d4ed8' },
   saveText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
   message: { marginTop: 16, fontSize: 14, color: '#0f172a' },
+  sectionHeader: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginTop: 32 },
+  fieldError: { color: '#dc2626', fontSize: 13, marginTop: 4 },
 });
