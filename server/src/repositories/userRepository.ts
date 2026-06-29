@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import process from 'node:process';
 
 import type {
@@ -40,6 +41,18 @@ export interface UserRepository {
   bumpTokenVersion(id: string): Promise<number | undefined>;
   /** Set the account lifecycle status. Returns the updated record, or undefined if unknown. */
   setStatus(id: string, status: AccountStatus): Promise<UserRecord | undefined>;
+  /**
+   * Soft-delete: scrub the account's personal data (email, name, phone, bio,
+   * skills, password), set status to `deleted`, and revoke all tokens. The row
+   * is kept so foreign keys and de-identified history stay intact. Returns the
+   * scrubbed record, or undefined if unknown.
+   */
+  anonymize(id: string): Promise<UserRecord | undefined>;
+}
+
+/** The deterministic, unique placeholder email a soft-deleted account is scrubbed to. */
+export function deletedEmail(id: string): string {
+  return `deleted+${id}@deleted.invalid`;
 }
 
 /** Demo seed users for local development only. Replace with a real user store. */
@@ -161,6 +174,26 @@ export class InMemoryUserRepository implements UserRepository {
     const updated: UserRecord = { ...user, status };
     this.users.set(user.email.toLowerCase(), updated);
     return Promise.resolve(updated);
+  }
+
+  public anonymize(id: string): Promise<UserRecord | undefined> {
+    const user = [...this.users.values()].find((candidate) => candidate.id === id);
+    if (!user) {
+      return Promise.resolve(undefined);
+    }
+    const scrubbed: UserRecord = {
+      id: user.id,
+      role: user.role,
+      email: deletedEmail(user.id),
+      displayName: 'Deleted account',
+      passwordHash: hashPassword(randomUUID()),
+      tokenVersion: user.tokenVersion + 1,
+      status: 'deleted',
+    };
+    // Re-key the map: the lookup key is the email, which we are changing.
+    this.users.delete(user.email.toLowerCase());
+    this.users.set(scrubbed.email.toLowerCase(), scrubbed);
+    return Promise.resolve(scrubbed);
   }
 }
 

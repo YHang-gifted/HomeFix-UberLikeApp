@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 
 import {
   changePasswordInputSchema,
+  deleteAccountInputSchema,
   forgotPasswordInputSchema,
   loginInputSchema,
   registerInputSchema,
@@ -9,7 +10,13 @@ import {
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
-import { changePassword, login, logoutAllDevices, registerUser } from '../services/authService.ts';
+import {
+  changePassword,
+  deleteAccount,
+  login,
+  logoutAllDevices,
+  registerUser,
+} from '../services/authService.ts';
 import { requestPasswordReset, resetPassword } from '../services/passwordResetService.ts';
 
 export async function postLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -79,6 +86,29 @@ export async function postLogoutAll(
   try {
     const result = await logoutAllDevices(principal);
     res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function postDeleteAccount(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+  const parsed = deleteAccountInputSchema.safeParse(req.body);
+  if (!parsed.success) {
+    next(new AppError('Invalid payload', 422));
+    return;
+  }
+
+  try {
+    await deleteAccount(principal, parsed.data);
+    res.status(204).end();
   } catch (error) {
     next(error);
   }

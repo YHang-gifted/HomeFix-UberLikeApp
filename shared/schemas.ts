@@ -141,6 +141,13 @@ export const resetPasswordInputSchema = z.object({
 });
 export type ResetPasswordInput = z.infer<typeof resetPasswordInputSchema>;
 
+// Authenticated self-service account deletion (soft-delete / anonymize). The
+// current password is re-verified server-side before the account is scrubbed.
+export const deleteAccountInputSchema = z.object({
+  currentPassword: z.string().min(1),
+});
+export type DeleteAccountInput = z.infer<typeof deleteAccountInputSchema>;
+
 export const phoneSchema = z.string().regex(/^[+]?[\d ()-]{7,20}$/, 'Enter a valid phone number');
 
 export const requestContactsSchema = z.object({
@@ -174,6 +181,7 @@ export const auditActionSchema = z.enum([
   'service_request.status_changed',
   'account.suspended',
   'account.reinstated',
+  'account.deleted',
 ]);
 export type AuditAction = z.infer<typeof auditActionSchema>;
 

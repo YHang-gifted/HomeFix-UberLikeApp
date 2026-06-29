@@ -11,6 +11,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   'service_request.status_changed': 'Status changed',
   'account.suspended': 'Suspended account',
   'account.reinstated': 'Reinstated account',
+  'account.deleted': 'Deleted account',
 };
 
 function detailsText(details: Record<string, string> | undefined): string | null {
