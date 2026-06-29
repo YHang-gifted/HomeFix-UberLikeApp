@@ -133,4 +133,38 @@ describe('ProfileScreen', () => {
     await findByText('Display name cannot be empty.');
     expect(updateProfile).not.toHaveBeenCalled();
   });
+
+  it('changes the password and shows confirmation', async () => {
+    const getMe = jest.fn().mockResolvedValue(makeProfile());
+    const changePassword = jest.fn().mockResolvedValue(undefined);
+    const client = { getMe, changePassword } as unknown as ApiClient;
+
+    const { findByText, getByLabelText } = await render(<ProfileScreen client={client} />);
+    await findByText('customer@homefix.test');
+
+    await fireEvent.changeText(getByLabelText('Current password'), 'orig-pass-123');
+    await fireEvent.changeText(getByLabelText('New password'), 'new-pass-456');
+    await fireEvent.changeText(getByLabelText('Confirm new password'), 'new-pass-456');
+    await fireEvent.press(getByLabelText('Change password'));
+
+    await findByText('Password changed');
+    expect(changePassword).toHaveBeenCalledWith('orig-pass-123', 'new-pass-456');
+  });
+
+  it('blocks a password change when the confirmation does not match', async () => {
+    const getMe = jest.fn().mockResolvedValue(makeProfile());
+    const changePassword = jest.fn();
+    const client = { getMe, changePassword } as unknown as ApiClient;
+
+    const { findByText, getByLabelText } = await render(<ProfileScreen client={client} />);
+    await findByText('customer@homefix.test');
+
+    await fireEvent.changeText(getByLabelText('Current password'), 'orig-pass-123');
+    await fireEvent.changeText(getByLabelText('New password'), 'new-pass-456');
+    await fireEvent.changeText(getByLabelText('Confirm new password'), 'different-789');
+    await fireEvent.press(getByLabelText('Change password'));
+
+    await findByText('Passwords do not match');
+    expect(changePassword).not.toHaveBeenCalled();
+  });
 });

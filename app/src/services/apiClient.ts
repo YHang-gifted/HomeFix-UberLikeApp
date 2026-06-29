@@ -124,6 +124,11 @@ export class ApiClient {
     return body.token;
   }
 
+  /** Change the signed-in user's password (re-verified server-side). 204, no body. */
+  public async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await this.send('POST', '/auth/change-password', { currentPassword, newPassword }, true);
+  }
+
   public async getMe(): Promise<UserProfile> {
     const data = await this.send('GET', '/me', undefined, true);
     return userProfileSchema.parse(data);
