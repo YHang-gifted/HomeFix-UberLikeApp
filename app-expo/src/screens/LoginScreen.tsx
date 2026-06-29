@@ -14,9 +14,16 @@ export interface LoginScreenProps {
   onSuccess?: (token: string) => void;
   /** Called when the user wants to create a new account. */
   onRegister?: () => void;
+  /** Called when the user wants to reset a forgotten password. */
+  onForgotPassword?: () => void;
 }
 
-export function LoginScreen({ client, onSuccess, onRegister }: LoginScreenProps): ReactElement {
+export function LoginScreen({
+  client,
+  onSuccess,
+  onRegister,
+  onForgotPassword,
+}: LoginScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
   const [email, setEmail] = useState('');
@@ -94,6 +101,18 @@ export function LoginScreen({ client, onSuccess, onRegister }: LoginScreenProps)
       </Pressable>
 
       {banner !== null && <Text style={styles.banner}>{banner}</Text>}
+
+      <Pressable
+        style={styles.linkButton}
+        onPress={() => {
+          onForgotPassword?.();
+        }}
+        disabled={submitting}
+        accessibilityRole="button"
+        accessibilityLabel="Forgot password"
+      >
+        <Text style={styles.link}>Forgot password?</Text>
+      </Pressable>
 
       <Pressable
         style={styles.linkButton}

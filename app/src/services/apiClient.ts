@@ -124,6 +124,16 @@ export class ApiClient {
     return body.token;
   }
 
+  /** Request a password-reset email. Always resolves (no account disclosure). */
+  public async forgotPassword(email: string): Promise<void> {
+    await this.send('POST', '/auth/forgot-password', { email }, false);
+  }
+
+  /** Reset a password using an emailed token. Throws ApiError(400) if invalid/expired. */
+  public async resetPassword(token: string, newPassword: string): Promise<void> {
+    await this.send('POST', '/auth/reset-password', { token, newPassword }, false);
+  }
+
   /**
    * Change the signed-in user's password (re-verified server-side). The server
    * revokes all existing tokens and returns a fresh one for this device, which we
