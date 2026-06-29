@@ -2,12 +2,15 @@ import type { NextFunction, Request, Response } from 'express';
 
 import {
   changePasswordInputSchema,
+  forgotPasswordInputSchema,
   loginInputSchema,
   registerInputSchema,
+  resetPasswordInputSchema,
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
 import { changePassword, login, logoutAllDevices, registerUser } from '../services/authService.ts';
+import { requestPasswordReset, resetPassword } from '../services/passwordResetService.ts';
 
 export async function postLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
   const body: unknown = req.body;
@@ -76,6 +79,43 @@ export async function postLogoutAll(
   try {
     const result = await logoutAllDevices(principal);
     res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function postForgotPassword(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const parsed = forgotPasswordInputSchema.safeParse(req.body);
+  if (!parsed.success) {
+    next(new AppError('Invalid payload', 422));
+    return;
+  }
+  try {
+    // Always 204 — never reveal whether the email belongs to an account.
+    await requestPasswordReset(parsed.data.email);
+    res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function postResetPassword(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const parsed = resetPasswordInputSchema.safeParse(req.body);
+  if (!parsed.success) {
+    next(new AppError('Invalid payload', 422));
+    return;
+  }
+  try {
+    await resetPassword(parsed.data.token, parsed.data.newPassword);
+    res.status(204).end();
   } catch (error) {
     next(error);
   }
