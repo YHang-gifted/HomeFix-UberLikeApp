@@ -32,6 +32,14 @@ describe('PostgresServiceRequestRepository (PGlite)', () => {
     const queryable = { query: (text, params) => db.query(text, params) };
     repo = new PostgresServiceRequestRepository(queryable);
     await runMigrations(queryable);
+    // service_requests.customer_id / worker_id are FK → users(id) (migration
+    // 0018), so the referenced users must exist before saving a request.
+    await queryable.query(
+      `INSERT INTO users (id, email, role, display_name, password_hash)
+       VALUES ($1, 'customer@homefix.test', 'customer', 'Demo Customer', 'h'),
+              ($2, 'worker@homefix.test', 'worker', 'Demo Worker', 'h')`,
+      [CUSTOMER_ID, WORKER_ID],
+    );
   });
 
   after(async () => {

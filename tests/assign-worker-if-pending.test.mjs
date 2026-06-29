@@ -139,6 +139,16 @@ describe('PostgresServiceRequestRepository.assignWorkerIfPending (PGlite)', () =
   before(async () => {
     db = new PGlite();
     await runMigrations({ query: (text, params) => db.query(text, params) });
+    // service_requests.customer_id / worker_id are FK → users(id) (migration
+    // 0018). Seed the referenced users (customer, the assigned worker, and the
+    // other worker that can win the concurrent-claim race) so saves/assigns pass.
+    await db.query(
+      `INSERT INTO users (id, email, role, display_name, password_hash)
+       VALUES ($1, 'customer@homefix.test', 'customer', 'Demo Customer', 'h'),
+              ($2, 'worker@homefix.test', 'worker', 'Demo Worker', 'h'),
+              ($3, 'worker2@homefix.test', 'worker', 'Other Worker', 'h')`,
+      [CUSTOMER_ID, WORKER_ID, OTHER_WORKER],
+    );
   });
 
   after(async () => {
