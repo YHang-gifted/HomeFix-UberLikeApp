@@ -127,6 +127,16 @@ export const changePasswordInputSchema = z.object({
 });
 export type ChangePasswordInput = z.infer<typeof changePasswordInputSchema>;
 
+// Forgot-password: request a reset email, then reset with the emailed token.
+export const forgotPasswordInputSchema = z.object({ email: z.email() });
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordInputSchema>;
+
+export const resetPasswordInputSchema = z.object({
+  token: z.string().min(1),
+  newPassword: z.string().min(8).max(200),
+});
+export type ResetPasswordInput = z.infer<typeof resetPasswordInputSchema>;
+
 export const phoneSchema = z.string().regex(/^[+]?[\d ()-]{7,20}$/, 'Enter a valid phone number');
 
 export const requestContactsSchema = z.object({

@@ -309,4 +309,20 @@ export const migrations: Migration[] = [
     id: '0022_user_token_version',
     sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version integer NOT NULL DEFAULT 0`,
   },
+  {
+    // Password reset: short-lived, single-use tokens. Only a SHA-256 hash of the
+    // token is stored; the plaintext is emailed to the user. A new table, so the
+    // user_id FK is validated inline (no existing rows to scan).
+    id: '0023_password_reset_tokens',
+    sql: `
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id uuid PRIMARY KEY,
+        user_id uuid NOT NULL REFERENCES users (id),
+        token_hash text NOT NULL UNIQUE,
+        expires_at timestamptz NOT NULL,
+        used_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `,
+  },
 ];
