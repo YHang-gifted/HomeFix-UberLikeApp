@@ -31,6 +31,13 @@ describe('PostgresAuditRepository (PGlite)', () => {
     const queryable = { query: (text, params) => db.query(text, params) };
     repo = new PostgresAuditRepository(queryable);
     await runMigrations(queryable);
+    // audit_events.actor_id is a FK → users(id) (migration 0021). resource_id is
+    // polymorphic and intentionally has no FK.
+    await queryable.query(
+      `INSERT INTO users (id, email, role, display_name, password_hash)
+       VALUES ($1, 'admin@homefix.test', 'admin', 'Demo Admin', 'h')`,
+      [ACTOR_ID],
+    );
   });
 
   after(async () => {
