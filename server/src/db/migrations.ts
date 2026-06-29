@@ -325,4 +325,17 @@ export const migrations: Migration[] = [
       )
     `,
   },
+  {
+    // Account lifecycle status. `active` is the default for every existing and
+    // new row; `suspended` blocks sign-in (admin action); `deleted` is the
+    // soft-delete state (the row is kept so the FK graph stays intact, but its
+    // PII is scrubbed). The CHECK is a DROP IF EXISTS + ADD pair so the
+    // multi-statement migration is idempotent.
+    id: '0024_user_status',
+    sql: `
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'active';
+      ALTER TABLE users DROP CONSTRAINT IF EXISTS chk_users_status;
+      ALTER TABLE users ADD CONSTRAINT chk_users_status CHECK (status IN ('active', 'suspended', 'deleted'))
+    `,
+  },
 ];

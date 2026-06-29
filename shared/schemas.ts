@@ -3,6 +3,10 @@ import { z } from 'zod';
 export const roleSchema = z.enum(['customer', 'worker', 'admin']);
 export type Role = z.infer<typeof roleSchema>;
 
+/** Account lifecycle state. `suspended` blocks sign-in; `deleted` is a soft-delete (PII scrubbed). */
+export const accountStatusSchema = z.enum(['active', 'suspended', 'deleted']);
+export type AccountStatus = z.infer<typeof accountStatusSchema>;
+
 export const serviceCategorySchema = z.enum([
   'plumbing',
   'electrical',
@@ -168,6 +172,8 @@ export const auditActionSchema = z.enum([
   'service_request.created',
   'service_request.assigned',
   'service_request.status_changed',
+  'account.suspended',
+  'account.reinstated',
 ]);
 export type AuditAction = z.infer<typeof auditActionSchema>;
 

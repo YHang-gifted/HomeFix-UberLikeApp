@@ -1,10 +1,12 @@
 import type {
+  AccountStatus,
   Role,
   ServiceCategory,
   UpdateProfileInput,
   WorkerAvailability,
 } from '../../../shared/schemas.ts';
 import {
+  accountStatusSchema,
   roleSchema,
   workerAvailabilitySchema,
   workerSkillsSchema,
@@ -23,6 +25,7 @@ interface UserRow {
   availability: string | null;
   password_hash: string;
   token_version: number;
+  status: string;
 }
 
 function parseAvailability(value: unknown): WorkerAvailability | undefined {
@@ -41,6 +44,7 @@ function parseSkills(value: unknown): ServiceCategory[] | undefined {
 function mapRow(row: unknown): UserRecord {
   const r = row as UserRow;
   const role: Role = roleSchema.parse(r.role);
+  const status: AccountStatus = accountStatusSchema.parse(r.status);
   const skills = parseSkills(r.skills);
   const availability = parseAvailability(r.availability);
   return {
@@ -50,6 +54,7 @@ function mapRow(row: unknown): UserRecord {
     displayName: r.display_name,
     passwordHash: r.password_hash,
     tokenVersion: r.token_version,
+    status,
     ...(r.phone !== null ? { phone: r.phone } : {}),
     ...(r.bio !== null ? { bio: r.bio } : {}),
     ...(skills !== undefined ? { skills } : {}),
@@ -129,5 +134,14 @@ export class PostgresUserRepository implements UserRepository {
     );
     const row = result.rows[0] as { token_version: number } | undefined;
     return row === undefined ? undefined : row.token_version;
+  }
+
+  public async setStatus(id: string, status: AccountStatus): Promise<UserRecord | undefined> {
+    const result = await this.db.query('UPDATE users SET status = $2 WHERE id = $1 RETURNING *', [
+      id,
+      status,
+    ]);
+    const row = result.rows[0];
+    return row === undefined ? undefined : mapRow(row);
   }
 }

@@ -1,6 +1,7 @@
 import process from 'node:process';
 
 import type {
+  AccountStatus,
   Role,
   ServiceCategory,
   UpdateProfileInput,
@@ -22,6 +23,8 @@ export interface UserRecord {
   passwordHash: string;
   /** Bumped to invalidate all previously issued JWTs (logout-all, password change). */
   tokenVersion: number;
+  /** Account lifecycle state. Only `active` accounts may sign in. */
+  status: AccountStatus;
 }
 
 export interface UserRepository {
@@ -35,6 +38,8 @@ export interface UserRepository {
   updatePassword(id: string, passwordHash: string): Promise<UserRecord | undefined>;
   /** Increment token_version (revoking all current tokens). Returns the new value. */
   bumpTokenVersion(id: string): Promise<number | undefined>;
+  /** Set the account lifecycle status. Returns the updated record, or undefined if unknown. */
+  setStatus(id: string, status: AccountStatus): Promise<UserRecord | undefined>;
 }
 
 /** Demo seed users for local development only. Replace with a real user store. */
@@ -82,6 +87,7 @@ export class InMemoryUserRepository implements UserRepository {
         displayName: seed.displayName,
         passwordHash: hashPassword(seed.password),
         tokenVersion: 0,
+        status: 'active',
       });
     }
   }
@@ -116,6 +122,7 @@ export class InMemoryUserRepository implements UserRepository {
       role: user.role,
       passwordHash: user.passwordHash,
       tokenVersion: user.tokenVersion,
+      status: user.status,
       displayName: patch.displayName,
       ...(patch.phone !== undefined ? { phone: patch.phone } : {}),
       ...(patch.bio !== undefined ? { bio: patch.bio } : {}),
@@ -144,6 +151,16 @@ export class InMemoryUserRepository implements UserRepository {
     const updated: UserRecord = { ...user, tokenVersion: user.tokenVersion + 1 };
     this.users.set(user.email.toLowerCase(), updated);
     return Promise.resolve(updated.tokenVersion);
+  }
+
+  public setStatus(id: string, status: AccountStatus): Promise<UserRecord | undefined> {
+    const user = [...this.users.values()].find((candidate) => candidate.id === id);
+    if (!user) {
+      return Promise.resolve(undefined);
+    }
+    const updated: UserRecord = { ...user, status };
+    this.users.set(user.email.toLowerCase(), updated);
+    return Promise.resolve(updated);
   }
 }
 
