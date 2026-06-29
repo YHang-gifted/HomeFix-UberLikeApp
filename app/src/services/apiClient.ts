@@ -124,9 +124,37 @@ export class ApiClient {
     return body.token;
   }
 
-  /** Change the signed-in user's password (re-verified server-side). 204, no body. */
+  /**
+   * Change the signed-in user's password (re-verified server-side). The server
+   * revokes all existing tokens and returns a fresh one for this device, which we
+   * adopt so the current session keeps working. Caller should persist the token
+   * via `getToken()`.
+   */
   public async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    await this.send('POST', '/auth/change-password', { currentPassword, newPassword }, true);
+    const data = await this.send(
+      'POST',
+      '/auth/change-password',
+      { currentPassword, newPassword },
+      true,
+    );
+    const body = data as { token?: unknown };
+    if (typeof body.token === 'string') {
+      this.token = body.token;
+    }
+  }
+
+  /** Log out of all devices: revokes every existing token and adopts a fresh one. */
+  public async logoutAll(): Promise<void> {
+    const data = await this.send('POST', '/auth/logout-all', undefined, true);
+    const body = data as { token?: unknown };
+    if (typeof body.token === 'string') {
+      this.token = body.token;
+    }
+  }
+
+  /** The current bearer token, if signed in (for persisting after a token refresh). */
+  public getToken(): string | undefined {
+    return this.token;
   }
 
   public async getMe(): Promise<UserProfile> {

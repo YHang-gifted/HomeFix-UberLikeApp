@@ -22,6 +22,7 @@ interface UserRow {
   skills: unknown;
   availability: string | null;
   password_hash: string;
+  token_version: number;
 }
 
 function parseAvailability(value: unknown): WorkerAvailability | undefined {
@@ -48,6 +49,7 @@ function mapRow(row: unknown): UserRecord {
     role,
     displayName: r.display_name,
     passwordHash: r.password_hash,
+    tokenVersion: r.token_version,
     ...(r.phone !== null ? { phone: r.phone } : {}),
     ...(r.bio !== null ? { bio: r.bio } : {}),
     ...(skills !== undefined ? { skills } : {}),
@@ -118,5 +120,14 @@ export class PostgresUserRepository implements UserRepository {
     );
     const row = result.rows[0];
     return row === undefined ? undefined : mapRow(row);
+  }
+
+  public async bumpTokenVersion(id: string): Promise<number | undefined> {
+    const result = await this.db.query(
+      'UPDATE users SET token_version = token_version + 1 WHERE id = $1 RETURNING token_version',
+      [id],
+    );
+    const row = result.rows[0] as { token_version: number } | undefined;
+    return row === undefined ? undefined : row.token_version;
   }
 }

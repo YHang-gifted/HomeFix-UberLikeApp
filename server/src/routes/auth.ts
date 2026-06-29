@@ -1,6 +1,11 @@
 import express from 'express';
 
-import { postChangePassword, postLogin, postRegister } from '../controllers/authController.ts';
+import {
+  postChangePassword,
+  postLogin,
+  postLogoutAll,
+  postRegister,
+} from '../controllers/authController.ts';
 import { authenticate } from '../middlewares/auth.ts';
 import { createRateLimiter } from '../middlewares/rateLimit.ts';
 
@@ -14,3 +19,5 @@ authRouter.post('/auth/register', authRateLimiter, postRegister);
 authRouter.post('/auth/login', authRateLimiter, postLogin);
 // Authenticated self-service password change (re-verifies the current password).
 authRouter.post('/auth/change-password', authenticate, postChangePassword);
+// Log out of all devices by invalidating every previously issued token.
+authRouter.post('/auth/logout-all', authenticate, postLogoutAll);

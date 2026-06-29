@@ -39,7 +39,7 @@ describe('POST /auth/login', () => {
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(typeof body.token, 'string');
-    const principal = verifyToken(body.token);
+    const { principal } = verifyToken(body.token);
     assert.equal(principal.role, 'customer');
     assert.equal(principal.id, '123e4567-e89b-12d3-a456-426614174000');
   });

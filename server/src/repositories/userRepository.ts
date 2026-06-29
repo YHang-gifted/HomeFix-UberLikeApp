@@ -20,6 +20,8 @@ export interface UserRecord {
   skills?: ServiceCategory[];
   availability?: WorkerAvailability;
   passwordHash: string;
+  /** Bumped to invalidate all previously issued JWTs (logout-all, password change). */
+  tokenVersion: number;
 }
 
 export interface UserRepository {
@@ -31,6 +33,8 @@ export interface UserRepository {
   updateProfile(id: string, patch: UpdateProfileInput): Promise<UserRecord | undefined>;
   /** Set the user's password hash. Returns the updated record, or undefined if unknown. */
   updatePassword(id: string, passwordHash: string): Promise<UserRecord | undefined>;
+  /** Increment token_version (revoking all current tokens). Returns the new value. */
+  bumpTokenVersion(id: string): Promise<number | undefined>;
 }
 
 /** Demo seed users for local development only. Replace with a real user store. */
@@ -77,6 +81,7 @@ export class InMemoryUserRepository implements UserRepository {
         role: seed.role,
         displayName: seed.displayName,
         passwordHash: hashPassword(seed.password),
+        tokenVersion: 0,
       });
     }
   }
@@ -110,6 +115,7 @@ export class InMemoryUserRepository implements UserRepository {
       email: user.email,
       role: user.role,
       passwordHash: user.passwordHash,
+      tokenVersion: user.tokenVersion,
       displayName: patch.displayName,
       ...(patch.phone !== undefined ? { phone: patch.phone } : {}),
       ...(patch.bio !== undefined ? { bio: patch.bio } : {}),
@@ -128,6 +134,16 @@ export class InMemoryUserRepository implements UserRepository {
     const updated: UserRecord = { ...user, passwordHash };
     this.users.set(user.email.toLowerCase(), updated);
     return Promise.resolve(updated);
+  }
+
+  public bumpTokenVersion(id: string): Promise<number | undefined> {
+    const user = [...this.users.values()].find((candidate) => candidate.id === id);
+    if (!user) {
+      return Promise.resolve(undefined);
+    }
+    const updated: UserRecord = { ...user, tokenVersion: user.tokenVersion + 1 };
+    this.users.set(user.email.toLowerCase(), updated);
+    return Promise.resolve(updated.tokenVersion);
   }
 }
 

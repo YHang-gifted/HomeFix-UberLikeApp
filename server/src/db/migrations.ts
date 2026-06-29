@@ -300,4 +300,13 @@ export const migrations: Migration[] = [
       ALTER TABLE audit_events ADD CONSTRAINT fk_audit_events_actor FOREIGN KEY (actor_id) REFERENCES users (id) NOT VALID
     `,
   },
+  {
+    // Token revocation: each user has a token_version that is embedded in their
+    // JWTs. Bumping it (logout-all, password change) invalidates every previously
+    // issued token. Existing tokens that predate this column carry no version and
+    // are treated as version 0, matching the default, so no one is logged out by
+    // the migration itself.
+    id: '0022_user_token_version',
+    sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version integer NOT NULL DEFAULT 0`,
+  },
 ];

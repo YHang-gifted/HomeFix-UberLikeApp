@@ -23,7 +23,7 @@ export async function login(input: LoginInput): Promise<LoginResult> {
     throw new AppError('Invalid email or password', 401);
   }
   const principal: Principal = { id: user.id, role: user.role };
-  return { token: signToken(principal), principal };
+  return { token: signToken(principal, user.tokenVersion), principal };
 }
 
 /** Create a new customer or worker account and sign them in. */
@@ -38,10 +38,11 @@ export async function registerUser(input: RegisterInput): Promise<LoginResult> {
     role: input.role,
     displayName: input.displayName,
     passwordHash: hashPassword(input.password),
+    tokenVersion: 0,
   };
   await userRepository.create(user);
   const principal: Principal = { id: user.id, role: user.role };
-  return { token: signToken(principal), principal };
+  return { token: signToken(principal, user.tokenVersion), principal };
 }
 
 /**
@@ -52,7 +53,7 @@ export async function registerUser(input: RegisterInput): Promise<LoginResult> {
 export async function changePassword(
   principal: Principal,
   input: ChangePasswordInput,
-): Promise<void> {
+): Promise<{ token: string }> {
   const user = await userRepository.findById(principal.id);
   if (!user) {
     throw new AppError('Account not found', 404);
@@ -61,4 +62,20 @@ export async function changePassword(
     throw new AppError('Current password is incorrect', 401);
   }
   await userRepository.updatePassword(user.id, hashPassword(input.newPassword));
+  // Invalidate all existing sessions (other devices), then issue a fresh token so
+  // the caller's current device stays signed in.
+  const newVersion = await userRepository.bumpTokenVersion(user.id);
+  return { token: signToken(principal, newVersion ?? user.tokenVersion + 1) };
+}
+
+/**
+ * Log out of all devices: bump the user's token_version so every previously
+ * issued token is rejected, and return a fresh token for the current device.
+ */
+export async function logoutAllDevices(principal: Principal): Promise<{ token: string }> {
+  const newVersion = await userRepository.bumpTokenVersion(principal.id);
+  if (newVersion === undefined) {
+    throw new AppError('Account not found', 404);
+  }
+  return { token: signToken(principal, newVersion) };
 }
