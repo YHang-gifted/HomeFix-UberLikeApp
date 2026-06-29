@@ -31,6 +31,21 @@ describe('PostgresNotificationRepository (PGlite)', () => {
     const queryable = { query: (text, params) => db.query(text, params) };
     repo = new PostgresNotificationRepository(queryable);
     await runMigrations(queryable);
+    // notifications FK → users(id) + service_requests(id) (migration 0020): seed
+    // both users and the request the notifications reference (request_id is
+    // nullable, so the null cases need no parent).
+    await queryable.query(
+      `INSERT INTO users (id, email, role, display_name, password_hash)
+       VALUES ($1, 'user@homefix.test', 'customer', 'Demo User', 'h'),
+              ($2, 'other@homefix.test', 'worker', 'Other User', 'h')`,
+      [USER_ID, OTHER_USER_ID],
+    );
+    await queryable.query(
+      `INSERT INTO service_requests
+         (id, customer_id, category, description, latitude, longitude, status, created_at)
+       VALUES ($1, $2, 'plumbing', 'x', 25, 121, 'pending', $3)`,
+      [REQUEST_ID, USER_ID, '2026-06-24T00:00:00.000Z'],
+    );
   });
 
   after(async () => {

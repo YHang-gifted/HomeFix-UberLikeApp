@@ -62,11 +62,11 @@ describe('schema CHECK constraints (PGlite)', () => {
       [randomUUID(), `${randomUUID()}@homefix.test`, role, 'Demo', 'hash'],
     );
 
-  const insertReview = (rating) =>
+  const insertReview = async (rating) =>
     q.query(
       `INSERT INTO reviews (id, request_id, customer_id, worker_id, rating, created_at)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [randomUUID(), randomUUID(), randomUUID(), randomUUID(), rating, NOW],
+      [randomUUID(), await seedRequest(), CUSTOMER, WORKER, rating, NOW],
     );
 
   const insertQuote = async (amountCents) =>

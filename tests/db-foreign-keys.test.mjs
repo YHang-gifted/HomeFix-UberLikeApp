@@ -40,6 +40,30 @@ function insertPayment(q, { requestId }) {
   );
 }
 
+function insertReview(q, { requestId }) {
+  return q.query(
+    `INSERT INTO reviews (id, request_id, customer_id, worker_id, rating, created_at)
+     VALUES ($1, $2, $3, $4, 5, $5)`,
+    [randomUUID(), requestId, CUSTOMER, WORKER, NOW],
+  );
+}
+
+function insertNotification(q, { requestId }) {
+  return q.query(
+    `INSERT INTO notifications (id, user_id, message, request_id, read, created_at)
+     VALUES ($1, $2, 'hi', $3, false, $4)`,
+    [randomUUID(), CUSTOMER, requestId, NOW],
+  );
+}
+
+function insertMessage(q, { requestId }) {
+  return q.query(
+    `INSERT INTO messages (id, request_id, sender_id, sender_role, body, created_at)
+     VALUES ($1, $2, $3, 'customer', 'hi', $4)`,
+    [randomUUID(), requestId, CUSTOMER, NOW],
+  );
+}
+
 describe('schema foreign keys (PGlite)', () => {
   let db;
   let q;
@@ -86,5 +110,18 @@ describe('schema foreign keys (PGlite)', () => {
 
   it('rejects a payment with an unknown request_id', async () => {
     await assert.rejects(() => insertPayment(q, { requestId: randomUUID() }));
+  });
+
+  it('accepts review/notification/message referencing an existing request', async () => {
+    await insertReview(q, { requestId: REQUEST });
+    await insertNotification(q, { requestId: REQUEST });
+    await insertNotification(q, { requestId: null }); // request_id is nullable
+    await insertMessage(q, { requestId: REQUEST });
+  });
+
+  it('rejects review/notification/message with an unknown request_id', async () => {
+    await assert.rejects(() => insertReview(q, { requestId: randomUUID() }));
+    await assert.rejects(() => insertNotification(q, { requestId: randomUUID() }));
+    await assert.rejects(() => insertMessage(q, { requestId: randomUUID() }));
   });
 });

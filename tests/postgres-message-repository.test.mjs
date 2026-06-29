@@ -32,6 +32,21 @@ describe('PostgresMessageRepository (PGlite)', () => {
     const queryable = { query: (text, params) => db.query(text, params) };
     repo = new PostgresMessageRepository(queryable);
     await runMigrations(queryable);
+    // messages FK → users(id) + service_requests(id) (migration 0020): seed the
+    // sender users (customer + worker) and the two requests used below.
+    await queryable.query(
+      `INSERT INTO users (id, email, role, display_name, password_hash)
+       VALUES ($1, 'customer@homefix.test', 'customer', 'Demo Customer', 'h'),
+              ($2, 'worker@homefix.test', 'worker', 'Demo Worker', 'h')`,
+      [CUSTOMER_ID, WORKER_ID],
+    );
+    await queryable.query(
+      `INSERT INTO service_requests
+         (id, customer_id, category, description, latitude, longitude, status, created_at)
+       VALUES ($1, $3, 'plumbing', 'x', 25, 121, 'matched', $4),
+              ($2, $3, 'plumbing', 'x', 25, 121, 'matched', $4)`,
+      [REQUEST_ID, OTHER_REQUEST, CUSTOMER_ID, '2026-06-22T00:00:00.000Z'],
+    );
   });
 
   after(async () => {
