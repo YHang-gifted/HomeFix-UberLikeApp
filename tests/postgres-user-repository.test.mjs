@@ -33,6 +33,7 @@ describe('PostgresUserRepository (PGlite)', () => {
       CUSTOMER_ID,
       'Demo Customer',
     ]);
+    await db.query('UPDATE users SET token_version = 0');
   });
 
   it('finds a seeded user by email (case-insensitive)', async () => {
@@ -116,6 +117,17 @@ describe('PostgresUserRepository (PGlite)', () => {
       await repo.updatePassword('999e4567-e89b-12d3-a456-426614174000', 'x:y'),
       undefined,
     );
+  });
+
+  it('starts users at token_version 0 and bumps it, returning the new value', async () => {
+    const before = await repo.findById(WORKER_ID);
+    assert.equal(before?.tokenVersion, 0);
+
+    assert.equal(await repo.bumpTokenVersion(WORKER_ID), 1);
+    const after = await repo.findById(WORKER_ID);
+    assert.equal(after?.tokenVersion, 1);
+
+    assert.equal(await repo.bumpTokenVersion('999e4567-e89b-12d3-a456-426614174000'), undefined);
   });
 
   it('seedDemoUsers is idempotent (no duplicate rows)', async () => {

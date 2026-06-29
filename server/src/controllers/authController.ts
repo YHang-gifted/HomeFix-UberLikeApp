@@ -7,7 +7,7 @@ import {
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
-import { changePassword, login, registerUser } from '../services/authService.ts';
+import { changePassword, login, logoutAllDevices, registerUser } from '../services/authService.ts';
 
 export async function postLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
   const body: unknown = req.body;
@@ -57,8 +57,25 @@ export async function postChangePassword(
   }
 
   try {
-    await changePassword(principal, parsed.data);
-    res.status(204).end();
+    const result = await changePassword(principal, parsed.data);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function postLogoutAll(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+  try {
+    const result = await logoutAllDevices(principal);
+    res.status(200).json(result);
   } catch (error) {
     next(error);
   }

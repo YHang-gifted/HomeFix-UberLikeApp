@@ -7,14 +7,20 @@ import { AppError } from '../errors/appError.ts';
 
 const env = loadEnv();
 
-export function signToken(principal: Principal): string {
-  return jwt.sign({ role: principal.role }, env.JWT_SECRET, {
+/** A verified token: the principal plus the token_version it was signed with. */
+export interface VerifiedToken {
+  principal: Principal;
+  tokenVersion: number;
+}
+
+export function signToken(principal: Principal, tokenVersion = 0): string {
+  return jwt.sign({ role: principal.role, tv: tokenVersion }, env.JWT_SECRET, {
     subject: principal.id,
     expiresIn: env.JWT_EXPIRES_IN,
   });
 }
 
-export function verifyToken(token: string): Principal {
+export function verifyToken(token: string): VerifiedToken {
   let decoded: unknown;
   try {
     decoded = jwt.verify(token, env.JWT_SECRET);
@@ -26,10 +32,12 @@ export function verifyToken(token: string): Principal {
     throw new AppError('Invalid token payload', 401);
   }
 
-  const payload = decoded as { sub?: unknown; role?: unknown };
+  const payload = decoded as { sub?: unknown; role?: unknown; tv?: unknown };
   const result = principalSchema.safeParse({ id: payload.sub, role: payload.role });
   if (!result.success) {
     throw new AppError('Invalid token payload', 401);
   }
-  return result.data;
+  // Tokens issued before token_version existed carry no `tv` claim → treat as 0.
+  const tokenVersion = typeof payload.tv === 'number' ? payload.tv : 0;
+  return { principal: result.data, tokenVersion };
 }

@@ -53,8 +53,10 @@ describe('POST /auth/change-password', () => {
   }
 
   const login = (email, password) => post('/auth/login', { email, password });
+  const getMe = (token) =>
+    fetch(`${baseUrl}/me`, { headers: { Authorization: `Bearer ${token}` } });
 
-  it('changes the password: the new one works and the old one no longer does', async () => {
+  it('changes the password, returns a fresh token, and revokes the old one', async () => {
     const { email, token } = await registerUser();
 
     const changed = await post(
@@ -62,10 +64,17 @@ describe('POST /auth/change-password', () => {
       { currentPassword: ORIGINAL, newPassword: NEXT },
       token,
     );
-    assert.equal(changed.status, 204);
+    assert.equal(changed.status, 200);
+    const { token: newToken } = await changed.json();
+    assert.equal(typeof newToken, 'string');
 
+    // The new password logs in; the old one no longer does.
     assert.equal((await login(email, NEXT)).status, 200);
     assert.equal((await login(email, ORIGINAL)).status, 401);
+
+    // Token revocation: the pre-change token is rejected; the fresh one works.
+    assert.equal((await getMe(token)).status, 401);
+    assert.equal((await getMe(newToken)).status, 200);
   });
 
   it('rejects a wrong current password (401) and leaves the password unchanged', async () => {
