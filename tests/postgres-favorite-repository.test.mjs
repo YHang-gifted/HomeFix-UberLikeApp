@@ -20,6 +20,15 @@ describe('PostgresFavoriteRepository (PGlite)', () => {
     const queryable = { query: (text, params) => db.query(text, params) };
     repo = new PostgresFavoriteRepository(queryable);
     await runMigrations(queryable);
+    // favorites FK → users(id) (migration 0021): seed the customer and the two
+    // workers that get favorited.
+    await queryable.query(
+      `INSERT INTO users (id, email, role, display_name, password_hash)
+       VALUES ($1, 'customer@homefix.test', 'customer', 'Demo Customer', 'h'),
+              ($2, 'worker@homefix.test', 'worker', 'Demo Worker', 'h'),
+              ($3, 'worker2@homefix.test', 'worker', 'Other Worker', 'h')`,
+      [CUSTOMER_ID, WORKER_ID, OTHER_WORKER],
+    );
   });
 
   after(async () => {

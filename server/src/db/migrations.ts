@@ -283,4 +283,21 @@ export const migrations: Migration[] = [
       ALTER TABLE messages ADD CONSTRAINT fk_messages_sender FOREIGN KEY (sender_id) REFERENCES users (id) NOT VALID
     `,
   },
+  {
+    // FK hardening part 4 (final): favorites, device_tokens, and audit_events
+    // reference users. audit_events.resource_id is polymorphic (it points at a
+    // request, payment, etc., depending on the action) so it is intentionally
+    // left without a FK. NOT VALID + DROP IF EXISTS pairs.
+    id: '0021_fk_favorites_device_tokens_audit',
+    sql: `
+      ALTER TABLE favorites DROP CONSTRAINT IF EXISTS fk_favorites_customer;
+      ALTER TABLE favorites ADD CONSTRAINT fk_favorites_customer FOREIGN KEY (customer_id) REFERENCES users (id) NOT VALID;
+      ALTER TABLE favorites DROP CONSTRAINT IF EXISTS fk_favorites_worker;
+      ALTER TABLE favorites ADD CONSTRAINT fk_favorites_worker FOREIGN KEY (worker_id) REFERENCES users (id) NOT VALID;
+      ALTER TABLE device_tokens DROP CONSTRAINT IF EXISTS fk_device_tokens_user;
+      ALTER TABLE device_tokens ADD CONSTRAINT fk_device_tokens_user FOREIGN KEY (user_id) REFERENCES users (id) NOT VALID;
+      ALTER TABLE audit_events DROP CONSTRAINT IF EXISTS fk_audit_events_actor;
+      ALTER TABLE audit_events ADD CONSTRAINT fk_audit_events_actor FOREIGN KEY (actor_id) REFERENCES users (id) NOT VALID
+    `,
+  },
 ];

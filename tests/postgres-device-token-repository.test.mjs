@@ -18,6 +18,12 @@ describe('PostgresDeviceTokenRepository (PGlite)', () => {
     const queryable = { query: (text, params) => db.query(text, params) };
     repo = new PostgresDeviceTokenRepository(queryable);
     await runMigrations(queryable);
+    // device_tokens.user_id is a FK → users(id) (migration 0021).
+    await queryable.query(
+      `INSERT INTO users (id, email, role, display_name, password_hash)
+       VALUES ($1, 'user@homefix.test', 'customer', 'Demo User', 'h')`,
+      [USER_ID],
+    );
   });
 
   after(async () => {
