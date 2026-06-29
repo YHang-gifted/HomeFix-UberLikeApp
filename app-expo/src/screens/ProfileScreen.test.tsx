@@ -167,4 +167,23 @@ describe('ProfileScreen', () => {
     await findByText('Passwords do not match');
     expect(changePassword).not.toHaveBeenCalled();
   });
+
+  it('logs out of other devices and persists the refreshed token', async () => {
+    const getMe = jest.fn().mockResolvedValue(makeProfile());
+    const logoutAll = jest.fn().mockResolvedValue(undefined);
+    const getToken = jest.fn().mockReturnValue('fresh-token');
+    const onTokenRefreshed = jest.fn();
+    const client = { getMe, logoutAll, getToken } as unknown as ApiClient;
+
+    const { findByText, getByLabelText } = await render(
+      <ProfileScreen client={client} onTokenRefreshed={onTokenRefreshed} />,
+    );
+    await findByText('customer@homefix.test');
+
+    await fireEvent.press(getByLabelText('Log out other devices'));
+
+    await findByText('Logged out of other devices');
+    expect(logoutAll).toHaveBeenCalled();
+    expect(onTokenRefreshed).toHaveBeenCalledWith('fresh-token');
+  });
 });

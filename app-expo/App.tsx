@@ -299,7 +299,16 @@ function PaymentsRoute({
 }
 
 function ProfileRoute(): ReactElement {
-  return <ProfileScreen client={apiClient} />;
+  return (
+    <ProfileScreen
+      client={apiClient}
+      onTokenRefreshed={(token) => {
+        // change-password / logout-all rotate the token server-side; persist the
+        // fresh one so the session survives an app restart.
+        void tokenStore.set(token);
+      }}
+    />
+  );
 }
 
 export default function App(): ReactElement {

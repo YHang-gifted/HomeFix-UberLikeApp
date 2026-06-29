@@ -23,9 +23,14 @@ const AVAILABILITY_OPTIONS = workerAvailabilitySchema.options;
 export interface ProfileScreenProps {
   /** Optional client override (used by tests). Defaults to the app singleton. */
   client?: ApiClient;
+  /**
+   * Called with the client's fresh token after change-password / logout-all so
+   * the app can persist it (the server rotates the token on those actions).
+   */
+  onTokenRefreshed?: (token: string) => void | Promise<void>;
 }
 
-export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
+export function ProfileScreen({ client, onTokenRefreshed }: ProfileScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -44,6 +49,17 @@ export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
   const [pwErrors, setPwErrors] = useState<ChangePasswordFieldErrors>({});
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMessage, setPwMessage] = useState<string | null>(null);
+  const [logoutBusy, setLogoutBusy] = useState(false);
+
+  async function persistRefreshedToken(): Promise<void> {
+    if (onTokenRefreshed === undefined) {
+      return;
+    }
+    const token = activeClient.getToken();
+    if (token !== undefined) {
+      await onTokenRefreshed(token);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -119,6 +135,7 @@ export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
     setPwMessage(null);
     try {
       await activeClient.changePassword(currentPassword, newPassword);
+      await persistRefreshedToken();
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -127,6 +144,22 @@ export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
       setPwMessage(isApiError(changeError) ? changeError.message : 'Could not change password.');
     } finally {
       setPwSaving(false);
+    }
+  }
+
+  async function submitLogoutAll(): Promise<void> {
+    setLogoutBusy(true);
+    setPwMessage(null);
+    try {
+      await activeClient.logoutAll();
+      await persistRefreshedToken();
+      setPwMessage('Logged out of other devices');
+    } catch (logoutError) {
+      setPwMessage(
+        isApiError(logoutError) ? logoutError.message : 'Could not log out other devices.',
+      );
+    } finally {
+      setLogoutBusy(false);
     }
   }
 
@@ -314,6 +347,27 @@ export function ProfileScreen({ client }: ProfileScreenProps): ReactElement {
         )}
       </Pressable>
 
+      <Text style={styles.sectionHeader}>Devices</Text>
+      <Text style={styles.hint}>
+        Signs you out everywhere else by invalidating other devices’ sessions. This device stays
+        signed in.
+      </Text>
+      <Pressable
+        style={({ pressed }) => [styles.logout, (pressed || logoutBusy) && styles.logoutPressed]}
+        onPress={() => {
+          void submitLogoutAll();
+        }}
+        disabled={logoutBusy}
+        accessibilityRole="button"
+        accessibilityLabel="Log out other devices"
+      >
+        {logoutBusy ? (
+          <ActivityIndicator color="#2563eb" />
+        ) : (
+          <Text style={styles.logoutText}>Log out other devices</Text>
+        )}
+      </Pressable>
+
       {pwMessage !== null && <Text style={styles.message}>{pwMessage}</Text>}
     </ScrollView>
   );
@@ -362,4 +416,16 @@ const styles = StyleSheet.create({
   message: { marginTop: 16, fontSize: 14, color: '#0f172a' },
   sectionHeader: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginTop: 32 },
   fieldError: { color: '#dc2626', fontSize: 13, marginTop: 4 },
+  hint: { fontSize: 13, color: '#64748b', marginTop: 8, marginBottom: 12 },
+  logout: {
+    borderWidth: 1,
+    borderColor: '#2563eb',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  logoutPressed: { backgroundColor: '#eff6ff' },
+  logoutText: { color: '#2563eb', fontSize: 16, fontWeight: '600' },
 });
