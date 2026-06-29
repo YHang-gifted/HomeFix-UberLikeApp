@@ -34,13 +34,10 @@ describe('schema CHECK constraints (PGlite)', () => {
     );
 
   const insertUser = (role) =>
-    q.query(`INSERT INTO users (id, email, role, display_name, password_hash) VALUES ($1,$2,$3,$4,$5)`, [
-      randomUUID(),
-      `${randomUUID()}@homefix.test`,
-      role,
-      'Demo',
-      'hash',
-    ]);
+    q.query(
+      `INSERT INTO users (id, email, role, display_name, password_hash) VALUES ($1,$2,$3,$4,$5)`,
+      [randomUUID(), `${randomUUID()}@homefix.test`, role, 'Demo', 'hash'],
+    );
 
   const insertReview = (rating) =>
     q.query(
