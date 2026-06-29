@@ -32,6 +32,29 @@ describe('PostgresReviewRepository (PGlite)', () => {
     const queryable = { query: (text, params) => db.query(text, params) };
     repo = new PostgresReviewRepository(queryable);
     await runMigrations(queryable);
+    // reviews FK → users(id) + service_requests(id) (migration 0020): seed the
+    // customer, both workers, and the three requests the tests reference.
+    await queryable.query(
+      `INSERT INTO users (id, email, role, display_name, password_hash)
+       VALUES ($1, 'customer@homefix.test', 'customer', 'Demo Customer', 'h'),
+              ($2, 'worker@homefix.test', 'worker', 'Demo Worker', 'h'),
+              ($3, 'worker2@homefix.test', 'worker', 'Other Worker', 'h')`,
+      [CUSTOMER_ID, WORKER_ID, '823e4567-e89b-12d3-a456-426614174000'],
+    );
+    await queryable.query(
+      `INSERT INTO service_requests
+         (id, customer_id, category, description, latitude, longitude, status, created_at)
+       VALUES ($1, $4, 'plumbing', 'x', 25, 121, 'completed', $5),
+              ($2, $4, 'plumbing', 'x', 25, 121, 'completed', $5),
+              ($3, $4, 'plumbing', 'x', 25, 121, 'completed', $5)`,
+      [
+        REQUEST_ID,
+        '523e4567-e89b-12d3-a456-426614174111',
+        '523e4567-e89b-12d3-a456-426614174222',
+        CUSTOMER_ID,
+        '2026-06-22T00:00:00.000Z',
+      ],
+    );
   });
 
   after(async () => {

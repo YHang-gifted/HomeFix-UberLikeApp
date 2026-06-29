@@ -261,4 +261,26 @@ export const migrations: Migration[] = [
       ALTER TABLE payments ADD CONSTRAINT fk_payments_worker FOREIGN KEY (worker_id) REFERENCES users (id) NOT VALID
     `,
   },
+  {
+    // FK hardening part 3: reviews, notifications, and messages reference their
+    // service_request and the users involved (notifications.request_id is
+    // nullable, so its FK permits NULL). NOT VALID + DROP IF EXISTS pairs.
+    id: '0020_fk_reviews_notifications_messages',
+    sql: `
+      ALTER TABLE reviews DROP CONSTRAINT IF EXISTS fk_reviews_request;
+      ALTER TABLE reviews ADD CONSTRAINT fk_reviews_request FOREIGN KEY (request_id) REFERENCES service_requests (id) NOT VALID;
+      ALTER TABLE reviews DROP CONSTRAINT IF EXISTS fk_reviews_customer;
+      ALTER TABLE reviews ADD CONSTRAINT fk_reviews_customer FOREIGN KEY (customer_id) REFERENCES users (id) NOT VALID;
+      ALTER TABLE reviews DROP CONSTRAINT IF EXISTS fk_reviews_worker;
+      ALTER TABLE reviews ADD CONSTRAINT fk_reviews_worker FOREIGN KEY (worker_id) REFERENCES users (id) NOT VALID;
+      ALTER TABLE notifications DROP CONSTRAINT IF EXISTS fk_notifications_user;
+      ALTER TABLE notifications ADD CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users (id) NOT VALID;
+      ALTER TABLE notifications DROP CONSTRAINT IF EXISTS fk_notifications_request;
+      ALTER TABLE notifications ADD CONSTRAINT fk_notifications_request FOREIGN KEY (request_id) REFERENCES service_requests (id) NOT VALID;
+      ALTER TABLE messages DROP CONSTRAINT IF EXISTS fk_messages_request;
+      ALTER TABLE messages ADD CONSTRAINT fk_messages_request FOREIGN KEY (request_id) REFERENCES service_requests (id) NOT VALID;
+      ALTER TABLE messages DROP CONSTRAINT IF EXISTS fk_messages_sender;
+      ALTER TABLE messages ADD CONSTRAINT fk_messages_sender FOREIGN KEY (sender_id) REFERENCES users (id) NOT VALID
+    `,
+  },
 ];
