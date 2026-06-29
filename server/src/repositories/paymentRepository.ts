@@ -14,6 +14,10 @@ export interface PaymentRepository {
   findByWorker(workerId: string): Promise<Payment[]>;
   /** Count and summed amount of paid payments (for the admin dashboard). */
   paidTotals(): Promise<{ count: number; amountCents: number }>;
+  /** Remove the payment for a request (if any). Used when a job is returned to
+   * the pool; only ever called for an unpaid payment (paid jobs cannot be
+   * released/reset), so no settled money is dropped. */
+  deleteByRequest(requestId: string): Promise<void>;
   clear(): Promise<void>;
 }
 
@@ -51,6 +55,15 @@ export class InMemoryPaymentRepository implements PaymentRepository {
     const paid = [...this.payments.values()].filter((payment) => payment.status === 'paid');
     const amountCents = paid.reduce((sum, payment) => sum + payment.amountCents, 0);
     return Promise.resolve({ count: paid.length, amountCents });
+  }
+
+  public deleteByRequest(requestId: string): Promise<void> {
+    for (const [id, payment] of this.payments) {
+      if (payment.requestId === requestId) {
+        this.payments.delete(id);
+      }
+    }
+    return Promise.resolve();
   }
 
   public clear(): Promise<void> {

@@ -8,6 +8,9 @@ import { PostgresQuoteRepository } from './postgresQuoteRepository.ts';
 export interface QuoteRepository {
   save(quote: Quote): Promise<void>;
   findByRequest(requestId: string): Promise<Quote | undefined>;
+  /** Remove the quote for a request (if any). Used when a job is returned to the
+   * pool so the next worker can submit a fresh quote. */
+  deleteByRequest(requestId: string): Promise<void>;
   clear(): Promise<void>;
 }
 
@@ -23,6 +26,15 @@ export class InMemoryQuoteRepository implements QuoteRepository {
     return Promise.resolve(
       [...this.quotes.values()].find((quote) => quote.requestId === requestId),
     );
+  }
+
+  public deleteByRequest(requestId: string): Promise<void> {
+    for (const [id, quote] of this.quotes) {
+      if (quote.requestId === requestId) {
+        this.quotes.delete(id);
+      }
+    }
+    return Promise.resolve();
   }
 
   public clear(): Promise<void> {

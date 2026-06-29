@@ -90,6 +90,10 @@ export class PostgresPaymentRepository implements PaymentRepository {
     return { count: Number(row.count), amountCents: Number(row.amount_cents) };
   }
 
+  public async deleteByRequest(requestId: string): Promise<void> {
+    await this.db.query('DELETE FROM payments WHERE request_id = $1', [requestId]);
+  }
+
   public async clear(): Promise<void> {
     await this.db.query('DELETE FROM payments');
   }

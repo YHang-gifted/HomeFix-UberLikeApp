@@ -74,6 +74,18 @@ describe('PostgresQuoteRepository (PGlite)', () => {
     assert.equal(await repo.findByRequest(OTHER_REQUEST), undefined);
   });
 
+  it('deleteByRequest removes only that request’s quote', async () => {
+    await repo.save(makeQuote());
+    await repo.save(
+      makeQuote({ id: '623e4567-e89b-12d3-a456-426614174999', requestId: OTHER_REQUEST }),
+    );
+    await repo.deleteByRequest(REQUEST_ID);
+    assert.equal(await repo.findByRequest(REQUEST_ID), undefined);
+    assert.notEqual(await repo.findByRequest(OTHER_REQUEST), undefined);
+    // Idempotent: deleting again is a no-op.
+    await repo.deleteByRequest(REQUEST_ID);
+  });
+
   it('clear empties the table', async () => {
     await repo.save(makeQuote());
     await repo.clear();

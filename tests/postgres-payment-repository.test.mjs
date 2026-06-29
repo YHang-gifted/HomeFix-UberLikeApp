@@ -164,6 +164,18 @@ describe('PostgresPaymentRepository (PGlite)', () => {
     assert.deepEqual(totals, { count: 0, amountCents: 0 });
   });
 
+  it('deleteByRequest removes only that request’s payment', async () => {
+    await repo.save(makePayment());
+    await repo.save(
+      makePayment({ id: '623e4567-e89b-12d3-a456-426614174099', requestId: OTHER_REQUEST }),
+    );
+    await repo.deleteByRequest(REQUEST_ID);
+    assert.equal(await repo.findByRequest(REQUEST_ID), undefined);
+    assert.notEqual(await repo.findByRequest(OTHER_REQUEST), undefined);
+    // Idempotent: deleting again is a no-op.
+    await repo.deleteByRequest(REQUEST_ID);
+  });
+
   it('clear empties the table', async () => {
     await repo.save(makePayment());
     await repo.clear();
