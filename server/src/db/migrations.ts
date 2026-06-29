@@ -241,4 +241,24 @@ export const migrations: Migration[] = [
       ALTER TABLE service_requests ADD CONSTRAINT fk_service_requests_worker FOREIGN KEY (worker_id) REFERENCES users (id) NOT VALID
     `,
   },
+  {
+    // FK hardening part 2: the billing tables (quotes, payments) reference both
+    // their service_request and the customer/worker users. NOT VALID + DROP IF
+    // EXISTS pairs, same as 0018.
+    id: '0019_fk_quotes_payments',
+    sql: `
+      ALTER TABLE quotes DROP CONSTRAINT IF EXISTS fk_quotes_request;
+      ALTER TABLE quotes ADD CONSTRAINT fk_quotes_request FOREIGN KEY (request_id) REFERENCES service_requests (id) NOT VALID;
+      ALTER TABLE quotes DROP CONSTRAINT IF EXISTS fk_quotes_customer;
+      ALTER TABLE quotes ADD CONSTRAINT fk_quotes_customer FOREIGN KEY (customer_id) REFERENCES users (id) NOT VALID;
+      ALTER TABLE quotes DROP CONSTRAINT IF EXISTS fk_quotes_worker;
+      ALTER TABLE quotes ADD CONSTRAINT fk_quotes_worker FOREIGN KEY (worker_id) REFERENCES users (id) NOT VALID;
+      ALTER TABLE payments DROP CONSTRAINT IF EXISTS fk_payments_request;
+      ALTER TABLE payments ADD CONSTRAINT fk_payments_request FOREIGN KEY (request_id) REFERENCES service_requests (id) NOT VALID;
+      ALTER TABLE payments DROP CONSTRAINT IF EXISTS fk_payments_customer;
+      ALTER TABLE payments ADD CONSTRAINT fk_payments_customer FOREIGN KEY (customer_id) REFERENCES users (id) NOT VALID;
+      ALTER TABLE payments DROP CONSTRAINT IF EXISTS fk_payments_worker;
+      ALTER TABLE payments ADD CONSTRAINT fk_payments_worker FOREIGN KEY (worker_id) REFERENCES users (id) NOT VALID
+    `,
+  },
 ];
