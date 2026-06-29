@@ -9,6 +9,13 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Web export build artifacts
+.shared/
+export.log
+
+# local env (use .env.example as the template)
+.env
+
 # Native
 .kotlin/
 *.orig.*
