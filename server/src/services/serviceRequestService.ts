@@ -9,6 +9,8 @@ import type {
   ServiceRequestStatus,
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
+import { paymentRepository } from '../repositories/paymentRepository.ts';
+import { quoteRepository } from '../repositories/quoteRepository.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { userRepository } from '../repositories/userRepository.ts';
 import { listEventsForResource, recordAuditEvent } from './auditService.ts';
@@ -229,15 +231,43 @@ export async function claimRequest(id: string, principal: Principal): Promise<Se
 }
 
 /**
+ * A paid job cannot be returned to the pool: there is no refund flow, so
+ * releasing/resetting it would orphan the customer's payment with the old worker.
+ * Throws 422 when a paid payment exists for the request. (SEC-0005)
+ */
+async function assertNotPaid(requestId: string): Promise<void> {
+  const payment = await paymentRepository.findByRequest(requestId);
+  if (payment?.status === 'paid') {
+    throw new AppError('This job has been paid and can no longer be released or reset', 422);
+  }
+}
+
+/**
+ * Returning a job to the pool clears the previous worker's billing so the next
+ * worker starts clean: the old quote is removed (quotes are one-per-request, so a
+ * stale one would 409-block a new quote) and any UNPAID payment is removed. Paid
+ * jobs never reach here (guarded by assertNotPaid), so no settled money is lost.
+ */
+async function clearBillingForRelease(requestId: string): Promise<void> {
+  await quoteRepository.deleteByRequest(requestId);
+  await paymentRepository.deleteByRequest(requestId);
+}
+
+/**
  * The assigned worker releases a job they cannot finish, returning it to the
  * pool as `pending` so another worker can claim it. Worker-only, and only from
  * an active state (matched/accepted/in_progress); the owning customer is
- * notified. 404 if missing, 403 if not the assigned worker, 422 once terminal.
+ * notified. 404 if missing, 403 if not the assigned worker, 422 once terminal or
+ * already paid. On success the old quote and any unpaid payment are cleared so a
+ * new worker can quote/charge cleanly (SEC-0005).
  */
 export async function releaseRequest(id: string, principal: Principal): Promise<ServiceRequest> {
   if (principal.role !== 'worker') {
     throw new AppError('Only a worker may release a job', 403);
   }
+
+  // A paid job is committed to its worker — block before touching its state.
+  await assertNotPaid(id);
 
   const released = await serviceRequestRepository.releaseIfAssignedWorker(id, principal.id);
   if (!released) {
@@ -251,6 +281,7 @@ export async function releaseRequest(id: string, principal: Principal): Promise<
     throw new AppError('This job can no longer be released', 422);
   }
 
+  await clearBillingForRelease(id);
   await recordAuditEvent({
     actor: principal,
     action: 'service_request.status_changed',
@@ -269,12 +300,16 @@ export async function releaseRequest(id: string, principal: Principal): Promise<
  * Admin override: return a stuck assigned request to the pool so it can be
  * re-claimed or re-assigned. Admin-only, only from an active state; both the
  * customer and the previously assigned worker are notified. 404 if missing,
- * 422 once terminal or already pending.
+ * 422 once terminal, already pending, or already paid. On success the old quote
+ * and any unpaid payment are cleared so a new worker can quote/charge (SEC-0005).
  */
 export async function resetRequest(id: string, principal: Principal): Promise<ServiceRequest> {
   if (principal.role !== 'admin') {
     throw new AppError('Only an admin may reset a request', 403);
   }
+
+  // A paid job is committed to its worker — block before touching its state.
+  await assertNotPaid(id);
 
   const before = await serviceRequestRepository.findById(id);
   const reset = await serviceRequestRepository.releaseToPending(id);
@@ -285,6 +320,7 @@ export async function resetRequest(id: string, principal: Principal): Promise<Se
     throw new AppError('This request is not assigned and cannot be reset', 422);
   }
 
+  await clearBillingForRelease(id);
   await recordAuditEvent({
     actor: principal,
     action: 'service_request.status_changed',

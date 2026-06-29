@@ -27,12 +27,13 @@ Use exactly one of: `authentication`, `authorization`, `input-validation`, `inje
 
 ## Index
 
-| ID       | Date       | Category       | Title                                                             | Status    |
-| -------- | ---------- | -------------- | ----------------------------------------------------------------- | --------- |
-| SEC-0001 | 2026-06-14 | authorization  | (Example) Missing server-side authz on order PATCH                | example   |
-| SEC-0002 | 2026-06-22 | data-exposure  | Permissive dev CORS on the API (`Access-Control-Allow-Origin: *`) | addressed |
-| SEC-0003 | 2026-06-26 | rate-limiting  | No rate limiting on the unauthenticated auth endpoints            | fixed     |
-| SEC-0004 | 2026-06-26 | authentication | Default JWT signing secret could reach production                 | fixed     |
+| ID       | Date       | Category          | Title                                                                | Status    |
+| -------- | ---------- | ----------------- | -------------------------------------------------------------------- | --------- |
+| SEC-0001 | 2026-06-14 | authorization     | (Example) Missing server-side authz on order PATCH                   | example   |
+| SEC-0002 | 2026-06-22 | data-exposure     | Permissive dev CORS on the API (`Access-Control-Allow-Origin: *`)    | addressed |
+| SEC-0003 | 2026-06-26 | rate-limiting     | No rate limiting on the unauthenticated auth endpoints               | fixed     |
+| SEC-0004 | 2026-06-26 | authentication    | Default JWT signing secret could reach production                    | fixed     |
+| SEC-0005 | 2026-06-28 | payment-integrity | Release/reset left the prior worker's quote & payment on the request | fixed     |
 
 ## Entry template
 
@@ -107,4 +108,17 @@ Copy this block for every new fix.
 - **Canonical fix:** Fail closed on weak secrets in production. `loadEnv` (`superRefine`) throws when `NODE_ENV === 'production'` and `JWT_SECRET` equals the exported `DEV_JWT_SECRET`, so the server refuses to boot rather than run with a forgeable key. Apply the same fail-closed env validation to any future production-only secret (DB credentials, payment provider keys, signing keys): never ship a usable default to production.
 - **Regression test:** `tests/env.test.mjs` (production + default/unset secret throws; a strong secret in production is accepted; dev/test keep the default).
 - **Prevention:** The `loadEnv` guard runs at startup on every deploy; extend it for each new secret. This ledger entry as the pattern of record.
+- **Related:** none
+
+### SEC-0005 — Release/reset of a job left the prior worker's quote & payment behind
+
+- **Date:** 2026-06-28
+- **Category:** payment-integrity
+- **Severity:** high
+- **Affected area:** `server/src/services/serviceRequestService.ts` (`releaseRequest`, `resetRequest`), with `quoteRepository` / `paymentRepository`
+- **Vulnerability:** Returning a job to the pool (a worker releasing, or an admin resetting) only changed `status`→`pending` and cleared `workerId`; it did not touch the request's quote or payment. Because quotes and payments are one-per-request (`request_id UNIQUE`, and `createQuote` 409s when one exists), after worker A quoted (and possibly the customer paid) and A released, worker B could claim the job but could **never submit a new quote** (perpetual 409), and any payment stayed attributed to A — including the dangerous case where the customer had already paid A but A could still hand the job off, orphaning the money with the wrong worker.
+- **Root cause:** Cross-domain lifecycle coupling was missed: the request state machine (release/reset) was added (slices 97/98) without coordinating the dependent billing records (quotes/payments, slices 72/62). No test exercised release/reset together with quote/payment.
+- **Canonical fix:** Returning a job to the pool must reconcile its dependent billing. (1) **Fail closed on settled money:** `assertNotPaid(requestId)` throws `AppError(…, 422)` if a `paid` payment exists, so a paid job can never be released or reset (there is no refund flow — that is a separate future capability). (2) **Clear stale, unsettled billing:** on a successful release/reset, `clearBillingForRelease(requestId)` calls `quoteRepository.deleteByRequest` and `paymentRepository.deleteByRequest`, removing the old quote and any _unpaid_ payment so the next worker starts clean. Apply this same "guard settled state, then clear dependent unsettled records" pattern to any future action that re-pools or reassigns a request (e.g. cancellation refunds, dispute resets). Added `deleteByRequest` to both `QuoteRepository` and `PaymentRepository` (in-memory + Postgres).
+- **Regression test:** `tests/release-reset-billing-consistency.test.mjs` (worker release clears the old quote + unpaid payment so a new worker can re-quote; a paid job is blocked from release AND reset with its payment preserved; admin reset clears the old quote + unpaid payment). Repo-level `deleteByRequest` covered in `tests/postgres-quote-repository.test.mjs` and `tests/postgres-payment-repository.test.mjs`.
+- **Prevention:** This ledger entry as the pattern of record; any new request-lifecycle action that re-pools a request must consider quotes/payments and add a cross-domain test. Mandatory tests for matching/payments/order-state per `CLAUDE.md`.
 - **Related:** none

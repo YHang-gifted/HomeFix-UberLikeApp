@@ -67,6 +67,10 @@ export class PostgresQuoteRepository implements QuoteRepository {
     return row === undefined ? undefined : mapRow(row);
   }
 
+  public async deleteByRequest(requestId: string): Promise<void> {
+    await this.db.query('DELETE FROM quotes WHERE request_id = $1', [requestId]);
+  }
+
   public async clear(): Promise<void> {
     await this.db.query('DELETE FROM quotes');
   }
