@@ -391,6 +391,15 @@ export const createPaymentInputSchema = z.object({
 });
 export type CreatePaymentInput = z.infer<typeof createPaymentInputSchema>;
 
+// A payment-provider webhook event. Provider-agnostic: `type` is free-form (only
+// 'payment.succeeded' is acted on; other event types are acknowledged and
+// ignored) and `paymentId` references the platform's own payment.
+export const paymentWebhookEventSchema = z.object({
+  type: z.string().min(1),
+  paymentId: z.uuid(),
+});
+export type PaymentWebhookEvent = z.infer<typeof paymentWebhookEventSchema>;
+
 // A price quote the assigned worker proposes for a request. The owning customer
 // accepts or declines it; an accepted quote is what the customer then pays.
 export const quoteStatusSchema = z.enum(['pending', 'accepted', 'declined']);

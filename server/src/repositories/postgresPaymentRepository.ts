@@ -63,6 +63,12 @@ export class PostgresPaymentRepository implements PaymentRepository {
     ]);
   }
 
+  public async findById(id: string): Promise<Payment | undefined> {
+    const result = await this.db.query('SELECT * FROM payments WHERE id = $1', [id]);
+    const row = result.rows[0];
+    return row === undefined ? undefined : mapRow(row);
+  }
+
   public async findByRequest(requestId: string): Promise<Payment | undefined> {
     const result = await this.db.query('SELECT * FROM payments WHERE request_id = $1', [requestId]);
     const row = result.rows[0];

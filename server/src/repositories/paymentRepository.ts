@@ -7,6 +7,7 @@ import { PostgresPaymentRepository } from './postgresPaymentRepository.ts';
 /** A request's payment record. At most one payment exists per request. */
 export interface PaymentRepository {
   save(payment: Payment): Promise<void>;
+  findById(id: string): Promise<Payment | undefined>;
   findByRequest(requestId: string): Promise<Payment | undefined>;
   /** A customer's payments, most-recent-first. */
   findByCustomer(customerId: string): Promise<Payment[]>;
@@ -27,6 +28,10 @@ export class InMemoryPaymentRepository implements PaymentRepository {
   public save(payment: Payment): Promise<void> {
     this.payments.set(payment.id, payment);
     return Promise.resolve();
+  }
+
+  public findById(id: string): Promise<Payment | undefined> {
+    return Promise.resolve(this.payments.get(id));
   }
 
   public findByRequest(requestId: string): Promise<Payment | undefined> {
