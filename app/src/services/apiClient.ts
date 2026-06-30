@@ -162,6 +162,16 @@ export class ApiClient {
     }
   }
 
+  /**
+   * Permanently delete (soft-delete / anonymize) the signed-in account after
+   * re-verifying the current password. The server revokes every token, so the
+   * local token is cleared on success; the caller should sign the user out.
+   */
+  public async deleteAccount(currentPassword: string): Promise<void> {
+    await this.send('POST', '/auth/delete-account', { currentPassword }, true);
+    this.token = undefined;
+  }
+
   /** The current bearer token, if signed in (for persisting after a token refresh). */
   public getToken(): string | undefined {
     return this.token;

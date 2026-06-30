@@ -28,9 +28,15 @@ export interface ProfileScreenProps {
    * the app can persist it (the server rotates the token on those actions).
    */
   onTokenRefreshed?: (token: string) => void | Promise<void>;
+  /** Called after the account is deleted so the app can sign the user out. */
+  onDeleted?: () => void | Promise<void>;
 }
 
-export function ProfileScreen({ client, onTokenRefreshed }: ProfileScreenProps): ReactElement {
+export function ProfileScreen({
+  client,
+  onTokenRefreshed,
+  onDeleted,
+}: ProfileScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -50,6 +56,11 @@ export function ProfileScreen({ client, onTokenRefreshed }: ProfileScreenProps):
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMessage, setPwMessage] = useState<string | null>(null);
   const [logoutBusy, setLogoutBusy] = useState(false);
+
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
 
   async function persistRefreshedToken(): Promise<void> {
     if (onTokenRefreshed === undefined) {
@@ -160,6 +171,29 @@ export function ProfileScreen({ client, onTokenRefreshed }: ProfileScreenProps):
       );
     } finally {
       setLogoutBusy(false);
+    }
+  }
+
+  async function submitDelete(): Promise<void> {
+    if (!deleteConfirmed) {
+      setDeleteMessage('Please confirm you understand this is permanent.');
+      return;
+    }
+    if (deletePassword.trim() === '') {
+      setDeleteMessage('Enter your password to delete your account.');
+      return;
+    }
+    setDeleteBusy(true);
+    setDeleteMessage(null);
+    try {
+      await activeClient.deleteAccount(deletePassword);
+      // The server has revoked every token; hand off to the app to sign out.
+      await onDeleted?.();
+    } catch (deleteError) {
+      setDeleteMessage(
+        isApiError(deleteError) ? deleteError.message : 'Could not delete your account.',
+      );
+      setDeleteBusy(false);
     }
   }
 
@@ -369,6 +403,54 @@ export function ProfileScreen({ client, onTokenRefreshed }: ProfileScreenProps):
       </Pressable>
 
       {pwMessage !== null && <Text style={styles.message}>{pwMessage}</Text>}
+
+      <Text style={[styles.sectionHeader, styles.dangerHeader]}>Delete account</Text>
+      <Text style={styles.hint}>
+        Permanently deletes your account and removes your personal data. This cannot be undone.
+      </Text>
+      <Pressable
+        style={styles.confirmRow}
+        onPress={() => {
+          setDeleteConfirmed((current) => !current);
+        }}
+        disabled={deleteBusy}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: deleteConfirmed }}
+        accessibilityLabel="Confirm permanent deletion"
+      >
+        <View style={[styles.checkbox, deleteConfirmed && styles.checkboxChecked]}>
+          {deleteConfirmed && <Text style={styles.checkboxMark}>✓</Text>}
+        </View>
+        <Text style={styles.confirmText}>I understand this is permanent.</Text>
+      </Pressable>
+
+      <Text style={styles.label}>Password</Text>
+      <TextInput
+        style={styles.input}
+        value={deletePassword}
+        onChangeText={setDeletePassword}
+        accessibilityLabel="Password to delete account"
+        secureTextEntry
+        editable={!deleteBusy}
+      />
+
+      <Pressable
+        style={({ pressed }) => [styles.delete, (pressed || deleteBusy) && styles.deletePressed]}
+        onPress={() => {
+          void submitDelete();
+        }}
+        disabled={deleteBusy}
+        accessibilityRole="button"
+        accessibilityLabel="Delete account"
+      >
+        {deleteBusy ? (
+          <ActivityIndicator color="#ffffff" />
+        ) : (
+          <Text style={styles.deleteText}>Delete account</Text>
+        )}
+      </Pressable>
+
+      {deleteMessage !== null && <Text style={styles.message}>{deleteMessage}</Text>}
     </ScrollView>
   );
 }
@@ -428,4 +510,29 @@ const styles = StyleSheet.create({
   },
   logoutPressed: { backgroundColor: '#eff6ff' },
   logoutText: { color: '#2563eb', fontSize: 16, fontWeight: '600' },
+  dangerHeader: { color: '#b91c1c' },
+  confirmRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#b91c1c',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: { backgroundColor: '#b91c1c' },
+  checkboxMark: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
+  confirmText: { fontSize: 14, color: '#334155', flexShrink: 1 },
+  delete: {
+    marginTop: 16,
+    backgroundColor: '#dc2626',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  deletePressed: { backgroundColor: '#b91c1c' },
+  deleteText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
 });
