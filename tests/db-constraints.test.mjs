@@ -106,6 +106,7 @@ describe('schema CHECK constraints (PGlite)', () => {
 
   it('enforces the payments status enum', async () => {
     await insertPayment('paid');
-    await assert.rejects(() => insertPayment('refunded'));
+    await insertPayment('refunded');
+    await assert.rejects(() => insertPayment('voided'));
   });
 });

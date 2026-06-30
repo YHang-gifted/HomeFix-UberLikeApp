@@ -4,10 +4,11 @@ import { timingSafeEqual } from 'node:crypto';
 import type { PaymentWebhookEvent } from '../../../shared/schemas.ts';
 import type { Env } from '../config/env.ts';
 import { AppError } from '../errors/appError.ts';
-import { confirmPaymentPaid } from './paymentService.ts';
+import { confirmPaymentPaid, confirmPaymentRefunded } from './paymentService.ts';
 
-/** The webhook event type that settles a payment. Other types are ignored. */
+/** The webhook event types we act on; any other type is acknowledged and ignored. */
 const PAYMENT_SUCCEEDED = 'payment.succeeded';
+const PAYMENT_REFUNDED = 'payment.refunded';
 
 function secretsMatch(provided: string, expected: string): boolean {
   const a = Buffer.from(provided);
@@ -43,5 +44,9 @@ export function verifyPaymentWebhook(providedSecret: string | undefined, env: En
 export async function handlePaymentWebhook(event: PaymentWebhookEvent): Promise<void> {
   if (event.type === PAYMENT_SUCCEEDED) {
     await confirmPaymentPaid(event.paymentId);
+    return;
+  }
+  if (event.type === PAYMENT_REFUNDED) {
+    await confirmPaymentRefunded(event.paymentId);
   }
 }

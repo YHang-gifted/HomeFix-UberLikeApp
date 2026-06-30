@@ -350,4 +350,14 @@ export const migrations: Migration[] = [
       ALTER TABLE payments ADD CONSTRAINT chk_payments_platform_fee CHECK (platform_fee_cents >= 0 AND platform_fee_cents <= amount_cents)
     `,
   },
+  {
+    // Refunds: a paid payment can be reversed to 'refunded'. Widen the status
+    // CHECK to admit the new terminal state. DROP IF EXISTS + ADD keeps it
+    // idempotent; the refund timestamp lives on the audit event, so no column.
+    id: '0026_payment_refunded_status',
+    sql: `
+      ALTER TABLE payments DROP CONSTRAINT IF EXISTS chk_payments_status;
+      ALTER TABLE payments ADD CONSTRAINT chk_payments_status CHECK (status IN ('pending', 'paid', 'refunded'))
+    `,
+  },
 ];

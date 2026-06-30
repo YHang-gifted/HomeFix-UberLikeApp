@@ -14,6 +14,7 @@ import { quoteRepository } from '../repositories/quoteRepository.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { isRequestParty } from './serviceRequestService.ts';
 import { recordNotification } from './notificationService.ts';
+import { recordAuditEvent } from './auditService.ts';
 
 async function loadRequest(requestId: string): Promise<ServiceRequest> {
   const request = await serviceRequestRepository.findById(requestId);
@@ -153,6 +154,71 @@ export async function confirmPaymentPaid(paymentId: string): Promise<Payment> {
     return payment;
   }
   return markPaid(payment);
+}
+
+/**
+ * Reverse a paid payment to `refunded` and notify both parties. The single place
+ * a payment is refunded, reached by the admin action and by a provider webhook.
+ */
+async function markRefunded(payment: Payment): Promise<Payment> {
+  const updated: Payment = { ...payment, status: 'refunded' };
+  await paymentRepository.save(updated);
+  await recordNotification({
+    userId: payment.workerId,
+    message: 'A payment to you was refunded.',
+    requestId: payment.requestId,
+  });
+  await recordNotification({
+    userId: payment.customerId,
+    message: 'Your payment was refunded.',
+    requestId: payment.requestId,
+  });
+  return updated;
+}
+
+/**
+ * Admin-only: refund a request's paid payment (mock — no provider is contacted).
+ * Only a paid payment can be refunded; a refund is audited. 404 if there is no
+ * payment, 409 if it is not paid.
+ */
+export async function refundPayment(requestId: string, principal: Principal): Promise<Payment> {
+  if (principal.role !== 'admin') {
+    throw new AppError('Only an admin may refund a payment', 403);
+  }
+  const payment = await paymentRepository.findByRequest(requestId);
+  if (!payment) {
+    throw new AppError('No payment for this request', 404);
+  }
+  if (payment.status !== 'paid') {
+    throw new AppError('Only a paid payment can be refunded', 409);
+  }
+  const refunded = await markRefunded(payment);
+  await recordAuditEvent({
+    actor: principal,
+    action: 'payment.refunded',
+    resourceId: payment.id,
+  });
+  return refunded;
+}
+
+/**
+ * Confirm a refund from a verified provider webhook. Idempotent: an
+ * already-refunded payment is returned unchanged. 404 if unknown, 409 if the
+ * payment was never paid. No authorization here — the caller verifies the
+ * webhook.
+ */
+export async function confirmPaymentRefunded(paymentId: string): Promise<Payment> {
+  const payment = await paymentRepository.findById(paymentId);
+  if (!payment) {
+    throw new AppError('Payment not found', 404);
+  }
+  if (payment.status === 'refunded') {
+    return payment;
+  }
+  if (payment.status !== 'paid') {
+    throw new AppError('Only a paid payment can be refunded', 409);
+  }
+  return markRefunded(payment);
 }
 
 export async function resetPayments(): Promise<void> {

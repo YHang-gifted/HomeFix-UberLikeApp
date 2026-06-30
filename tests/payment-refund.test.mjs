@@ -6,7 +6,6 @@ import { signToken } from '../server/src/auth/jwt.ts';
 import { resetServiceRequests } from '../server/src/services/serviceRequestService.ts';
 import { resetPayments } from '../server/src/services/paymentService.ts';
 import { resetQuotes } from '../server/src/services/quoteService.ts';
-import { verifyPaymentWebhook } from '../server/src/services/paymentWebhookService.ts';
 
 const CUSTOMER_ID = '123e4567-e89b-12d3-a456-426614174000';
 const ADMIN_ID = '323e4567-e89b-12d3-a456-426614174000';
@@ -16,36 +15,7 @@ function headers(id, role) {
   return { 'content-type': 'application/json', Authorization: `Bearer ${signToken({ id, role })}` };
 }
 
-describe('verifyPaymentWebhook', () => {
-  it('accepts a matching secret and rejects a wrong or missing one', () => {
-    const env = { PAYMENTS_WEBHOOK_SECRET: 'sek', NODE_ENV: 'production' };
-    assert.doesNotThrow(() => verifyPaymentWebhook('sek', env));
-    assert.throws(
-      () => verifyPaymentWebhook('nope', env),
-      (e) => e.statusCode === 401,
-    );
-    assert.throws(
-      () => verifyPaymentWebhook(undefined, env),
-      (e) => e.statusCode === 401,
-    );
-  });
-
-  it('without a configured secret, allows outside production but blocks in production', () => {
-    assert.doesNotThrow(() =>
-      verifyPaymentWebhook(undefined, { PAYMENTS_WEBHOOK_SECRET: undefined, NODE_ENV: 'test' }),
-    );
-    assert.throws(
-      () =>
-        verifyPaymentWebhook(undefined, {
-          PAYMENTS_WEBHOOK_SECRET: undefined,
-          NODE_ENV: 'production',
-        }),
-      (e) => e.statusCode === 401,
-    );
-  });
-});
-
-describe('POST /webhooks/payments', () => {
+describe('Payment refund', () => {
   let server;
   let baseUrl;
 
@@ -110,11 +80,19 @@ describe('POST /webhooks/payments', () => {
     return { requestId: request.id, paymentId: payment.id };
   }
 
-  function webhook(body) {
-    return fetch(`${baseUrl}/webhooks/payments`, {
+  async function paidPayment() {
+    const ids = await pendingPayment();
+    await fetch(`${baseUrl}/service-requests/${ids.requestId}/payment/pay`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      headers: headers(CUSTOMER_ID, 'customer'),
+    });
+    return ids;
+  }
+
+  function refund(requestId, who = headers(ADMIN_ID, 'admin')) {
+    return fetch(`${baseUrl}/service-requests/${requestId}/payment/refund`, {
+      method: 'POST',
+      headers: who,
     });
   }
 
@@ -124,37 +102,38 @@ describe('POST /webhooks/payments', () => {
     });
   }
 
-  it('confirms a pending payment as paid, idempotently', async () => {
-    const { requestId, paymentId } = await pendingPayment();
+  function webhook(body) {
+    return fetch(`${baseUrl}/webhooks/payments`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  }
 
-    const res = await webhook({ type: 'payment.succeeded', paymentId });
+  it('lets an admin refund a paid payment', async () => {
+    const { requestId } = await paidPayment();
+    const res = await refund(requestId);
     assert.equal(res.status, 200);
-    assert.deepEqual(await res.json(), { received: true });
-
-    assert.equal((await (await getPayment(requestId)).json()).status, 'paid');
-
-    // A retried delivery is a no-op success (still paid).
-    assert.equal((await webhook({ type: 'payment.succeeded', paymentId })).status, 200);
-    assert.equal((await (await getPayment(requestId)).json()).status, 'paid');
+    assert.equal((await res.json()).status, 'refunded');
+    assert.equal((await (await getPayment(requestId)).json()).status, 'refunded');
   });
 
-  it('ignores an unhandled event type without settling the payment', async () => {
-    const { requestId, paymentId } = await pendingPayment();
+  it('forbids a non-admin and rejects refunding an unpaid payment', async () => {
+    const paid = await paidPayment();
+    assert.equal((await refund(paid.requestId, headers(CUSTOMER_ID, 'customer'))).status, 403);
 
-    assert.equal((await webhook({ type: 'payment.processing', paymentId })).status, 200);
-    assert.equal((await (await getPayment(requestId)).json()).status, 'pending');
+    const pending = await pendingPayment();
+    assert.equal((await refund(pending.requestId)).status, 409);
   });
 
-  it('returns 404 for an unknown payment and 422 for an invalid payload', async () => {
-    assert.equal(
-      (
-        await webhook({
-          type: 'payment.succeeded',
-          paymentId: '999e4567-e89b-12d3-a456-426614174000',
-        })
-      ).status,
-      404,
-    );
-    assert.equal((await webhook({ type: 'payment.succeeded' })).status, 422);
+  it('confirms a refund from a webhook, idempotently', async () => {
+    const { requestId, paymentId } = await paidPayment();
+
+    assert.equal((await webhook({ type: 'payment.refunded', paymentId })).status, 200);
+    assert.equal((await (await getPayment(requestId)).json()).status, 'refunded');
+
+    // A retried delivery stays refunded.
+    assert.equal((await webhook({ type: 'payment.refunded', paymentId })).status, 200);
+    assert.equal((await (await getPayment(requestId)).json()).status, 'refunded');
   });
 });

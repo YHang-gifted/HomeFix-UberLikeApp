@@ -231,9 +231,10 @@ export async function claimRequest(id: string, principal: Principal): Promise<Se
 }
 
 /**
- * A paid job cannot be returned to the pool: there is no refund flow, so
- * releasing/resetting it would orphan the customer's payment with the old worker.
- * Throws 422 when a paid payment exists for the request. (SEC-0005)
+ * A paid job cannot be returned to the pool: releasing/resetting it would orphan
+ * the customer's settled payment with the old worker, so the payment must be
+ * refunded first. A refunded payment no longer blocks (the money was returned, so
+ * the job can be re-pooled). Throws 422 when a paid payment exists. (SEC-0005)
  */
 async function assertNotPaid(requestId: string): Promise<void> {
   const payment = await paymentRepository.findByRequest(requestId);
