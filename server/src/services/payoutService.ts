@@ -1,0 +1,77 @@
+import { randomUUID } from 'node:crypto';
+
+import type { Payment, Payout, PayoutWebhookEvent, Principal } from '../../../shared/schemas.ts';
+import { AppError } from '../errors/appError.ts';
+import { payoutRepository } from '../repositories/payoutRepository.ts';
+import { recordNotification } from './notificationService.ts';
+
+/** The webhook event type that settles a payout. Other types are ignored. */
+const PAYOUT_PAID = 'payout.paid';
+
+function workerNetOf(payment: Payment): number {
+  return payment.workerNetCents ?? payment.amountCents - (payment.platformFeeCents ?? 0);
+}
+
+/**
+ * Create a pending payout of a paid payment's worker net (Model B). Idempotent:
+ * a payment that already has a payout is left as-is, so re-confirming a payment
+ * never creates a duplicate. Mock — no provider is contacted.
+ */
+export async function createPayoutForPayment(payment: Payment): Promise<Payout> {
+  const existing = await payoutRepository.findByPayment(payment.id);
+  if (existing) {
+    return existing;
+  }
+  const payout: Payout = {
+    id: randomUUID(),
+    paymentId: payment.id,
+    workerId: payment.workerId,
+    amountCents: workerNetOf(payment),
+    currency: 'TWD',
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  };
+  await payoutRepository.save(payout);
+  return payout;
+}
+
+/**
+ * Confirm a payout as settled (from a verified provider webhook). Idempotent: an
+ * already-paid payout is returned unchanged. 404 if the payout is unknown. No
+ * authorization here — the caller verifies the webhook.
+ */
+export async function confirmPayoutPaid(payoutId: string): Promise<Payout> {
+  const payout = await payoutRepository.findById(payoutId);
+  if (!payout) {
+    throw new AppError('Payout not found', 404);
+  }
+  if (payout.status === 'paid') {
+    return payout;
+  }
+  const updated: Payout = { ...payout, status: 'paid', paidAt: new Date().toISOString() };
+  await payoutRepository.save(updated);
+  await recordNotification({
+    userId: payout.workerId,
+    message: 'Your payout has been sent to your account.',
+  });
+  return updated;
+}
+
+/** A worker's own payouts, most-recent-first. Only workers have payouts. */
+export async function listMyPayouts(principal: Principal): Promise<Payout[]> {
+  if (principal.role !== 'worker') {
+    throw new AppError('No payout history for this role', 403);
+  }
+  return payoutRepository.findByWorker(principal.id);
+}
+
+/** Act on a verified payout webhook. Only 'payout.paid' settles a payout. */
+export async function handlePayoutWebhook(event: PayoutWebhookEvent): Promise<void> {
+  if (event.type === PAYOUT_PAID) {
+    await confirmPayoutPaid(event.payoutId);
+  }
+}
+
+export async function resetPayouts(): Promise<void> {
+  await payoutRepository.clear();
+}
