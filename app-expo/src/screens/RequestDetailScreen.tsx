@@ -303,6 +303,21 @@ export function RequestDetailScreen({
     }
   }
 
+  async function refundNow(): Promise<void> {
+    setPaymentError(null);
+    setPaymentBusy(true);
+    try {
+      const refunded = await activeClient.refundPayment(requestId);
+      setPayment(refunded);
+    } catch (refundError) {
+      setPaymentError(
+        isApiError(refundError) ? refundError.message : 'Could not refund the payment.',
+      );
+    } finally {
+      setPaymentBusy(false);
+    }
+  }
+
   async function proposeQuote(): Promise<void> {
     const amountCents = dollarsToCents(quoteAmountText);
     if (amountCents === null) {
@@ -636,15 +651,42 @@ export function RequestDetailScreen({
               <View style={styles.paymentRow}>
                 <Text style={styles.paymentAmount}>{formatCents(payment.amountCents)}</Text>
                 <Text
-                  style={payment.status === 'paid' ? styles.paymentPaid : styles.paymentPending}
+                  style={
+                    payment.status === 'paid'
+                      ? styles.paymentPaid
+                      : payment.status === 'refunded'
+                        ? styles.paymentRefunded
+                        : styles.paymentPending
+                  }
                 >
-                  {payment.status === 'paid' ? 'Paid' : 'Pending'}
+                  {payment.status === 'paid'
+                    ? 'Paid'
+                    : payment.status === 'refunded'
+                      ? 'Refunded'
+                      : 'Pending'}
                 </Text>
               </View>
               {hasPlatformFee(payment) && (
                 <Text style={styles.paymentSplit}>
                   {`Worker net ${formatCents(paymentSplit(payment).workerNetCents)} · Platform fee ${formatCents(paymentSplit(payment).platformFeeCents)}`}
                 </Text>
+              )}
+              {isAdmin && payment.status === 'paid' && (
+                <Pressable
+                  style={({ pressed }) => [styles.refundButton, pressed && styles.refundPressed]}
+                  onPress={() => {
+                    void refundNow();
+                  }}
+                  disabled={paymentBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel="Refund payment"
+                >
+                  {paymentBusy ? (
+                    <ActivityIndicator color="#dc2626" />
+                  ) : (
+                    <Text style={styles.refundText}>Refund payment</Text>
+                  )}
+                </Pressable>
               )}
             </>
           )}
@@ -964,6 +1006,19 @@ const styles = StyleSheet.create({
   paymentSplit: { fontSize: 13, color: '#475569', marginTop: 6 },
   paymentPending: { fontSize: 14, fontWeight: '600', color: '#d97706' },
   paymentPaid: { fontSize: 14, fontWeight: '600', color: '#16a34a' },
+  paymentRefunded: { fontSize: 14, fontWeight: '600', color: '#64748b' },
+  refundButton: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#dc2626',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  refundPressed: { backgroundColor: '#fef2f2' },
+  refundText: { color: '#dc2626', fontSize: 15, fontWeight: '600' },
   paymentInput: {
     borderWidth: 1,
     borderColor: '#cbd5e1',

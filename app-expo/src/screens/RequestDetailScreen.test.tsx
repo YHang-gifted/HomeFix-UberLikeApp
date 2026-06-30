@@ -127,6 +127,37 @@ describe('RequestDetailScreen payments', () => {
     await findByText('Paid');
     expect(queryByLabelText('Pay now')).toBeNull();
     expect(queryByLabelText('Set up payment')).toBeNull();
+    // Refunds are admin-only.
+    expect(queryByLabelText('Refund payment')).toBeNull();
+  });
+
+  it('lets an admin refund a paid payment and shows it as refunded', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const refundPayment = jest
+      .fn()
+      .mockResolvedValue(makePayment({ status: 'refunded', paidAt: '2026-06-22T01:00:00.000Z' }));
+    const client = clientWith(
+      {
+        getServiceRequest: jest.fn().mockResolvedValue(request),
+        getPayment: jest
+          .fn()
+          .mockResolvedValue(makePayment({ status: 'paid', paidAt: '2026-06-22T01:00:00.000Z' })),
+        refundPayment,
+      },
+      { id: ADMIN_ID, role: 'admin' },
+    );
+
+    const { findByLabelText, findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    await findByText('Paid');
+    await fireEvent.press(await findByLabelText('Refund payment'));
+
+    await waitFor(() => {
+      expect(refundPayment).toHaveBeenCalledWith(request.id);
+    });
+    await findByText('Refunded');
   });
 });
 
