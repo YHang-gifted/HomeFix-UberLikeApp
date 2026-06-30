@@ -102,6 +102,9 @@ describe('request payments (mock)', () => {
     assert.equal(payment.currency, 'TWD');
     assert.equal(payment.status, 'pending');
     assert.equal(payment.workerId, WORKER_ID);
+    // Marketplace split at the default 15%: platform keeps 22500, worker nets 127500.
+    assert.equal(payment.platformFeeCents, 22500);
+    assert.equal(payment.workerNetCents, 127500);
   });
 
   it('marks the payment paid and notifies the worker', async () => {

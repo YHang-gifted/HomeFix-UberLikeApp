@@ -6,6 +6,8 @@ import type {
   Principal,
   ServiceRequest,
 } from '../../../shared/schemas.ts';
+import { splitPaymentAmount } from '../../../shared/schemas.ts';
+import { loadEnv } from '../config/env.ts';
 import { AppError } from '../errors/appError.ts';
 import { paymentRepository } from '../repositories/paymentRepository.ts';
 import { quoteRepository } from '../repositories/quoteRepository.ts';
@@ -81,6 +83,10 @@ export async function createPayment(
     throw new AppError('Payment amount must match the accepted quote', 422);
   }
 
+  const { platformFeeCents, workerNetCents } = splitPaymentAmount(
+    input.amountCents,
+    loadEnv().PLATFORM_FEE_BPS,
+  );
   const payment: Payment = {
     id: randomUUID(),
     requestId,
@@ -90,6 +96,8 @@ export async function createPayment(
     currency: 'TWD',
     status: 'pending',
     createdAt: new Date().toISOString(),
+    platformFeeCents,
+    workerNetCents,
   };
   await paymentRepository.save(payment);
   return payment;
