@@ -31,6 +31,8 @@ export interface UserRecord {
 export interface UserRepository {
   findByEmail(email: string): Promise<UserRecord | undefined>;
   listByRole(role: Role): Promise<UserRecord[]>;
+  /** All users, for admin account management. */
+  listAll(): Promise<UserRecord[]>;
   findById(id: string): Promise<UserRecord | undefined>;
   create(user: UserRecord): Promise<void>;
   /** Replace the user's editable profile fields; omitted optional fields are cleared. */
@@ -111,6 +113,10 @@ export class InMemoryUserRepository implements UserRepository {
 
   public listByRole(role: Role): Promise<UserRecord[]> {
     return Promise.resolve([...this.users.values()].filter((user) => user.role === role));
+  }
+
+  public listAll(): Promise<UserRecord[]> {
+    return Promise.resolve([...this.users.values()]);
   }
 
   public findById(id: string): Promise<UserRecord | undefined> {

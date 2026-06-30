@@ -86,6 +86,11 @@ export class PostgresUserRepository implements UserRepository {
     return result.rows.map(mapRow);
   }
 
+  public async listAll(): Promise<UserRecord[]> {
+    const result = await this.db.query('SELECT * FROM users ORDER BY display_name, email');
+    return result.rows.map(mapRow);
+  }
+
   public async findById(id: string): Promise<UserRecord | undefined> {
     const result = await this.db.query('SELECT * FROM users WHERE id = $1', [id]);
     const row = result.rows[0];

@@ -281,6 +281,26 @@ export const userProfileSchema = z.object({
 });
 export type UserProfile = z.infer<typeof userProfileSchema>;
 
+// Admin account-management view of a user. `email`/`displayName` are plain
+// strings (not validated) because a soft-deleted account carries scrubbed
+// placeholder values.
+export const adminUserSummarySchema = z.object({
+  id: z.uuid(),
+  email: z.string(),
+  displayName: z.string(),
+  role: roleSchema,
+  status: accountStatusSchema,
+});
+export type AdminUserSummary = z.infer<typeof adminUserSummarySchema>;
+export const adminUserListSchema = z.array(adminUserSummarySchema);
+
+// Result of an admin suspend/reinstate action.
+export const accountStatusResultSchema = z.object({
+  id: z.uuid(),
+  status: accountStatusSchema,
+});
+export type AccountStatusResult = z.infer<typeof accountStatusResultSchema>;
+
 export const publicUserSchema = z.object({
   id: z.uuid(),
   displayName: z.string().min(1).max(120),

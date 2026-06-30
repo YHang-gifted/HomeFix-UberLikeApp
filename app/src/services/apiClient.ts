@@ -1,5 +1,7 @@
 import type {
+  AccountStatus,
   AdminStats,
+  AdminUserSummary,
   AuditEvent,
   AuditPage,
   CreateQuoteInput,
@@ -25,7 +27,9 @@ import type {
   WorkerSummary,
 } from '../../../shared/schemas.ts';
 import {
+  accountStatusResultSchema,
   adminStatsSchema,
+  adminUserListSchema,
   auditPageSchema,
   deviceTokenListSchema,
   messageListSchema,
@@ -408,6 +412,24 @@ export class ApiClient {
   public async getAdminStats(): Promise<AdminStats> {
     const data = await this.send('GET', '/admin/stats', undefined, true);
     return adminStatsSchema.parse(data);
+  }
+
+  /** Admin-only: list every account for management. */
+  public async adminListUsers(): Promise<AdminUserSummary[]> {
+    const data = await this.send('GET', '/admin/users', undefined, true);
+    return adminUserListSchema.parse(data);
+  }
+
+  /** Admin-only: suspend an account. Returns the account's new status. */
+  public async adminSuspendUser(id: string): Promise<AccountStatus> {
+    const data = await this.send('POST', `/admin/users/${id}/suspend`, undefined, true);
+    return accountStatusResultSchema.parse(data).status;
+  }
+
+  /** Admin-only: lift a suspension. Returns the account's new status. */
+  public async adminReinstateUser(id: string): Promise<AccountStatus> {
+    const data = await this.send('POST', `/admin/users/${id}/reinstate`, undefined, true);
+    return accountStatusResultSchema.parse(data).status;
   }
 
   public async listNotifications(): Promise<NotificationList> {
