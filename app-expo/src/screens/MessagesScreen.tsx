@@ -20,12 +20,18 @@ export interface MessagesScreenProps {
   client?: ApiClient;
   /** Bump this to force a reload (e.g. when the screen regains focus). */
   refreshToken?: number;
+  /**
+   * How often (ms) to re-fetch the thread while the screen is open, so new
+   * messages appear without manual refresh. 0 disables polling (used by tests).
+   */
+  pollIntervalMs?: number;
 }
 
 export function MessagesScreen({
   requestId,
   client,
   refreshToken,
+  pollIntervalMs = 5000,
 }: MessagesScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
   const principal = useMemo(() => activeClient.getPrincipal(), [activeClient]);
@@ -54,10 +60,22 @@ export function MessagesScreen({
     }
 
     void load();
+    // Poll while the thread is open so new messages arrive without a manual
+    // refresh. Each tick re-fetches; the FlatList is keyed by id, so unchanged
+    // messages don't flicker.
+    const interval =
+      pollIntervalMs > 0
+        ? setInterval(() => {
+            void load();
+          }, pollIntervalMs)
+        : undefined;
     return () => {
       active = false;
+      if (interval !== undefined) {
+        clearInterval(interval);
+      }
     };
-  }, [activeClient, requestId, refreshToken, reload]);
+  }, [activeClient, requestId, refreshToken, reload, pollIntervalMs]);
 
   async function send(): Promise<void> {
     const trimmed = body.trim();
