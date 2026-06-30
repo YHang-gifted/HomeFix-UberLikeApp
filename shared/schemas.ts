@@ -433,6 +433,24 @@ export const payoutWebhookEventSchema = z.object({
 });
 export type PayoutWebhookEvent = z.infer<typeof payoutWebhookEventSchema>;
 
+// Image uploads. The client asks for an upload target for an allowed image type,
+// PUTs the bytes to `uploadUrl`, then stores `publicUrl` (e.g. in a request's
+// photoUrls). URLs are relative to the API base; the client resolves them.
+export const imageContentTypeSchema = z.enum(['image/jpeg', 'image/png', 'image/webp']);
+export type ImageContentType = z.infer<typeof imageContentTypeSchema>;
+
+export const createUploadInputSchema = z.object({
+  contentType: imageContentTypeSchema,
+});
+export type CreateUploadInput = z.infer<typeof createUploadInputSchema>;
+
+export const uploadTargetSchema = z.object({
+  id: z.uuid(),
+  uploadUrl: z.string(),
+  publicUrl: z.string(),
+});
+export type UploadTarget = z.infer<typeof uploadTargetSchema>;
+
 // A price quote the assigned worker proposes for a request. The owning customer
 // accepts or declines it; an accepted quote is what the customer then pays.
 export const quoteStatusSchema = z.enum(['pending', 'accepted', 'declined']);
