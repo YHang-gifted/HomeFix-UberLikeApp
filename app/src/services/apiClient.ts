@@ -11,6 +11,7 @@ import type {
   Notification,
   NotificationList,
   Payment,
+  Payout,
   Principal,
   PublicUser,
   Quote,
@@ -38,6 +39,7 @@ import {
   notificationSchema,
   paymentListSchema,
   paymentSchema,
+  payoutListSchema,
   publicUserListSchema,
   publicUserSchema,
   quoteSchema,
@@ -224,6 +226,12 @@ export class ApiClient {
   public async listMyPayments(): Promise<Payment[]> {
     const data = await this.send('GET', '/payments', undefined, true);
     return paymentListSchema.parse(data).items;
+  }
+
+  /** The signed-in worker's payouts (their net earnings), most-recent-first. */
+  public async listMyPayouts(): Promise<Payout[]> {
+    const data = await this.send('GET', '/payouts', undefined, true);
+    return payoutListSchema.parse(data).items;
   }
 
   public async createPayment(id: string, amountCents: number): Promise<Payment> {
