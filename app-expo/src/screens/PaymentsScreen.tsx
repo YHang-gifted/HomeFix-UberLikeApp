@@ -3,8 +3,15 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import { formatCents } from '../../../app/src/features/payments/paymentFormat';
+import { hasPlatformFee, paymentSplit } from '../../../app/src/features/payments/paymentSplit';
 import type { Payment } from '../../../shared/schemas';
 import { apiClient } from '../api';
+
+/** "Worker net NT$1,275.00 · Platform fee NT$225.00" for a payment with a fee. */
+function splitLine(payment: Payment): string {
+  const split = paymentSplit(payment);
+  return `Worker net ${formatCents(split.workerNetCents)} · Platform fee ${formatCents(split.platformFeeCents)}`;
+}
 
 export interface PaymentsScreenProps {
   /** Optional client override (used by tests). Defaults to the app singleton. */
@@ -92,6 +99,7 @@ export function PaymentsScreen({
               {item.status}
             </Text>
           </View>
+          {hasPlatformFee(item) && <Text style={styles.split}>{splitLine(item)}</Text>}
           <Text style={styles.time}>Created {new Date(item.createdAt).toLocaleString()}</Text>
           {item.paidAt !== undefined && (
             <Text style={styles.time}>Paid {new Date(item.paidAt).toLocaleString()}</Text>
@@ -118,5 +126,6 @@ const styles = StyleSheet.create({
   amount: { fontSize: 16, fontWeight: '700', color: '#0f172a' },
   status: { fontSize: 13, fontWeight: '600', color: '#64748b', textTransform: 'capitalize' },
   statusPaid: { color: '#16a34a' },
+  split: { fontSize: 13, color: '#475569', marginTop: 6 },
   time: { fontSize: 12, color: '#94a3b8', marginTop: 4 },
 });

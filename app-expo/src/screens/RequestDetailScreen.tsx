@@ -18,6 +18,7 @@ import {
   dollarsToCents,
   formatCents,
 } from '../../../app/src/features/payments/paymentFormat';
+import { hasPlatformFee, paymentSplit } from '../../../app/src/features/payments/paymentSplit';
 import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
 import type { AuditEvent, Payment, Quote, Review, ServiceRequest } from '../../../shared/schemas';
 import { apiClient } from '../api';
@@ -631,12 +632,21 @@ export function RequestDetailScreen({
           <Text style={styles.label}>Payment</Text>
 
           {payment !== null && (
-            <View style={styles.paymentRow}>
-              <Text style={styles.paymentAmount}>{formatCents(payment.amountCents)}</Text>
-              <Text style={payment.status === 'paid' ? styles.paymentPaid : styles.paymentPending}>
-                {payment.status === 'paid' ? 'Paid' : 'Pending'}
-              </Text>
-            </View>
+            <>
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentAmount}>{formatCents(payment.amountCents)}</Text>
+                <Text
+                  style={payment.status === 'paid' ? styles.paymentPaid : styles.paymentPending}
+                >
+                  {payment.status === 'paid' ? 'Paid' : 'Pending'}
+                </Text>
+              </View>
+              {hasPlatformFee(payment) && (
+                <Text style={styles.paymentSplit}>
+                  {`Worker net ${formatCents(paymentSplit(payment).workerNetCents)} · Platform fee ${formatCents(paymentSplit(payment).platformFeeCents)}`}
+                </Text>
+              )}
+            </>
           )}
 
           {isOwner && payment === null && (
@@ -951,6 +961,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   paymentAmount: { fontSize: 18, fontWeight: '700', color: '#0f172a' },
+  paymentSplit: { fontSize: 13, color: '#475569', marginTop: 6 },
   paymentPending: { fontSize: 14, fontWeight: '600', color: '#d97706' },
   paymentPaid: { fontSize: 14, fontWeight: '600', color: '#16a34a' },
   paymentInput: {
