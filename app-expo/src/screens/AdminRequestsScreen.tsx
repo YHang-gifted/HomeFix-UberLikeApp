@@ -27,6 +27,8 @@ export interface AdminRequestsScreenProps {
   onViewAudit?: () => void;
   /** Called when the user taps "Dashboard". */
   onViewStats?: () => void;
+  /** Called when the user taps "Users". */
+  onViewUsers?: () => void;
   /** Called with the request id when a card is tapped. */
   onSelectRequest?: (id: string) => void;
   /** Bump this to force a reload (e.g. when the screen regains focus). */
@@ -38,6 +40,7 @@ export function AdminRequestsScreen({
   onLogout,
   onViewAudit,
   onViewStats,
+  onViewUsers,
   onViewProfile,
   onSelectRequest,
   refreshToken,
@@ -157,6 +160,15 @@ export function AdminRequestsScreen({
             accessibilityLabel="Dashboard"
           >
             <Text style={styles.auditText}>Dashboard</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              onViewUsers?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Users"
+          >
+            <Text style={styles.auditText}>Users</Text>
           </Pressable>
           <Pressable
             onPress={() => {

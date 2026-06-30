@@ -16,6 +16,7 @@ import { tokenStore } from './src/tokenStore';
 import { useFocusRefreshToken } from './src/hooks/useFocusRefreshToken';
 import { AdminRequestsScreen } from './src/screens/AdminRequestsScreen';
 import { AdminStatsScreen } from './src/screens/AdminStatsScreen';
+import { AdminUsersScreen } from './src/screens/AdminUsersScreen';
 import { AuditLogScreen } from './src/screens/AuditLogScreen';
 import { AvailableJobsScreen } from './src/screens/AvailableJobsScreen';
 import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
@@ -42,6 +43,7 @@ export type RootStackParamList = {
   AvailableJobs: undefined;
   AdminRequests: undefined;
   AdminStats: undefined;
+  AdminUsers: undefined;
   AuditLog: undefined;
   Profile: undefined;
   Notifications: undefined;
@@ -269,6 +271,9 @@ function AdminRequestsRoute({
       onViewStats={() => {
         navigation.navigate('AdminStats');
       }}
+      onViewUsers={() => {
+        navigation.navigate('AdminUsers');
+      }}
       onLogout={() => {
         signOut();
       }}
@@ -280,6 +285,12 @@ function AdminStatsRoute(): ReactElement {
   const refreshToken = useFocusRefreshToken();
 
   return <AdminStatsScreen client={apiClient} refreshToken={refreshToken} />;
+}
+
+function AdminUsersRoute(): ReactElement {
+  const refreshToken = useFocusRefreshToken();
+
+  return <AdminUsersScreen client={apiClient} refreshToken={refreshToken} />;
 }
 
 function AuditLogRoute(): ReactElement {
@@ -473,6 +484,11 @@ export default function App(): ReactElement {
                 name="AdminStats"
                 component={AdminStatsRoute}
                 options={{ title: 'Dashboard' }}
+              />
+              <Stack.Screen
+                name="AdminUsers"
+                component={AdminUsersRoute}
+                options={{ title: 'Users' }}
               />
               <Stack.Screen
                 name="AuditLog"
