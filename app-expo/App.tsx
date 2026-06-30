@@ -28,6 +28,7 @@ import { RegisterScreen } from './src/screens/RegisterScreen';
 import { RequestDetailScreen } from './src/screens/RequestDetailScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { PaymentsScreen } from './src/screens/PaymentsScreen';
+import { PayoutsScreen } from './src/screens/PayoutsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ServiceRequestsScreen } from './src/screens/ServiceRequestsScreen';
 import { WorkerJobsScreen } from './src/screens/WorkerJobsScreen';
@@ -49,6 +50,7 @@ export type RootStackParamList = {
   Notifications: undefined;
   Favorites: undefined;
   Payments: undefined;
+  Payouts: undefined;
   Messages: { id: string };
 };
 
@@ -220,6 +222,9 @@ function WorkerJobsRoute({
       onViewPayments={() => {
         navigation.navigate('Payments');
       }}
+      onViewPayouts={() => {
+        navigation.navigate('Payouts');
+      }}
       onSelectRequest={(id) => {
         navigation.navigate('RequestDetail', { id });
       }}
@@ -325,6 +330,12 @@ function PaymentsRoute({
       }}
     />
   );
+}
+
+function PayoutsRoute(): ReactElement {
+  const refreshToken = useFocusRefreshToken();
+
+  return <PayoutsScreen client={apiClient} refreshToken={refreshToken} />;
 }
 
 function ProfileRoute(): ReactElement {
@@ -470,6 +481,11 @@ export default function App(): ReactElement {
                 name="Payments"
                 component={PaymentsRoute}
                 options={{ title: 'Payments received' }}
+              />
+              <Stack.Screen
+                name="Payouts"
+                component={PayoutsRoute}
+                options={{ title: 'Payouts' }}
               />
             </>
           )}
