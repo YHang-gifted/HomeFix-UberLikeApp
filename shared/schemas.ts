@@ -182,6 +182,7 @@ export const auditActionSchema = z.enum([
   'account.suspended',
   'account.reinstated',
   'account.deleted',
+  'payment.refunded',
 ]);
 export type AuditAction = z.infer<typeof auditActionSchema>;
 
@@ -337,7 +338,7 @@ export type NotificationList = z.infer<typeof notificationListSchema>;
 
 // Mock/sandbox payments only — no real money moves and no external provider is
 // contacted. A payment is a record on a request that a customer can mark "paid".
-export const paymentStatusSchema = z.enum(['pending', 'paid']);
+export const paymentStatusSchema = z.enum(['pending', 'paid', 'refunded']);
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
 
 export const paymentSchema = z.object({

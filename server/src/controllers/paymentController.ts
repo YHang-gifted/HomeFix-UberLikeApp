@@ -10,6 +10,7 @@ import {
   getPayment,
   listMyPayments,
   payPayment,
+  refundPayment,
 } from '../services/paymentService.ts';
 import { handlePaymentWebhook, verifyPaymentWebhook } from '../services/paymentWebhookService.ts';
 
@@ -101,6 +102,28 @@ export async function postServiceRequestPaymentPay(
 
   try {
     res.status(200).json(await payPayment(id, principal));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function postServiceRequestPaymentRefund(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  const id = parseId(req, next);
+  if (id === undefined) {
+    return;
+  }
+
+  try {
+    res.status(200).json(await refundPayment(id, principal));
   } catch (error) {
     next(error);
   }

@@ -12,6 +12,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   'account.suspended': 'Suspended account',
   'account.reinstated': 'Reinstated account',
   'account.deleted': 'Deleted account',
+  'payment.refunded': 'Refunded payment',
 };
 
 function detailsText(details: Record<string, string> | undefined): string | null {
