@@ -44,6 +44,29 @@ describe('MessagesScreen', () => {
     await findByText('No messages yet. Say hello!');
   });
 
+  it('re-fetches the thread on the poll interval', async () => {
+    const listMessages = jest.fn().mockResolvedValue([makeMessage()]);
+    const client = clientWith({ listMessages });
+
+    await render(<MessagesScreen requestId={REQUEST_ID} client={client} pollIntervalMs={30} />);
+
+    await waitFor(() => {
+      expect(listMessages.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it('does not poll when the interval is 0', async () => {
+    const listMessages = jest.fn().mockResolvedValue([makeMessage()]);
+    const client = clientWith({ listMessages });
+
+    const { findByText } = await render(
+      <MessagesScreen requestId={REQUEST_ID} client={client} pollIntervalMs={0} />,
+    );
+    await findByText('On my way');
+
+    expect(listMessages).toHaveBeenCalledTimes(1);
+  });
+
   it('sends a message and reloads the thread', async () => {
     const listMessages = jest
       .fn()
