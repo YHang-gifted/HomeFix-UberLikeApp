@@ -35,6 +35,7 @@ describe('PostgresUserRepository (PGlite)', () => {
     ]);
     await db.query('UPDATE users SET token_version = 0');
     await db.query("UPDATE users SET status = 'active'");
+    await db.query('UPDATE users SET notify_email = true, notify_push = true');
   });
 
   it('finds a seeded user by email (case-insensitive)', async () => {
@@ -171,6 +172,25 @@ describe('PostgresUserRepository (PGlite)', () => {
     await db.query(
       "UPDATE users SET email = $2, display_name = 'Demo Worker', status = 'active' WHERE id = $1",
       [WORKER_ID, 'worker@homefix.test'],
+    );
+  });
+
+  it('defaults notification preferences to on and updates them partially', async () => {
+    const before = await repo.findById(WORKER_ID);
+    assert.equal(before?.notifyEmail, true);
+    assert.equal(before?.notifyPush, true);
+
+    const updated = await repo.updateNotificationPreferences(WORKER_ID, { push: false });
+    assert.equal(updated?.notifyEmail, true);
+    assert.equal(updated?.notifyPush, false);
+
+    const persisted = await repo.findById(WORKER_ID);
+    assert.equal(persisted?.notifyPush, false);
+    assert.equal(
+      await repo.updateNotificationPreferences('999e4567-e89b-12d3-a456-426614174000', {
+        email: false,
+      }),
+      undefined,
     );
   });
 

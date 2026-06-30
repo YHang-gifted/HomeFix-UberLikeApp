@@ -30,6 +30,8 @@ interface UserRow {
   password_hash: string;
   token_version: number;
   status: string;
+  notify_email: boolean;
+  notify_push: boolean;
 }
 
 function parseAvailability(value: unknown): WorkerAvailability | undefined {
@@ -59,6 +61,8 @@ function mapRow(row: unknown): UserRecord {
     passwordHash: r.password_hash,
     tokenVersion: r.token_version,
     status,
+    notifyEmail: r.notify_email,
+    notifyPush: r.notify_push,
     ...(r.phone !== null ? { phone: r.phone } : {}),
     ...(r.bio !== null ? { bio: r.bio } : {}),
     ...(skills !== undefined ? { skills } : {}),
@@ -169,6 +173,22 @@ export class PostgresUserRepository implements UserRepository {
         WHERE id = $1
         RETURNING *`,
       [id, deletedEmail(id), hashPassword(randomUUID())],
+    );
+    const row = result.rows[0];
+    return row === undefined ? undefined : mapRow(row);
+  }
+
+  public async updateNotificationPreferences(
+    id: string,
+    prefs: { email?: boolean | undefined; push?: boolean | undefined },
+  ): Promise<UserRecord | undefined> {
+    const result = await this.db.query(
+      `UPDATE users
+          SET notify_email = COALESCE($2, notify_email),
+              notify_push = COALESCE($3, notify_push)
+        WHERE id = $1
+        RETURNING *`,
+      [id, prefs.email ?? null, prefs.push ?? null],
     );
     const row = result.rows[0];
     return row === undefined ? undefined : mapRow(row);

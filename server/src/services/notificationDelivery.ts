@@ -76,12 +76,22 @@ export class CompositeDelivery implements NotificationDelivery {
   }
 }
 
-// How to resolve a recipient's address per channel. Email uses the user's
-// stored email; push uses the user's most recently registered device token
-// (undefined when none is registered, so the notification is skipped).
-const DEFAULT_RESOLVERS: Readonly<Record<string, RecipientResolver>> = {
-  email: async (userId) => (await userRepository.findById(userId))?.email,
-  push: async (userId) => (await deviceTokenRepository.listTokens(userId))[0],
+// How to resolve a recipient's address per channel. Each resolver also honors
+// the user's notification preferences: a channel the user has turned off resolves
+// to undefined, so the existing "no recipient → skip" path drops it. Email uses
+// the user's stored email; push uses their most recently registered device token.
+export const defaultRecipientResolvers: Readonly<Record<string, RecipientResolver>> = {
+  email: async (userId) => {
+    const user = await userRepository.findById(userId);
+    return user?.notifyEmail === true ? user.email : undefined;
+  },
+  push: async (userId) => {
+    const user = await userRepository.findById(userId);
+    if (user?.notifyPush !== true) {
+      return undefined;
+    }
+    return (await deviceTokenRepository.listTokens(userId))[0];
+  },
 };
 
 export interface BuildDeliveryOptions {
@@ -102,7 +112,7 @@ export function buildDelivery(
   channelNames: readonly string[],
   options?: BuildDeliveryOptions,
 ): NotificationDelivery {
-  const resolvers = options?.resolvers ?? DEFAULT_RESOLVERS;
+  const resolvers = options?.resolvers ?? defaultRecipientResolvers;
   const senders = options?.senders ?? {};
   const channels = channelNames
     .map((name) => {

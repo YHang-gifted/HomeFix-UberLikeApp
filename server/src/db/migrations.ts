@@ -381,4 +381,14 @@ export const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_payouts_worker_id ON payouts (worker_id)
     `,
   },
+  {
+    // Per-user notification channel preferences. Both default to true so existing
+    // users keep receiving everything until they opt out. A channel is delivered
+    // only when globally enabled (NOTIFY_CHANNELS) AND the recipient wants it.
+    id: '0028_user_notification_prefs',
+    sql: `
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_email boolean NOT NULL DEFAULT true;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_push boolean NOT NULL DEFAULT true
+    `,
+  },
 ];
