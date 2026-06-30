@@ -401,6 +401,38 @@ export const paymentWebhookEventSchema = z.object({
 });
 export type PaymentWebhookEvent = z.infer<typeof paymentWebhookEventSchema>;
 
+// A payout of a worker's net earnings (Model B). Created when a payment is paid
+// and settled out to the worker's connected account by the provider. Mock by
+// default — no real money moves until a provider is wired.
+export const payoutStatusSchema = z.enum(['pending', 'paid']);
+export type PayoutStatus = z.infer<typeof payoutStatusSchema>;
+
+export const payoutSchema = z.object({
+  id: z.uuid(),
+  paymentId: z.uuid(),
+  workerId: z.uuid(),
+  amountCents: z.number().int().positive(),
+  currency: z.literal('TWD'),
+  status: payoutStatusSchema,
+  createdAt: z.iso.datetime(),
+  paidAt: z.iso.datetime().optional(),
+});
+export type Payout = z.infer<typeof payoutSchema>;
+
+// A worker's payout history (most-recent-first), returned by GET /payouts.
+export const payoutListSchema = z.object({
+  items: z.array(payoutSchema),
+});
+export type PayoutList = z.infer<typeof payoutListSchema>;
+
+// A payout-provider webhook event (provider-agnostic). Only 'payout.paid' is
+// acted on; `payoutId` references the platform's own payout.
+export const payoutWebhookEventSchema = z.object({
+  type: z.string().min(1),
+  payoutId: z.uuid(),
+});
+export type PayoutWebhookEvent = z.infer<typeof payoutWebhookEventSchema>;
+
 // A price quote the assigned worker proposes for a request. The owning customer
 // accepts or declines it; an accepted quote is what the customer then pays.
 export const quoteStatusSchema = z.enum(['pending', 'accepted', 'declined']);

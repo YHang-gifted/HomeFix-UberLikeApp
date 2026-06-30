@@ -15,6 +15,7 @@ import { serviceRequestRepository } from '../repositories/serviceRequestReposito
 import { isRequestParty } from './serviceRequestService.ts';
 import { recordNotification } from './notificationService.ts';
 import { recordAuditEvent } from './auditService.ts';
+import { createPayoutForPayment } from './payoutService.ts';
 
 async function loadRequest(requestId: string): Promise<ServiceRequest> {
   const request = await serviceRequestRepository.findById(requestId);
@@ -117,6 +118,8 @@ async function markPaid(payment: Payment): Promise<Payment> {
     message: 'Your payment for a completed request has been received.',
     requestId: payment.requestId,
   });
+  // The worker's net is scheduled for payout (Model B). Idempotent per payment.
+  await createPayoutForPayment(updated);
   return updated;
 }
 
