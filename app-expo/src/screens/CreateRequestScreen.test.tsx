@@ -32,6 +32,46 @@ describe('CreateRequestScreen', () => {
     expect(createServiceRequest).not.toHaveBeenCalled();
   });
 
+  it('uploads a picked image and appends its public URL to the photo list', async () => {
+    const imagePicker = jest
+      .fn()
+      .mockResolvedValue({ blob: { fake: true }, contentType: 'image/png' });
+    const createUpload = jest
+      .fn()
+      .mockResolvedValue({ id: 'x', uploadUrl: '/uploads/x', publicUrl: '/uploads/x' });
+    const putUploadBytes = jest.fn().mockResolvedValue(undefined);
+    const resolveUrl = jest.fn().mockReturnValue('https://api.test/uploads/x');
+    const getPrincipal = jest.fn().mockReturnValue({ id: CUSTOMER_ID, role: 'customer' });
+    const client = {
+      createUpload,
+      putUploadBytes,
+      resolveUrl,
+      getPrincipal,
+    } as unknown as ApiClient;
+
+    const { getByLabelText } = await render(
+      <CreateRequestScreen client={client} imagePicker={imagePicker} />,
+    );
+    await fireEvent.press(getByLabelText('Add photo'));
+
+    await waitFor(() => {
+      expect(getByLabelText('Photo URLs').props.value).toContain('https://api.test/uploads/x');
+    });
+    expect(createUpload).toHaveBeenCalledWith('image/png');
+    expect(putUploadBytes).toHaveBeenCalledWith('/uploads/x', 'image/png', { fake: true });
+  });
+
+  it('hides the Add photo button when no image picker is provided', async () => {
+    const getPrincipal = jest.fn();
+    const client = { getPrincipal } as unknown as ApiClient;
+
+    const { getByLabelText, queryByLabelText } = await render(
+      <CreateRequestScreen client={client} />,
+    );
+    getByLabelText('Photo URLs');
+    expect(queryByLabelText('Add photo')).toBeNull();
+  });
+
   it('creates the request and calls onCreated on a valid submit', async () => {
     const created = makeRequest();
     const createServiceRequest = jest.fn().mockResolvedValue(created);

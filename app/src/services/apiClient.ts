@@ -7,6 +7,7 @@ import type {
   CreateQuoteInput,
   CreateReviewInput,
   CreateServiceRequestInput,
+  ImageContentType,
   Message,
   Notification,
   NotificationList,
@@ -22,6 +23,7 @@ import type {
   ServiceRequestPage,
   ServiceRequestStatus,
   UpdateProfileInput,
+  UploadTarget,
   UserProfile,
   WorkerRating,
   WorkerReviews,
@@ -48,6 +50,7 @@ import {
   reviewSchema,
   serviceRequestPageSchema,
   serviceRequestSchema,
+  uploadTargetSchema,
   userProfileSchema,
   workerRatingListSchema,
   workerReviewsSchema,
@@ -479,6 +482,32 @@ export class ApiClient {
     const path = queryString.length > 0 ? `/audit?${queryString}` : '/audit';
     const data = await this.send('GET', path, undefined, true);
     return auditPageSchema.parse(data);
+  }
+
+  /** Resolve a server-relative path (e.g. an upload URL) against the API base. */
+  public resolveUrl(path: string): string {
+    return path.startsWith('/') ? `${this.baseUrl}${path}` : path;
+  }
+
+  /** Request an upload target for an image; returns where to PUT and the public URL. */
+  public async createUpload(contentType: ImageContentType): Promise<UploadTarget> {
+    const data = await this.send('POST', '/uploads', { contentType }, true);
+    return uploadTargetSchema.parse(data);
+  }
+
+  /** PUT raw image bytes to an upload target's `uploadUrl`. */
+  public async putUploadBytes(uploadUrl: string, contentType: string, body: Blob): Promise<void> {
+    if (this.token === undefined) {
+      throw new ApiError(401, 'Not authenticated');
+    }
+    const response = await fetch(this.resolveUrl(uploadUrl), {
+      method: 'PUT',
+      headers: { 'content-type': contentType, Authorization: `Bearer ${this.token}` },
+      body,
+    });
+    if (!response.ok) {
+      throw new ApiError(response.status, `Upload failed (${String(response.status)})`);
+    }
   }
 
   private async send(
