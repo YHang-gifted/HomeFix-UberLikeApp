@@ -104,8 +104,24 @@ export async function createPayment(
 }
 
 /**
- * Mark a request's payment as paid (mock checkout — flips status only, no
- * provider is contacted). The owning customer only; notifies the worker.
+ * Settle a pending payment: flip it to paid and notify the worker. The single
+ * place a payment becomes paid, reached both by the customer's (mock) checkout
+ * and by a payment-provider webhook confirmation.
+ */
+async function markPaid(payment: Payment): Promise<Payment> {
+  const updated: Payment = { ...payment, status: 'paid', paidAt: new Date().toISOString() };
+  await paymentRepository.save(updated);
+  await recordNotification({
+    userId: payment.workerId,
+    message: 'Your payment for a completed request has been received.',
+    requestId: payment.requestId,
+  });
+  return updated;
+}
+
+/**
+ * Mark a request's payment as paid (mock checkout — no provider is contacted).
+ * The owning customer only; notifies the worker.
  */
 export async function payPayment(requestId: string, principal: Principal): Promise<Payment> {
   const request = await loadRequest(requestId);
@@ -119,15 +135,24 @@ export async function payPayment(requestId: string, principal: Principal): Promi
   if (payment.status === 'paid') {
     throw new AppError('This payment has already been paid', 409);
   }
+  return markPaid(payment);
+}
 
-  const updated: Payment = { ...payment, status: 'paid', paidAt: new Date().toISOString() };
-  await paymentRepository.save(updated);
-  await recordNotification({
-    userId: payment.workerId,
-    message: 'Your payment for a completed request has been received.',
-    requestId,
-  });
-  return updated;
+/**
+ * Confirm a payment as paid from a verified provider webhook. Idempotent: an
+ * already-paid payment is returned unchanged (providers may retry deliveries).
+ * 404 if the referenced payment is unknown. No authorization here — the caller
+ * verifies the webhook's authenticity before invoking this.
+ */
+export async function confirmPaymentPaid(paymentId: string): Promise<Payment> {
+  const payment = await paymentRepository.findById(paymentId);
+  if (!payment) {
+    throw new AppError('Payment not found', 404);
+  }
+  if (payment.status === 'paid') {
+    return payment;
+  }
+  return markPaid(payment);
 }
 
 export async function resetPayments(): Promise<void> {

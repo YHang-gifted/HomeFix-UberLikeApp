@@ -68,6 +68,15 @@ const envSchema = z
     // when a payment is created to split the gross into the platform's cut and the
     // worker's net (Model B marketplace split).
     PLATFORM_FEE_BPS: z.coerce.number().int().min(0).max(10000).default(DEFAULT_PLATFORM_FEE_BPS),
+    // Shared secret a payment provider must present (header `x-webhook-secret`) to
+    // confirm a payment via POST /webhooks/payments. Unset outside production lets
+    // the mock provider confirm without a secret; in production an unset secret
+    // rejects every webhook, so no payment can be confirmed by accident. Empty is
+    // treated as unset.
+    PAYMENTS_WEBHOOK_SECRET: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production' && env.JWT_SECRET === DEV_JWT_SECRET) {
