@@ -1,4 +1,4 @@
-import type { AccountStatus, Principal } from '../../../shared/schemas.ts';
+import type { AccountStatus, AdminUserSummary, Principal } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { userRepository } from '../repositories/userRepository.ts';
 import { recordAuditEvent } from './auditService.ts';
@@ -6,6 +6,21 @@ import { recordAuditEvent } from './auditService.ts';
 export interface AccountStatusResult {
   id: string;
   status: AccountStatus;
+}
+
+/** Admin-only: list every account for account management. */
+export async function listUsers(principal: Principal): Promise<AdminUserSummary[]> {
+  if (principal.role !== 'admin') {
+    throw new AppError('Only an admin may list accounts', 403);
+  }
+  const users = await userRepository.listAll();
+  return users.map((user) => ({
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    role: user.role,
+    status: user.status,
+  }));
 }
 
 /**

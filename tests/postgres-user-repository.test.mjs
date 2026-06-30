@@ -53,6 +53,13 @@ describe('PostgresUserRepository (PGlite)', () => {
     assert.equal(workers[0].id, WORKER_ID);
   });
 
+  it('lists every user with listAll', async () => {
+    const all = await repo.listAll();
+    assert.ok(all.length >= 3);
+    assert.ok(all.some((u) => u.id === WORKER_ID));
+    assert.ok(all.some((u) => u.id === CUSTOMER_ID));
+  });
+
   it('updates display name and phone, and clears phone when omitted', async () => {
     const updated = await repo.updateProfile(CUSTOMER_ID, {
       displayName: 'Renamed',
