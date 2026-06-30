@@ -236,6 +236,12 @@ export class ApiClient {
     return paymentSchema.parse(data);
   }
 
+  /** Admin-only: refund a request's paid payment. Returns the refunded payment. */
+  public async refundPayment(id: string): Promise<Payment> {
+    const data = await this.send('POST', `/service-requests/${id}/payment/refund`, undefined, true);
+    return paymentSchema.parse(data);
+  }
+
   public async getQuote(id: string): Promise<Quote> {
     const data = await this.send('GET', `/service-requests/${id}/quote`, undefined, true);
     return quoteSchema.parse(data);
