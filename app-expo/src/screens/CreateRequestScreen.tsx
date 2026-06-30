@@ -26,6 +26,8 @@ import {
   resultToCoordinateStrings,
   searchAddress,
 } from '../../../app/src/features/location/geocoding';
+import type { ImagePicker } from '../../../app/src/features/uploads/uploadImage';
+import { uploadPickedImage } from '../../../app/src/features/uploads/uploadImage';
 import type { ServiceCategory, ServiceRequest } from '../../../shared/schemas';
 import { serviceCategorySchema } from '../../../shared/schemas';
 import { apiClient } from '../api';
@@ -48,6 +50,12 @@ export interface CreateRequestScreenProps {
    * Left undefined (e.g. in tests without a geocoder) the field is hidden.
    */
   geocoder?: Geocoder;
+  /**
+   * Device image picker. When provided, an "Add photo" button uploads a chosen
+   * image and appends its public URL to the photo list. App.tsx injects the real
+   * expo-image-picker; left undefined the button is hidden.
+   */
+  imagePicker?: ImagePicker;
 }
 
 export function CreateRequestScreen({
@@ -55,6 +63,7 @@ export function CreateRequestScreen({
   onCreated,
   locationProvider,
   geocoder,
+  imagePicker,
 }: CreateRequestScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
@@ -63,6 +72,8 @@ export function CreateRequestScreen({
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [photoUrlsText, setPhotoUrlsText] = useState('');
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [scheduledText, setScheduledText] = useState('');
   const [scheduledError, setScheduledError] = useState<string | null>(null);
   const [errors, setErrors] = useState<CreateRequestFieldErrors>({});
@@ -114,6 +125,26 @@ export function CreateRequestScreen({
       setErrors((current) => ({ ...current, latitude: undefined, longitude: undefined }));
     } else {
       setBanner(outcome.message);
+    }
+  }
+
+  async function addPhoto(): Promise<void> {
+    if (imagePicker === undefined) {
+      return;
+    }
+    setPhotoError(null);
+    setPhotoBusy(true);
+    try {
+      const picked = await imagePicker();
+      if (picked === null) {
+        return;
+      }
+      const url = await uploadPickedImage(activeClient, picked);
+      setPhotoUrlsText((current) => (current.trim() === '' ? url : `${current}\n${url}`));
+    } catch {
+      setPhotoError('Could not upload the photo. Please try again.');
+    } finally {
+      setPhotoBusy(false);
     }
   }
 
@@ -304,6 +335,27 @@ export function CreateRequestScreen({
         multiline
         editable={!submitting}
       />
+      {imagePicker !== undefined && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.locationButton,
+            (pressed || photoBusy) && styles.locationButtonPressed,
+          ]}
+          onPress={() => {
+            void addPhoto();
+          }}
+          disabled={photoBusy || submitting}
+          accessibilityRole="button"
+          accessibilityLabel="Add photo"
+        >
+          {photoBusy ? (
+            <ActivityIndicator color="#2563eb" />
+          ) : (
+            <Text style={styles.locationButtonText}>Add photo from device</Text>
+          )}
+        </Pressable>
+      )}
+      {photoError !== null && <Text style={styles.error}>{photoError}</Text>}
 
       <Text style={styles.label}>Preferred time</Text>
       <TextInput
