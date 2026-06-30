@@ -30,6 +30,29 @@ describe('PaymentsScreen', () => {
     await findByText('paid');
   });
 
+  it('shows the marketplace split when a payment carries a platform fee', async () => {
+    const listMyPayments = jest
+      .fn()
+      .mockResolvedValue([
+        makePayment({ amountCents: 150000, platformFeeCents: 22500, workerNetCents: 127500 }),
+      ]);
+    const client = { listMyPayments } as unknown as ApiClient;
+
+    const { findByText } = await render(<PaymentsScreen client={client} />);
+
+    await findByText(/Worker net NT\$1,275\.00 · Platform fee NT\$225\.00/);
+  });
+
+  it('omits the split line for a payment without a platform fee', async () => {
+    const listMyPayments = jest.fn().mockResolvedValue([makePayment()]);
+    const client = { listMyPayments } as unknown as ApiClient;
+
+    const { findByText, queryByText } = await render(<PaymentsScreen client={client} />);
+
+    await findByText('NT$1,500.00');
+    expect(queryByText(/Platform fee/)).toBeNull();
+  });
+
   it('shows an empty state when there are no payments', async () => {
     const listMyPayments = jest.fn().mockResolvedValue([]);
     const client = { listMyPayments } as unknown as ApiClient;
