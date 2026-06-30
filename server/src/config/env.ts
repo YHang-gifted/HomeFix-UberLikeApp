@@ -2,6 +2,8 @@ import process from 'node:process';
 
 import { z } from 'zod';
 
+import { DEFAULT_PLATFORM_FEE_BPS } from '../../../shared/schemas.ts';
+
 /**
  * The dev-only fallback JWT secret. Safe for local development, but it is in the
  * public source tree, so any token signed with it is forgeable. Production must
@@ -62,6 +64,10 @@ const envSchema = z
     // push (with NOTIFY_CHANNELS including "push"); unset and the push channel
     // logs only. Empty is treated as unset.
     PUSH_API_URL: z.preprocess((value) => (value === '' ? undefined : value), z.url().optional()),
+    // Platform commission on each payment, in basis points (1500 = 15%). Applied
+    // when a payment is created to split the gross into the platform's cut and the
+    // worker's net (Model B marketplace split).
+    PLATFORM_FEE_BPS: z.coerce.number().int().min(0).max(10000).default(DEFAULT_PLATFORM_FEE_BPS),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production' && env.JWT_SECRET === DEV_JWT_SECRET) {

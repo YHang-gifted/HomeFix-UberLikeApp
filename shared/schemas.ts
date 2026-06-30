@@ -350,6 +350,11 @@ export const paymentSchema = z.object({
   status: paymentStatusSchema,
   createdAt: z.iso.datetime(),
   paidAt: z.iso.datetime().optional(),
+  // Marketplace split (Model B): the platform's commission and the worker's net.
+  // Optional so legacy rows and lightweight fixtures stay valid; the server always
+  // populates both on every payment it returns.
+  platformFeeCents: z.number().int().nonnegative().optional(),
+  workerNetCents: z.number().int().nonnegative().optional(),
 });
 export type Payment = z.infer<typeof paymentSchema>;
 
@@ -362,6 +367,24 @@ export type PaymentList = z.infer<typeof paymentListSchema>;
 // Minimum chargeable amount, NT$1.00. Guards against zero/near-zero quotes and
 // payments that are almost certainly mistakes.
 export const MIN_AMOUNT_CENTS = 100;
+
+// Default platform commission, in basis points (1500 = 15%). Overridable per
+// deployment via PLATFORM_FEE_BPS.
+export const DEFAULT_PLATFORM_FEE_BPS = 1500;
+
+/**
+ * Split a gross payment into the platform's commission and the worker's net
+ * (Model B: the worker is paid the remainder after the platform's cut). The fee
+ * is floored, so the worker always receives any sub-cent remainder. `feeBps` is
+ * in basis points (0–10000).
+ */
+export function splitPaymentAmount(
+  amountCents: number,
+  feeBps: number,
+): { platformFeeCents: number; workerNetCents: number } {
+  const platformFeeCents = Math.floor((amountCents * feeBps) / 10000);
+  return { platformFeeCents, workerNetCents: amountCents - platformFeeCents };
+}
 
 export const createPaymentInputSchema = z.object({
   amountCents: z.number().int().min(MIN_AMOUNT_CENTS).max(100_000_000),

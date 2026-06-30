@@ -338,4 +338,16 @@ export const migrations: Migration[] = [
       ALTER TABLE users ADD CONSTRAINT chk_users_status CHECK (status IN ('active', 'suspended', 'deleted'))
     `,
   },
+  {
+    // Marketplace split: the platform's commission on each payment (Model B).
+    // worker_net is derived (amount - fee) so only the fee is stored. Existing
+    // rows default to 0 (no commission was taken historically). The CHECK keeps
+    // the fee within the gross amount. DROP IF EXISTS + ADD keeps it idempotent.
+    id: '0025_payment_platform_fee',
+    sql: `
+      ALTER TABLE payments ADD COLUMN IF NOT EXISTS platform_fee_cents integer NOT NULL DEFAULT 0;
+      ALTER TABLE payments DROP CONSTRAINT IF EXISTS chk_payments_platform_fee;
+      ALTER TABLE payments ADD CONSTRAINT chk_payments_platform_fee CHECK (platform_fee_cents >= 0 AND platform_fee_cents <= amount_cents)
+    `,
+  },
 ];

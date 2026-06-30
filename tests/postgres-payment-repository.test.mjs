@@ -83,6 +83,13 @@ describe('PostgresPaymentRepository (PGlite)', () => {
     assert.equal(found?.paidAt, undefined);
   });
 
+  it('persists the platform fee and derives the worker net', async () => {
+    await repo.save(makePayment({ amountCents: 150000, platformFeeCents: 22500 }));
+    const found = await repo.findByRequest(REQUEST_ID);
+    assert.equal(found?.platformFeeCents, 22500);
+    assert.equal(found?.workerNetCents, 127500);
+  });
+
   it('upserts the same payment to paid (status + paidAt) by id', async () => {
     await repo.save(makePayment());
     await repo.save(makePayment({ status: 'paid', paidAt: '2026-06-22T01:00:00.000Z' }));
