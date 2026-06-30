@@ -317,6 +317,7 @@ function PaymentsRoute({
 }
 
 function ProfileRoute(): ReactElement {
+  const { signOut } = useContext(AuthContext);
   return (
     <ProfileScreen
       client={apiClient}
@@ -324,6 +325,10 @@ function ProfileRoute(): ReactElement {
         // change-password / logout-all rotate the token server-side; persist the
         // fresh one so the session survives an app restart.
         void tokenStore.set(token);
+      }}
+      onDeleted={() => {
+        // The account is gone and every token is revoked; clear the session.
+        signOut();
       }}
     />
   );

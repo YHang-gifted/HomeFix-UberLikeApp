@@ -168,6 +168,44 @@ describe('ProfileScreen', () => {
     expect(changePassword).not.toHaveBeenCalled();
   });
 
+  it('deletes the account after confirmation and signs out', async () => {
+    const getMe = jest.fn().mockResolvedValue(makeProfile());
+    const deleteAccount = jest.fn().mockResolvedValue(undefined);
+    const onDeleted = jest.fn();
+    const client = { getMe, deleteAccount } as unknown as ApiClient;
+
+    const { findByText, getByLabelText } = await render(
+      <ProfileScreen client={client} onDeleted={onDeleted} />,
+    );
+    await findByText('customer@homefix.test');
+
+    await fireEvent.press(getByLabelText('Confirm permanent deletion'));
+    await fireEvent.changeText(getByLabelText('Password to delete account'), 'my-password-123');
+    await fireEvent.press(getByLabelText('Delete account'));
+
+    expect(deleteAccount).toHaveBeenCalledWith('my-password-123');
+    expect(onDeleted).toHaveBeenCalled();
+  });
+
+  it('does not delete the account without confirmation', async () => {
+    const getMe = jest.fn().mockResolvedValue(makeProfile());
+    const deleteAccount = jest.fn();
+    const onDeleted = jest.fn();
+    const client = { getMe, deleteAccount } as unknown as ApiClient;
+
+    const { findByText, getByLabelText } = await render(
+      <ProfileScreen client={client} onDeleted={onDeleted} />,
+    );
+    await findByText('customer@homefix.test');
+
+    await fireEvent.changeText(getByLabelText('Password to delete account'), 'my-password-123');
+    await fireEvent.press(getByLabelText('Delete account'));
+
+    await findByText('Please confirm you understand this is permanent.');
+    expect(deleteAccount).not.toHaveBeenCalled();
+    expect(onDeleted).not.toHaveBeenCalled();
+  });
+
   it('logs out of other devices and persists the refreshed token', async () => {
     const getMe = jest.fn().mockResolvedValue(makeProfile());
     const logoutAll = jest.fn().mockResolvedValue(undefined);
