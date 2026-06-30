@@ -360,4 +360,25 @@ export const migrations: Migration[] = [
       ALTER TABLE payments ADD CONSTRAINT chk_payments_status CHECK (status IN ('pending', 'paid', 'refunded'))
     `,
   },
+  {
+    // Payouts of the worker's net (Model B). One per payment (payment_id UNIQUE);
+    // FKs are validated inline (new table, no legacy rows to scan). The index
+    // backs the worker's payout-history lookup.
+    id: '0027_payouts',
+    sql: `
+      CREATE TABLE IF NOT EXISTS payouts (
+        id uuid PRIMARY KEY,
+        payment_id uuid NOT NULL UNIQUE REFERENCES payments (id),
+        worker_id uuid NOT NULL REFERENCES users (id),
+        amount_cents integer NOT NULL,
+        currency text NOT NULL,
+        status text NOT NULL,
+        created_at timestamptz NOT NULL,
+        paid_at timestamptz,
+        CONSTRAINT chk_payouts_status CHECK (status IN ('pending', 'paid')),
+        CONSTRAINT chk_payouts_amount CHECK (amount_cents > 0)
+      );
+      CREATE INDEX IF NOT EXISTS idx_payouts_worker_id ON payouts (worker_id)
+    `,
+  },
 ];
