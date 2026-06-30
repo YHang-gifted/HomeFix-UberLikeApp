@@ -10,6 +10,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { clearSession, persistSession, restoreSession } from '../app/src/auth/session';
 import { registerForPush } from '../app/src/features/notifications/pushRegistration';
 import { apiClient } from './src/api';
+import { deviceImagePicker } from './src/imagePicker';
 import { deviceGeocoder, deviceLocationProvider } from './src/location';
 import { devicePushTokenProvider } from './src/push';
 import { tokenStore } from './src/tokenStore';
@@ -159,6 +160,7 @@ function CreateRequestRoute({
       client={apiClient}
       locationProvider={deviceLocationProvider}
       geocoder={deviceGeocoder}
+      imagePicker={deviceImagePicker}
       onCreated={() => {
         navigation.goBack();
       }}
