@@ -20,6 +20,7 @@ import { profileRouter } from './routes/profile.ts';
 import { quoteRouter } from './routes/quote.ts';
 import { reviewRouter } from './routes/review.ts';
 import { serviceRequestRouter } from './routes/serviceRequest.ts';
+import { uploadRouter } from './routes/upload.ts';
 import { userRouter } from './routes/user.ts';
 import { workerRouter } from './routes/worker.ts';
 
@@ -44,6 +45,7 @@ export function createApp(): Express {
   app.use(favoriteRouter);
   app.use(paymentRouter);
   app.use(payoutRouter);
+  app.use(uploadRouter);
   app.use(quoteRouter);
   app.use(auditRouter);
   app.use(adminRouter);
