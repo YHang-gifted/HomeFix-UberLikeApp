@@ -50,6 +50,8 @@ export async function registerUser(input: RegisterInput): Promise<LoginResult> {
     passwordHash: hashPassword(input.password),
     tokenVersion: 0,
     status: 'active',
+    notifyEmail: true,
+    notifyPush: true,
   };
   await userRepository.create(user);
   const principal: Principal = { id: user.id, role: user.role };

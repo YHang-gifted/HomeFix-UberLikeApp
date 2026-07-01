@@ -336,6 +336,27 @@ export const notificationListSchema = z.object({
 });
 export type NotificationList = z.infer<typeof notificationListSchema>;
 
+// Per-user notification channel preferences. A channel is delivered only when it
+// is globally enabled (NOTIFY_CHANNELS) AND the recipient has it on here.
+export const notificationPreferencesSchema = z.object({
+  email: z.boolean(),
+  push: z.boolean(),
+});
+export type NotificationPreferences = z.infer<typeof notificationPreferencesSchema>;
+
+// Partial update: only the channels included are changed.
+export const updateNotificationPreferencesInputSchema = z
+  .object({
+    email: z.boolean().optional(),
+    push: z.boolean().optional(),
+  })
+  .refine((value) => value.email !== undefined || value.push !== undefined, {
+    message: 'Provide at least one preference to update',
+  });
+export type UpdateNotificationPreferencesInput = z.infer<
+  typeof updateNotificationPreferencesInputSchema
+>;
+
 // Mock/sandbox payments only — no real money moves and no external provider is
 // contacted. A payment is a record on a request that a customer can mark "paid".
 export const paymentStatusSchema = z.enum(['pending', 'paid', 'refunded']);

@@ -26,6 +26,10 @@ export interface UserRecord {
   tokenVersion: number;
   /** Account lifecycle state. Only `active` accounts may sign in. */
   status: AccountStatus;
+  /** Whether the user wants email notifications (default true). */
+  notifyEmail: boolean;
+  /** Whether the user wants push notifications (default true). */
+  notifyPush: boolean;
 }
 
 export interface UserRepository {
@@ -50,6 +54,11 @@ export interface UserRepository {
    * scrubbed record, or undefined if unknown.
    */
   anonymize(id: string): Promise<UserRecord | undefined>;
+  /** Update the user's notification channel preferences (only provided channels change). */
+  updateNotificationPreferences(
+    id: string,
+    prefs: { email?: boolean | undefined; push?: boolean | undefined },
+  ): Promise<UserRecord | undefined>;
 }
 
 /** The deterministic, unique placeholder email a soft-deleted account is scrubbed to. */
@@ -103,6 +112,8 @@ export class InMemoryUserRepository implements UserRepository {
         passwordHash: hashPassword(seed.password),
         tokenVersion: 0,
         status: 'active',
+        notifyEmail: true,
+        notifyPush: true,
       });
     }
   }
@@ -142,6 +153,8 @@ export class InMemoryUserRepository implements UserRepository {
       passwordHash: user.passwordHash,
       tokenVersion: user.tokenVersion,
       status: user.status,
+      notifyEmail: user.notifyEmail,
+      notifyPush: user.notifyPush,
       displayName: patch.displayName,
       ...(patch.phone !== undefined ? { phone: patch.phone } : {}),
       ...(patch.bio !== undefined ? { bio: patch.bio } : {}),
@@ -195,11 +208,30 @@ export class InMemoryUserRepository implements UserRepository {
       passwordHash: hashPassword(randomUUID()),
       tokenVersion: user.tokenVersion + 1,
       status: 'deleted',
+      notifyEmail: false,
+      notifyPush: false,
     };
     // Re-key the map: the lookup key is the email, which we are changing.
     this.users.delete(user.email.toLowerCase());
     this.users.set(scrubbed.email.toLowerCase(), scrubbed);
     return Promise.resolve(scrubbed);
+  }
+
+  public updateNotificationPreferences(
+    id: string,
+    prefs: { email?: boolean | undefined; push?: boolean | undefined },
+  ): Promise<UserRecord | undefined> {
+    const user = [...this.users.values()].find((candidate) => candidate.id === id);
+    if (!user) {
+      return Promise.resolve(undefined);
+    }
+    const updated: UserRecord = {
+      ...user,
+      notifyEmail: prefs.email ?? user.notifyEmail,
+      notifyPush: prefs.push ?? user.notifyPush,
+    };
+    this.users.set(user.email.toLowerCase(), updated);
+    return Promise.resolve(updated);
   }
 }
 

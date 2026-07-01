@@ -76,13 +76,48 @@ export class CompositeDelivery implements NotificationDelivery {
   }
 }
 
-// How to resolve a recipient's address per channel. Email uses the user's
-// stored email; push uses the user's most recently registered device token
-// (undefined when none is registered, so the notification is skipped).
-const DEFAULT_RESOLVERS: Readonly<Record<string, RecipientResolver>> = {
-  email: async (userId) => (await userRepository.findById(userId))?.email,
-  push: async (userId) => (await deviceTokenRepository.listTokens(userId))[0],
-};
+/** The subset of the user store the resolvers need (kept minimal so it's easy to fake in tests). */
+interface ResolverUsers {
+  findById(
+    id: string,
+  ): Promise<{ email: string; notifyEmail: boolean; notifyPush: boolean } | undefined>;
+}
+
+/** The subset of the device-token store the push resolver needs. */
+interface ResolverTokens {
+  listTokens(userId: string): Promise<string[]>;
+}
+
+/**
+ * Build the default per-channel recipient resolvers. Each resolver honors the
+ * user's notification preferences: a channel the user has turned off resolves to
+ * undefined, so the existing "no recipient → skip" path drops it. Email uses the
+ * user's stored email; push uses their most recently registered device token.
+ * The stores are injected so this is directly unit-testable with fakes.
+ */
+export function createDefaultResolvers(
+  users: ResolverUsers,
+  tokens: ResolverTokens,
+): Readonly<Record<string, RecipientResolver>> {
+  return {
+    email: async (userId) => {
+      const user = await users.findById(userId);
+      return user?.notifyEmail === true ? user.email : undefined;
+    },
+    push: async (userId) => {
+      const user = await users.findById(userId);
+      if (user?.notifyPush !== true) {
+        return undefined;
+      }
+      return (await tokens.listTokens(userId))[0];
+    },
+  };
+}
+
+export const defaultRecipientResolvers = createDefaultResolvers(
+  userRepository,
+  deviceTokenRepository,
+);
 
 export interface BuildDeliveryOptions {
   /** Per-channel recipient resolvers (defaults to email-from-user-record / push-none). */
@@ -102,7 +137,7 @@ export function buildDelivery(
   channelNames: readonly string[],
   options?: BuildDeliveryOptions,
 ): NotificationDelivery {
-  const resolvers = options?.resolvers ?? DEFAULT_RESOLVERS;
+  const resolvers = options?.resolvers ?? defaultRecipientResolvers;
   const senders = options?.senders ?? {};
   const channels = channelNames
     .map((name) => {
