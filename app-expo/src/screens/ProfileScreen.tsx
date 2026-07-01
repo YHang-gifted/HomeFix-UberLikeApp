@@ -4,6 +4,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -49,6 +50,10 @@ export function ProfileScreen({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const [notifyEmail, setNotifyEmail] = useState(true);
+  const [notifyPush, setNotifyPush] = useState(true);
+  const [notifyBusy, setNotifyBusy] = useState(false);
+
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -77,7 +82,10 @@ export function ProfileScreen({
 
     async function load(): Promise<void> {
       try {
-        const found = await activeClient.getMe();
+        const [found, prefs] = await Promise.all([
+          activeClient.getMe(),
+          activeClient.getNotificationPreferences(),
+        ]);
         if (active) {
           setProfile(found);
           setName(found.displayName);
@@ -85,6 +93,8 @@ export function ProfileScreen({
           setBio(found.bio ?? '');
           setSkills(found.skills ?? []);
           setAvailability(found.availability ?? 'available');
+          setNotifyEmail(prefs.email);
+          setNotifyPush(prefs.push);
           setError(null);
         }
       } catch {
@@ -205,6 +215,30 @@ export function ProfileScreen({
     );
   }
 
+  async function toggleNotify(channel: 'email' | 'push', value: boolean): Promise<void> {
+    const previousEmail = notifyEmail;
+    const previousPush = notifyPush;
+    // Optimistically reflect the switch, then confirm with the server.
+    if (channel === 'email') {
+      setNotifyEmail(value);
+    } else {
+      setNotifyPush(value);
+    }
+    setNotifyBusy(true);
+    try {
+      const input = channel === 'email' ? { email: value } : { push: value };
+      const updated = await activeClient.updateNotificationPreferences(input);
+      setNotifyEmail(updated.email);
+      setNotifyPush(updated.push);
+    } catch {
+      setNotifyEmail(previousEmail);
+      setNotifyPush(previousPush);
+      setError('Could not update notification preferences.');
+    } finally {
+      setNotifyBusy(false);
+    }
+  }
+
   if (error !== null) {
     return (
       <View style={styles.centered}>
@@ -323,6 +357,32 @@ export function ProfileScreen({
       </Pressable>
 
       {message !== null && <Text style={styles.message}>{message}</Text>}
+
+      <Text style={styles.sectionHeader}>Notifications</Text>
+
+      <View style={styles.switchRow}>
+        <Text style={styles.switchLabel}>Email notifications</Text>
+        <Switch
+          value={notifyEmail}
+          onValueChange={(value) => {
+            void toggleNotify('email', value);
+          }}
+          disabled={notifyBusy}
+          accessibilityLabel="Email notifications"
+        />
+      </View>
+
+      <View style={styles.switchRow}>
+        <Text style={styles.switchLabel}>Push notifications</Text>
+        <Switch
+          value={notifyPush}
+          onValueChange={(value) => {
+            void toggleNotify('push', value);
+          }}
+          disabled={notifyBusy}
+          accessibilityLabel="Push notifications"
+        />
+      </View>
 
       <Text style={styles.sectionHeader}>Change password</Text>
 
@@ -497,6 +557,13 @@ const styles = StyleSheet.create({
   saveText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
   message: { marginTop: 16, fontSize: 14, color: '#0f172a' },
   sectionHeader: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginTop: 32 },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  switchLabel: { fontSize: 15, color: '#0f172a' },
   fieldError: { color: '#dc2626', fontSize: 13, marginTop: 4 },
   hint: { fontSize: 13, color: '#64748b', marginTop: 8, marginBottom: 12 },
   logout: {

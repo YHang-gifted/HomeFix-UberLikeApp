@@ -1,8 +1,17 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import type { UserProfile } from '../../../shared/schemas';
 import { ProfileScreen } from './ProfileScreen';
+
+/** Builds a mock client with notification-preference defaults the screen loads on mount. */
+function makeClient(extra: Record<string, unknown>): ApiClient {
+  return {
+    getNotificationPreferences: jest.fn().mockResolvedValue({ email: true, push: true }),
+    updateNotificationPreferences: jest.fn().mockResolvedValue({ email: true, push: true }),
+    ...extra,
+  } as unknown as ApiClient;
+}
 
 const CUSTOMER_ID = '123e4567-e89b-12d3-a456-426614174000';
 const WORKER_ID = '423e4567-e89b-12d3-a456-426614174000';
@@ -21,7 +30,7 @@ describe('ProfileScreen', () => {
   it('shows the profile and saves a new display name', async () => {
     const getMe = jest.fn().mockResolvedValue(makeProfile());
     const updateProfile = jest.fn().mockResolvedValue(makeProfile({ displayName: 'New Name' }));
-    const client = { getMe, updateProfile } as unknown as ApiClient;
+    const client = makeClient({ getMe, updateProfile });
 
     const { findByText, getByLabelText } = await render(<ProfileScreen client={client} />);
 
@@ -36,7 +45,7 @@ describe('ProfileScreen', () => {
   it('shows the existing phone and saves an edited one', async () => {
     const getMe = jest.fn().mockResolvedValue(makeProfile({ phone: '+1 555 000 1111' }));
     const updateProfile = jest.fn().mockResolvedValue(makeProfile({ phone: '+1 (555) 012-3456' }));
-    const client = { getMe, updateProfile } as unknown as ApiClient;
+    const client = makeClient({ getMe, updateProfile });
 
     const { findByText, getByLabelText } = await render(<ProfileScreen client={client} />);
     await findByText('customer@homefix.test');
@@ -63,7 +72,7 @@ describe('ProfileScreen', () => {
     const updateProfile = jest
       .fn()
       .mockResolvedValue({ ...workerProfile, bio: 'Pro plumber', skills: ['plumbing'] });
-    const client = { getMe, updateProfile } as unknown as ApiClient;
+    const client = makeClient({ getMe, updateProfile });
 
     const { findByLabelText, findByText, getByLabelText } = await render(
       <ProfileScreen client={client} />,
@@ -92,7 +101,7 @@ describe('ProfileScreen', () => {
     });
     const getMe = jest.fn().mockResolvedValue(workerProfile);
     const updateProfile = jest.fn().mockResolvedValue({ ...workerProfile, availability: 'away' });
-    const client = { getMe, updateProfile } as unknown as ApiClient;
+    const client = makeClient({ getMe, updateProfile });
 
     const { findByLabelText, findByText, getByLabelText } = await render(
       <ProfileScreen client={client} />,
@@ -113,7 +122,7 @@ describe('ProfileScreen', () => {
 
   it('hides bio and specialties for a non-worker', async () => {
     const getMe = jest.fn().mockResolvedValue(makeProfile());
-    const client = { getMe, updateProfile: jest.fn() } as unknown as ApiClient;
+    const client = makeClient({ getMe, updateProfile: jest.fn() });
 
     const { findByText, queryByLabelText } = await render(<ProfileScreen client={client} />);
     await findByText('customer@homefix.test');
@@ -123,7 +132,7 @@ describe('ProfileScreen', () => {
   it('rejects an empty display name without calling the API', async () => {
     const getMe = jest.fn().mockResolvedValue(makeProfile());
     const updateProfile = jest.fn();
-    const client = { getMe, updateProfile } as unknown as ApiClient;
+    const client = makeClient({ getMe, updateProfile });
 
     const { findByText, getByLabelText } = await render(<ProfileScreen client={client} />);
     await findByText('customer@homefix.test');
@@ -137,7 +146,7 @@ describe('ProfileScreen', () => {
   it('changes the password and shows confirmation', async () => {
     const getMe = jest.fn().mockResolvedValue(makeProfile());
     const changePassword = jest.fn().mockResolvedValue(undefined);
-    const client = { getMe, changePassword } as unknown as ApiClient;
+    const client = makeClient({ getMe, changePassword });
 
     const { findByText, getByLabelText } = await render(<ProfileScreen client={client} />);
     await findByText('customer@homefix.test');
@@ -154,7 +163,7 @@ describe('ProfileScreen', () => {
   it('blocks a password change when the confirmation does not match', async () => {
     const getMe = jest.fn().mockResolvedValue(makeProfile());
     const changePassword = jest.fn();
-    const client = { getMe, changePassword } as unknown as ApiClient;
+    const client = makeClient({ getMe, changePassword });
 
     const { findByText, getByLabelText } = await render(<ProfileScreen client={client} />);
     await findByText('customer@homefix.test');
@@ -172,7 +181,7 @@ describe('ProfileScreen', () => {
     const getMe = jest.fn().mockResolvedValue(makeProfile());
     const deleteAccount = jest.fn().mockResolvedValue(undefined);
     const onDeleted = jest.fn();
-    const client = { getMe, deleteAccount } as unknown as ApiClient;
+    const client = makeClient({ getMe, deleteAccount });
 
     const { findByText, getByLabelText } = await render(
       <ProfileScreen client={client} onDeleted={onDeleted} />,
@@ -191,7 +200,7 @@ describe('ProfileScreen', () => {
     const getMe = jest.fn().mockResolvedValue(makeProfile());
     const deleteAccount = jest.fn();
     const onDeleted = jest.fn();
-    const client = { getMe, deleteAccount } as unknown as ApiClient;
+    const client = makeClient({ getMe, deleteAccount });
 
     const { findByText, getByLabelText } = await render(
       <ProfileScreen client={client} onDeleted={onDeleted} />,
@@ -211,7 +220,7 @@ describe('ProfileScreen', () => {
     const logoutAll = jest.fn().mockResolvedValue(undefined);
     const getToken = jest.fn().mockReturnValue('fresh-token');
     const onTokenRefreshed = jest.fn();
-    const client = { getMe, logoutAll, getToken } as unknown as ApiClient;
+    const client = makeClient({ getMe, logoutAll, getToken });
 
     const { findByText, getByLabelText } = await render(
       <ProfileScreen client={client} onTokenRefreshed={onTokenRefreshed} />,
@@ -223,5 +232,25 @@ describe('ProfileScreen', () => {
     await findByText('Logged out of other devices');
     expect(logoutAll).toHaveBeenCalled();
     expect(onTokenRefreshed).toHaveBeenCalledWith('fresh-token');
+  });
+
+  it('loads notification preferences and saves a toggled channel', async () => {
+    const getMe = jest.fn().mockResolvedValue(makeProfile());
+    const getNotificationPreferences = jest.fn().mockResolvedValue({ email: true, push: true });
+    const updateNotificationPreferences = jest.fn().mockResolvedValue({ email: false, push: true });
+    const client = makeClient({ getMe, getNotificationPreferences, updateNotificationPreferences });
+
+    const { findByText, getByLabelText } = await render(<ProfileScreen client={client} />);
+    await findByText('customer@homefix.test');
+
+    const emailSwitch = getByLabelText('Email notifications');
+    expect(emailSwitch.props.value).toBe(true);
+
+    await fireEvent(emailSwitch, 'valueChange', false);
+
+    await waitFor(() => {
+      expect(updateNotificationPreferences).toHaveBeenCalledWith({ email: false });
+    });
+    expect(getByLabelText('Email notifications').props.value).toBe(false);
   });
 });
