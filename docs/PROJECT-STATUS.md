@@ -1,8 +1,33 @@
 # HomeFix — Project Status & Road to a Testable v1
 
-_Snapshot as of 2026-06-28. Compiled against the original vision: an Uber-like
+_Snapshot as of 2026-07-01. Compiled against the original vision: an Uber-like
 home-repair marketplace with three roles (customer, worker, admin), a request
 lifecycle, worker matching, quoting, payments, reviews, and messaging._
+
+> **Update log.** Since the 2026-06-30 snapshot the following completed and merged:
+> the **real-money mock flow end-to-end** — the **payout** leg (worker net → a
+> pending payout on every paid payment, settled via a `payout.paid` webhook, with a
+> worker payout-history screen) now joins the split, webhook confirmation, and
+> refunds; **image upload** (provider-agnostic mock store + app picker/upload +
+> real `expo-image-picker` provider); **live-updating chat** (the message thread
+> polls while open); and **per-user notification preferences** end-to-end (email /
+> push toggles in Profile; a channel only delivers when globally enabled **and** the
+> recipient wants it). Migrations are now 0001–0028. The real-money **mock** flow is
+> complete; the remaining real-money work is a **real provider adapter** (intent
+> creation + stored provider reference + raw-body signature verification), deferred
+> until a provider is wired.
+>
+> **Update log (later on 2026-07-01).** Also merged since: an **interactive map
+> picker** for request coordinates (a pure region helper + injected `react-native-maps`
+> modal, hidden on web); the **real payment-provider integration shape** —
+> payments now carry the provider's own **`providerRef`** (mock by default) and the
+> payment/payout **webhooks are resolved by that reference and authenticated by an
+> HMAC-SHA256 signature over the raw request body** (`x-webhook-signature`), exactly
+> as a real provider signs; and **expanded audit** covering the quote lifecycle
+> (proposed / accepted / declined) and payment creation. Migrations are now
+> 0001–0029. A structured **5xx error-logging** slice is in review. The remaining
+> real-money work is now only a concrete provider adapter (creating the charge with
+> a client secret) plus its credentials — the surrounding flow is provider-shaped.
 
 ## 1. Where we are in one sentence
 
@@ -12,10 +37,16 @@ repair request, get matched (admin assignment or a worker self-claiming by
 category), receive and accept a worker's price quote, pay the agreed amount,
 message the other party, and review the worker (and read the worker's reply) —
 all persisted to Postgres, behind server-side authorization, and covered by an
-extensive test suite. We are at **internal alpha, deployed**, with the main gaps
-to a real-user test build being **a public frontend deploy, a map/place picker,
-per-user notification preferences, and a full E2E/device QA pass** — not core
-domain logic, notification delivery, or a deploy target.
+extensive test suite. Accounts now have a **full lifecycle** (change/forgot
+password, log-out-everywhere, admin suspend/reinstate, self-delete) and payments
+carry a **marketplace commission split** with a **provider-webhook confirmation
+seam, refunds, and worker payouts** (still mock/sandbox — no real money moves).
+Requests support **photo upload**, chat threads **update live** while open, and
+each user controls their **email/push notification preferences**. We are at
+**internal alpha, deployed**, with the main gaps to a real-user test build being
+**a public frontend deploy, a map/place picker, a real payment-provider adapter,
+and a full E2E/device QA pass** — not core domain logic, notification delivery, or
+a deploy target.
 
 ## 2. What is done
 
@@ -32,6 +63,19 @@ admin-only endpoints); auto sign-out on token expiry; rate limiting on the
 unauthenticated auth endpoints. User profiles with display name, contact phone
 (exposed only to a request's parties), worker **bio + specialties (skills)**, and
 a worker **online/away availability** toggle.
+
+**Account lifecycle (end-to-end, all merged).** Self-service **change password**
+(re-verifies the current password) and **forgot-password** reset (single-use,
+hashed, 1-hour token emailed via the config-gated sender). **Token revocation**: a
+`token_version` claim embedded in each JWT lets "log out of all other devices" and
+a password change invalidate every existing session while keeping the current
+device signed in. **Admin suspend/reinstate** (a `users.status` of
+active/suspended/deleted blocks sign-in and rejects live tokens immediately) via an
+**admin Users management screen** (list every account with status, suspend or
+reinstate per row). **Self-service account deletion** as a GDPR-friendly
+**soft-delete/anonymize** — the row is kept (so foreign keys and de-identified
+history stay intact) but email/name/phone/password are scrubbed, status set to
+`deleted`, and all tokens revoked. Sensitive account actions are audited.
 
 **Request lifecycle.** Create → match → accept → in_progress → completed, with a
 guarded status state machine, cancellation (with reason), photos, a **preferred /
@@ -53,6 +97,26 @@ on an accepted quote of the matching amount (mock/sandbox payments only — no r
 money moves). A NT$1 minimum is enforced on quotes and payments. Customers and
 workers each have a **payment history** view (paid/received).
 
+**Real-money groundwork (provider-agnostic, mock by default).** We chose a
+**Model B marketplace split**: each payment is split at creation into a **platform
+commission** (`PLATFORM_FEE_BPS`, default 15%) and the **worker's net**, surfaced
+in the app (payment history + request detail). Payment confirmation runs through a
+**provider-webhook seam** — `POST /webhooks/payments`, verified by a shared secret
+(`PAYMENTS_WEBHOOK_SECRET`; in production an unset secret rejects all webhooks so
+nothing confirms by accident), idempotent, the seam a real provider (Stripe
+Connect / PayPal / Adyen, or a TW provider) would call in place of the mock
+checkout. **Refunds** exist end-to-end: an admin can refund a paid payment (the
+job can then be re-pooled), the webhook also handles `payment.refunded`, and the
+app shows a `refunded` state + an admin Refund action. **Payouts** complete the
+mock money flow: every paid payment schedules a **pending payout** of the worker's
+net, settled via a `payout.paid` webhook (idempotent), with a **worker payout-
+history screen** (persisted to Postgres, migration 0027). All audited; still no
+real money. The mock flow (split → confirm → refund → payout) is complete;
+**remaining real-money work is a real provider adapter** — intent creation with a
+client secret, a stored provider reference to map webhooks back to our
+payment/payout, and raw-body signature verification — deferred by project rule
+until a provider is actually wired.
+
 **Supporting domains, each backend + Postgres + app UI.** Reviews & worker
 ratings (aggregated in SQL) **with a worker public reply**, in-app notifications
 with unread badge, favorite workers, and an in-app message thread per request.
@@ -66,12 +130,31 @@ email sender (Resend-shaped `{from,to,subject,text}` + Bearer) and an Expo push
 sender that **surfaces per-ticket errors** (e.g. `DeviceNotRegistered`) even on an
 HTTP 200. They send for real only when `EMAIL_*` / `PUSH_API_URL` are configured;
 unconfigured channels stay inert (log only). Push **device tokens** are
-registered from the app and stored in Postgres.
+registered from the app and stored in Postgres. Each user controls their own
+**notification preferences** (email / push toggles in Profile, migration 0028): a
+channel is delivered only when it is globally enabled **and** the recipient wants
+it — enforced at the recipient-resolver layer, so an opted-out channel resolves to
+"no recipient" and is skipped.
 
-**Persistence.** All domains (requests, audit, reviews, notifications, users,
-favorites, messages, payments, quotes, device tokens) run on Postgres via SQL
-migrations `0001`–`0015`, run automatically on boot, with an in-memory fallback
-for tests/dev.
+**Media & realtime.** Requests support **photo upload** — a provider-agnostic,
+mock-by-default upload store (request an upload target → PUT the bytes → public
+URL), an app image picker/upload helper, and a real `expo-image-picker` device
+provider. The in-app **message thread updates live** by polling while it is open
+(chosen over a WebSocket to avoid new infrastructure; a true-push upgrade remains
+optional).
+
+**Persistence & DB hardening.** All domains (requests, audit, reviews,
+notifications, users, favorites, messages, payments, quotes, device tokens,
+payouts) run on Postgres via SQL migrations `0001`–`0028`, run automatically on
+boot (a multi-statement-capable runner), with an in-memory fallback for tests/dev.
+The schema is hardened with **indexes** on filtered columns (0016), **CHECK
+constraints** enforcing the domain enums/ranges (0017), and **foreign keys** across
+the graph (0018–0021, added `NOT VALID` so they enforce new writes without a
+boot-time scan of legacy rows). Later migrations add `users.token_version` (0022),
+`password_reset_tokens` (0023), `users.status` (0024), the payment
+`platform_fee_cents` split (0025), the `refunded` payment status (0026), the
+`payouts` table (0027), and per-user `users.notify_email/notify_push` preferences
+(0028).
 
 **Apps.** Full three-role Expo React Native app: registration, login/session
 persistence (SecureStore on native, localStorage on web), and role-specific
@@ -93,15 +176,18 @@ These are the gaps between "deployed, feature-rich internal build" and "a build
 real test users could exercise":
 
 1. **Public frontend deploy.** The API is live, but the Expo app is not yet hosted
-   as a public web app. The web build pipeline is ready (`app-expo` builds a
-   static `dist/` pointing at the Railway API via `npm run export:web`); it still
-   needs to be committed (slice 99) and the `dist/` hosted (e.g. Netlify), then
-   the backend `CORS_ALLOWED_ORIGINS` pointed at that origin. Web runtime guards
-   for native-only modules (push/location) to be confirmed once hosted.
-2. **Map / place picker.** Location can be auto-filled from the device or set by
+   as a public web app. The web build/export pipeline is merged (slice 99 —
+   `app-expo` builds a static `dist/` pointing at the Railway API); it still needs
+   the `dist/` hosted (e.g. Netlify) and the backend `CORS_ALLOWED_ORIGINS`
+   pointed at that origin. Web runtime guards for native-only modules
+   (push/location) to be confirmed once hosted.
+2. **Real payment-provider adapter.** The full mock money flow (split → webhook
+   confirm → refund → payout) is done; a real provider still needs intent creation
+   (client secret), a stored provider reference to map webhooks back to our
+   payment/payout, and raw-body signature verification. Mock/sandbox by project
+   rule until a provider is wired.
+3. **Map / place picker.** Location can be auto-filled from the device or set by
    address search, but there is still no interactive map picker.
-3. **Per-user notification preferences.** Channels are config-gated globally; a
-   recipient cannot yet choose which channels they receive.
 4. **End-to-end + device QA.** Unit/integration coverage is strong (and a QA
    checklist exists at `docs/qa-checklist.md`); there is no full E2E run on a real
    device/build, nor accessibility/performance passes.
@@ -131,11 +217,47 @@ testable v1.
 
 ## 5. Recommended next slices (in order)
 
-1. **Host the frontend web app** — commit slice 99, deploy `app-expo/dist`, set
+1. **Host the frontend web app** — deploy the merged `app-expo/dist`, set
    `CORS_ALLOWED_ORIGINS` to the frontend origin, and verify the login loop on
-   web (guard native-only push/location calls behind `Platform.OS`).
-2. **Map / place picker** feeding request coordinates.
-3. **Per-user notification preferences** (which channels a recipient wants).
-4. **Observability & backups** for the Railway deployment (log shipping, managed
-   Postgres backup policy).
-5. A full **E2E / device QA** pass against `docs/qa-checklist.md`.
+   web (guard native-only push/location/map calls behind `Platform.OS`).
+2. **Backups & log shipping** for the Railway deployment (managed Postgres backup
+   policy, ship the structured logs somewhere queryable). Structured 5xx error
+   logging is done.
+3. A full **E2E / device QA** pass against `docs/qa-checklist.md`.
+4. **Concrete payment-provider adapter** — the webhook resolution (by
+   `providerRef`) and HMAC signature verification are done; a real adapter just
+   creates the charge with a client secret, once a provider and credentials are
+   chosen.
+5. **WebSocket true-push chat** — optional upgrade over the current polling.
+6. **Further audit coverage** — auth/profile actions (password change, profile
+   edits) not yet audited.
+
+## 6. Slice ledger since the last snapshot (110c–117)
+
+- **110c–110e** payout backend + Postgres (migration 0027) + worker payout-history
+  screen — **real-money mock flow complete** (split → webhook confirm → refund →
+  payout).
+- **111a–111c** image upload: mock store backend, app picker/upload logic + UI,
+  real `expo-image-picker` provider — photo upload end-to-end (mock).
+- **112** live-updating chat (message thread polls while open).
+- **113a/113b** per-user notification preferences: backend (migration 0028;
+  resolver layer honors the prefs) + email/push toggles in Profile.
+- **114/114b** map picker: pure `initialMapRegion` helper + injected seam, then the
+  real `react-native-maps` modal wired in `App.tsx` (native-only, hidden on web).
+- **115a** payment provider seam + `providerRef` on each payment (migration 0029,
+  mock provider); **115b** webhooks resolved by `providerRef`; **115c** raw-body
+  **HMAC signature verification** for the payment/payout webhooks — the money flow
+  is now shaped exactly like a real provider integration.
+- **116** expanded audit: quote proposed/accepted/declined + payment created.
+- **117** structured 5xx error logging (request id / method / path / stack;
+  injectable sink) — merged.
+- **118** database backup runbook (`docs/backups.md`) + `scripts/backup-db.mjs`
+  (`npm run backup:db` — `pg_dump` wrapper; credentials passed via `PG*` env, never
+  in argv/logs) — _in review_. Completes the observability/backups track.
+
+_All merged to `main` except **118** (backups), which was handed off and may still
+be in review at the time of this snapshot._
+
+_Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
+CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);
+payment split + webhook seam + refunds (109–110b)._
