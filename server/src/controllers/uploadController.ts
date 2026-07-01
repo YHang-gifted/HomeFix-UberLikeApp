@@ -9,7 +9,7 @@ import { parseUuidParam } from './parseUuidParam.ts';
 import { createUploadTarget, getUpload, storeUpload } from '../services/uploadService.ts';
 
 /** Issue an upload target for an allowed image type. */
-export function postUpload(req: Request, res: Response, next: NextFunction): void {
+export async function postUpload(req: Request, res: Response, next: NextFunction): Promise<void> {
   const principal = requirePrincipal(req, next);
   if (!principal) {
     return;
@@ -19,7 +19,11 @@ export function postUpload(req: Request, res: Response, next: NextFunction): voi
     next(new AppError('Invalid upload request', 422));
     return;
   }
-  res.status(200).json(createUploadTarget(parsed.data));
+  try {
+    res.status(200).json(await createUploadTarget(parsed.data));
+  } catch (error) {
+    next(error);
+  }
 }
 
 /** Receive the uploaded image bytes (raw body parsed on the route). */

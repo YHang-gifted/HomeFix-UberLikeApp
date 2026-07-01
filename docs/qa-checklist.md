@@ -196,5 +196,5 @@ checklist adds the device- and native-module coverage that can't._
       mock until a provider adapter and credentials are wired.
 - [ ] Notification email/push only **actually send** when the provider env vars
       are set (see §7); otherwise the sender logs only.
-- [ ] Uploaded images use an in-memory mock store (dev/test) — not durable object
-      storage yet.
+- [ ] Uploaded images use the in-memory mock store by default (dev/test); set the
+      `STORAGE_S3_*` env vars to store them in real S3 (presigned direct upload).

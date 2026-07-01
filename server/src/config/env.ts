@@ -77,6 +77,42 @@ const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.string().min(1).optional(),
     ),
+    // Object storage for uploaded images. Set the bucket, region, and credentials
+    // to store images in real S3 (the app returns a presigned PUT URL the client
+    // uploads to directly); leave any unset and uploads fall back to the in-memory
+    // mock store (dev/test). Empty values are treated as unset.
+    STORAGE_S3_BUCKET: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
+    STORAGE_S3_REGION: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
+    STORAGE_S3_ACCESS_KEY_ID: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
+    STORAGE_S3_SECRET_ACCESS_KEY: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
+    // Public base URL images are read from (a CDN or the bucket's public URL). If
+    // unset, the bucket's virtual-hosted S3 URL is used.
+    STORAGE_S3_PUBLIC_BASE_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.url().optional(),
+    ),
+    // Optional custom endpoint for S3-compatible storage (R2, MinIO, …).
+    STORAGE_S3_ENDPOINT: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.url().optional(),
+    ),
+    // Presigned upload URL lifetime in seconds (default 900 = 15 min, max 1 hour).
+    STORAGE_S3_UPLOAD_EXPIRES_SECONDS: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.coerce.number().int().positive().max(3600).default(900),
+    ),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production' && env.JWT_SECRET === DEV_JWT_SECRET) {
