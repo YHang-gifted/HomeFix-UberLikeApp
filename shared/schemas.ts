@@ -182,6 +182,8 @@ export const auditActionSchema = z.enum([
   'account.suspended',
   'account.reinstated',
   'account.deleted',
+  'account.password_changed',
+  'profile.updated',
   'quote.proposed',
   'quote.accepted',
   'quote.declined',

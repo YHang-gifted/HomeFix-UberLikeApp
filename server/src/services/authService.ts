@@ -78,6 +78,11 @@ export async function changePassword(
   // Invalidate all existing sessions (other devices), then issue a fresh token so
   // the caller's current device stays signed in.
   const newVersion = await userRepository.bumpTokenVersion(user.id);
+  await recordAuditEvent({
+    actor: principal,
+    action: 'account.password_changed',
+    resourceId: user.id,
+  });
   return { token: signToken(principal, newVersion ?? user.tokenVersion + 1) };
 }
 

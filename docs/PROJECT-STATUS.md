@@ -257,11 +257,14 @@ testable v1.
 - **119** end-to-end smoke test (`tests/e2e-smoke.test.mjs`) — the full three-role
   journey over HTTP driven by real demo logins (post → assign → quote → accept →
   pay w/ split → payout → message → complete → review → audit), plus a refreshed
-  `docs/qa-checklist.md` covering payments/prefs/map/upload/observability — _in
+  `docs/qa-checklist.md` covering payments/prefs/map/upload/observability — merged.
+- **120** audit for auth/profile actions — `account.password_changed` (on
+  change-password) and `profile.updated` (on profile edit, recording changed field
+  **names** only, never values). AuditLogScreen labels + audit tests added — _in
   review_.
 
-_All slices above are merged to `main` except **119** (E2E smoke test), which was
-handed off and may still be in review at the time of this snapshot._
+_All slices above are merged to `main` except **120** (auth/profile audit), which
+was handed off and may still be in review at the time of this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);
