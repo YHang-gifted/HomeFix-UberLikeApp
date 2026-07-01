@@ -77,7 +77,7 @@ describe('Payment refund', () => {
         body: JSON.stringify({ amountCents: 150000 }),
       })
     ).json();
-    return { requestId: request.id, paymentId: payment.id };
+    return { requestId: request.id, paymentId: payment.id, providerRef: payment.providerRef };
   }
 
   async function paidPayment() {
@@ -127,13 +127,13 @@ describe('Payment refund', () => {
   });
 
   it('confirms a refund from a webhook, idempotently', async () => {
-    const { requestId, paymentId } = await paidPayment();
+    const { requestId, providerRef } = await paidPayment();
 
-    assert.equal((await webhook({ type: 'payment.refunded', paymentId })).status, 200);
+    assert.equal((await webhook({ type: 'payment.refunded', providerRef })).status, 200);
     assert.equal((await (await getPayment(requestId)).json()).status, 'refunded');
 
     // A retried delivery stays refunded.
-    assert.equal((await webhook({ type: 'payment.refunded', paymentId })).status, 200);
+    assert.equal((await webhook({ type: 'payment.refunded', providerRef })).status, 200);
     assert.equal((await (await getPayment(requestId)).json()).status, 'refunded');
   });
 });
