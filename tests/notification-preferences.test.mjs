@@ -6,8 +6,6 @@ import { createApp } from '../server/src/app.ts';
 import { userRepository } from '../server/src/repositories/userRepository.ts';
 import { defaultRecipientResolvers } from '../server/src/services/notificationDelivery.ts';
 
-const CUSTOMER_ID = '123e4567-e89b-12d3-a456-426614174000';
-
 describe('GET/PATCH /me/notification-preferences', () => {
   let server;
   let baseUrl;
@@ -72,12 +70,23 @@ describe('GET/PATCH /me/notification-preferences', () => {
 
 describe('default recipient resolvers honor preferences', () => {
   it('resolves no email recipient once the user turns email off', async () => {
-    assert.equal(await defaultRecipientResolvers.email(CUSTOMER_ID), 'customer@homefix.test');
+    // Use a throwaway user so we never mutate shared demo state.
+    const id = randomUUID();
+    await userRepository.create({
+      id,
+      email: `res-${id}@homefix.test`,
+      role: 'customer',
+      displayName: 'Resolver User',
+      passwordHash: 'h',
+      tokenVersion: 0,
+      status: 'active',
+      notifyEmail: true,
+      notifyPush: true,
+    });
 
-    await userRepository.updateNotificationPreferences(CUSTOMER_ID, { email: false });
-    assert.equal(await defaultRecipientResolvers.email(CUSTOMER_ID), undefined);
+    assert.equal(await defaultRecipientResolvers.email(id), `res-${id}@homefix.test`);
 
-    // Restore so other suites see the default.
-    await userRepository.updateNotificationPreferences(CUSTOMER_ID, { email: true });
+    await userRepository.updateNotificationPreferences(id, { email: false });
+    assert.equal(await defaultRecipientResolvers.email(id), undefined);
   });
 });
