@@ -113,6 +113,12 @@ export async function createPayment(
     providerRef: charge.providerRef,
   };
   await paymentRepository.save(payment);
+  await recordAuditEvent({
+    actor: principal,
+    action: 'payment.created',
+    resourceId: payment.id,
+    details: { requestId, amountCents: String(input.amountCents) },
+  });
   return payment;
 }
 

@@ -11,6 +11,7 @@ import { quoteRepository } from '../repositories/quoteRepository.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { isRequestParty } from './serviceRequestService.ts';
 import { recordNotification } from './notificationService.ts';
+import { recordAuditEvent } from './auditService.ts';
 
 async function loadRequest(requestId: string): Promise<ServiceRequest> {
   const request = await serviceRequestRepository.findById(requestId);
@@ -68,6 +69,12 @@ export async function createQuote(
     message: 'Your worker sent a price quote for your request.',
     requestId,
   });
+  await recordAuditEvent({
+    actor: principal,
+    action: 'quote.proposed',
+    resourceId: quote.id,
+    details: { requestId, amountCents: String(input.amountCents) },
+  });
   return quote;
 }
 
@@ -101,6 +108,12 @@ async function respondToQuote(
         ? 'The customer accepted your price quote.'
         : 'The customer declined your price quote.',
     requestId,
+  });
+  await recordAuditEvent({
+    actor: principal,
+    action: decision === 'accepted' ? 'quote.accepted' : 'quote.declined',
+    resourceId: quote.id,
+    details: { requestId },
   });
   return updated;
 }
