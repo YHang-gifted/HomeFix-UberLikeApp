@@ -72,6 +72,33 @@ describe('CreateRequestScreen', () => {
     expect(queryByLabelText('Add photo')).toBeNull();
   });
 
+  it('fills the coordinates from a map pick', async () => {
+    const mapPicker = jest.fn().mockResolvedValue({ latitude: 25.047, longitude: 121.517 });
+    const getPrincipal = jest.fn();
+    const client = { getPrincipal } as unknown as ApiClient;
+
+    const { getByLabelText } = await render(
+      <CreateRequestScreen client={client} mapPicker={mapPicker} />,
+    );
+    await fireEvent.press(getByLabelText('Pick on map'));
+
+    await waitFor(() => {
+      expect(getByLabelText('Latitude').props.value).toBe('25.047000');
+    });
+    expect(getByLabelText('Longitude').props.value).toBe('121.517000');
+  });
+
+  it('hides the Pick on map button when no map picker is provided', async () => {
+    const getPrincipal = jest.fn();
+    const client = { getPrincipal } as unknown as ApiClient;
+
+    const { getByLabelText, queryByLabelText } = await render(
+      <CreateRequestScreen client={client} />,
+    );
+    getByLabelText('Latitude');
+    expect(queryByLabelText('Pick on map')).toBeNull();
+  });
+
   it('creates the request and calls onCreated on a valid submit', async () => {
     const created = makeRequest();
     const createServiceRequest = jest.fn().mockResolvedValue(created);
