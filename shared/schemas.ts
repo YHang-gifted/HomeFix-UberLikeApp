@@ -182,6 +182,10 @@ export const auditActionSchema = z.enum([
   'account.suspended',
   'account.reinstated',
   'account.deleted',
+  'quote.proposed',
+  'quote.accepted',
+  'quote.declined',
+  'payment.created',
   'payment.refunded',
 ]);
 export type AuditAction = z.infer<typeof auditActionSchema>;

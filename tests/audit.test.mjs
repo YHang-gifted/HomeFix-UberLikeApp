@@ -5,6 +5,8 @@ import { createApp } from '../server/src/app.ts';
 import { signToken } from '../server/src/auth/jwt.ts';
 import { resetServiceRequests } from '../server/src/services/serviceRequestService.ts';
 import { resetAuditEvents } from '../server/src/services/auditService.ts';
+import { resetQuotes } from '../server/src/services/quoteService.ts';
+import { resetPayments } from '../server/src/services/paymentService.ts';
 
 const CUSTOMER_ID = '123e4567-e89b-12d3-a456-426614174000';
 const ADMIN_ID = '323e4567-e89b-12d3-a456-426614174000';
@@ -39,6 +41,8 @@ describe('audit log', () => {
   beforeEach(async () => {
     await resetServiceRequests();
     await resetAuditEvents();
+    await resetQuotes();
+    await resetPayments();
   });
 
   async function createRequest() {
@@ -97,6 +101,45 @@ describe('audit log', () => {
     assert.equal(changed.actorRole, 'worker');
     assert.equal(changed.details.from, 'matched');
     assert.equal(changed.details.to, 'accepted');
+  });
+
+  it('records the quote lifecycle and payment creation with the acting party', async () => {
+    const request = await createRequest();
+    await fetch(`${baseUrl}/service-requests/${request.id}/assignment`, {
+      method: 'PATCH',
+      headers: headers(ADMIN_ID, 'admin'),
+      body: JSON.stringify({ workerId: WORKER_ID }),
+    });
+    await fetch(`${baseUrl}/service-requests/${request.id}/quote`, {
+      method: 'POST',
+      headers: headers(WORKER_ID, 'worker'),
+      body: JSON.stringify({ amountCents: 150000 }),
+    });
+    await fetch(`${baseUrl}/service-requests/${request.id}/quote/accept`, {
+      method: 'POST',
+      headers: headers(CUSTOMER_ID, 'customer'),
+    });
+    await fetch(`${baseUrl}/service-requests/${request.id}/payment`, {
+      method: 'POST',
+      headers: headers(CUSTOMER_ID, 'customer'),
+      body: JSON.stringify({ amountCents: 150000 }),
+    });
+
+    const page = await audit();
+
+    const proposed = page.items.find((e) => e.action === 'quote.proposed');
+    assert.ok(proposed);
+    assert.equal(proposed.actorRole, 'worker');
+    assert.equal(proposed.details.amountCents, '150000');
+
+    const accepted = page.items.find((e) => e.action === 'quote.accepted');
+    assert.ok(accepted);
+    assert.equal(accepted.actorRole, 'customer');
+
+    const paymentCreated = page.items.find((e) => e.action === 'payment.created');
+    assert.ok(paymentCreated);
+    assert.equal(paymentCreated.actorRole, 'customer');
+    assert.equal(paymentCreated.details.requestId, request.id);
   });
 
   it('forbids a non-admin from reading the audit log (403)', async () => {
