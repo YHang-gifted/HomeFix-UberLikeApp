@@ -9,6 +9,8 @@ export interface PaymentRepository {
   save(payment: Payment): Promise<void>;
   findById(id: string): Promise<Payment | undefined>;
   findByRequest(requestId: string): Promise<Payment | undefined>;
+  /** Look up a payment by the provider's reference (for webhook resolution). */
+  findByProviderRef(providerRef: string): Promise<Payment | undefined>;
   /** A customer's payments, most-recent-first. */
   findByCustomer(customerId: string): Promise<Payment[]>;
   /** A worker's received payments, most-recent-first. */
@@ -37,6 +39,12 @@ export class InMemoryPaymentRepository implements PaymentRepository {
   public findByRequest(requestId: string): Promise<Payment | undefined> {
     return Promise.resolve(
       [...this.payments.values()].find((payment) => payment.requestId === requestId),
+    );
+  }
+
+  public findByProviderRef(providerRef: string): Promise<Payment | undefined> {
+    return Promise.resolve(
+      [...this.payments.values()].find((payment) => payment.providerRef === providerRef),
     );
   }
 

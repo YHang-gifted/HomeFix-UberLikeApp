@@ -16,6 +16,7 @@ import { isRequestParty } from './serviceRequestService.ts';
 import { recordNotification } from './notificationService.ts';
 import { recordAuditEvent } from './auditService.ts';
 import { createPayoutForPayment } from './payoutService.ts';
+import { paymentProvider } from './paymentProvider.ts';
 
 async function loadRequest(requestId: string): Promise<ServiceRequest> {
   const request = await serviceRequestRepository.findById(requestId);
@@ -89,8 +90,17 @@ export async function createPayment(
     input.amountCents,
     loadEnv().PLATFORM_FEE_BPS,
   );
+  const id = randomUUID();
+  // Open the charge with the provider (mock by default) and keep its reference so
+  // the provider's webhook can later be mapped back to this payment.
+  const charge = await paymentProvider.createCharge({
+    paymentId: id,
+    requestId,
+    amountCents: input.amountCents,
+    currency: 'TWD',
+  });
   const payment: Payment = {
-    id: randomUUID(),
+    id,
     requestId,
     customerId: request.customerId,
     workerId: request.workerId,
@@ -100,6 +110,7 @@ export async function createPayment(
     createdAt: new Date().toISOString(),
     platformFeeCents,
     workerNetCents,
+    providerRef: charge.providerRef,
   };
   await paymentRepository.save(payment);
   return payment;

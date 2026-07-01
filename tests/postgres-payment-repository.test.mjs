@@ -90,6 +90,16 @@ describe('PostgresPaymentRepository (PGlite)', () => {
     assert.equal(found?.workerNetCents, 127500);
   });
 
+  it('round-trips the provider reference and finds a payment by it', async () => {
+    await repo.save(makePayment({ providerRef: 'mock_abc123' }));
+    const byRequest = await repo.findByRequest(REQUEST_ID);
+    assert.equal(byRequest?.providerRef, 'mock_abc123');
+
+    const byRef = await repo.findByProviderRef('mock_abc123');
+    assert.equal(byRef?.id, byRequest?.id);
+    assert.equal(await repo.findByProviderRef('mock_nope'), undefined);
+  });
+
   it('upserts the same payment to paid (status + paidAt) by id', async () => {
     await repo.save(makePayment());
     await repo.save(makePayment({ status: 'paid', paidAt: '2026-06-22T01:00:00.000Z' }));

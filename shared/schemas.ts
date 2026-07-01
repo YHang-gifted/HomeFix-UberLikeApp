@@ -377,6 +377,10 @@ export const paymentSchema = z.object({
   // populates both on every payment it returns.
   platformFeeCents: z.number().int().nonnegative().optional(),
   workerNetCents: z.number().int().nonnegative().optional(),
+  // The payment provider's own reference for this charge (e.g. a Stripe
+  // PaymentIntent id). Optional: the mock provider assigns one, and it is how a
+  // real provider's webhooks map back to our payment. Legacy rows may lack it.
+  providerRef: z.string().optional(),
 });
 export type Payment = z.infer<typeof paymentSchema>;
 

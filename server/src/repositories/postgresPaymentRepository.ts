@@ -5,8 +5,8 @@ import type { Queryable } from '../db/queryable.ts';
 
 const UPSERT = `
   INSERT INTO payments
-    (id, request_id, customer_id, worker_id, amount_cents, currency, status, created_at, paid_at, platform_fee_cents)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    (id, request_id, customer_id, worker_id, amount_cents, currency, status, created_at, paid_at, platform_fee_cents, provider_ref)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
   ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, paid_at = EXCLUDED.paid_at
 `;
 
@@ -21,6 +21,7 @@ interface PaymentRow {
   created_at: string | Date;
   paid_at: string | Date | null;
   platform_fee_cents: number;
+  provider_ref: string | null;
 }
 
 function mapRow(row: unknown): Payment {
@@ -38,6 +39,7 @@ function mapRow(row: unknown): Payment {
     platformFeeCents,
     workerNetCents: r.amount_cents - platformFeeCents,
     ...(r.paid_at !== null ? { paidAt: new Date(r.paid_at).toISOString() } : {}),
+    ...(r.provider_ref !== null ? { providerRef: r.provider_ref } : {}),
   });
 }
 
@@ -60,11 +62,20 @@ export class PostgresPaymentRepository implements PaymentRepository {
       payment.createdAt,
       payment.paidAt ?? null,
       payment.platformFeeCents ?? 0,
+      payment.providerRef ?? null,
     ]);
   }
 
   public async findById(id: string): Promise<Payment | undefined> {
     const result = await this.db.query('SELECT * FROM payments WHERE id = $1', [id]);
+    const row = result.rows[0];
+    return row === undefined ? undefined : mapRow(row);
+  }
+
+  public async findByProviderRef(providerRef: string): Promise<Payment | undefined> {
+    const result = await this.db.query('SELECT * FROM payments WHERE provider_ref = $1', [
+      providerRef,
+    ]);
     const row = result.rows[0];
     return row === undefined ? undefined : mapRow(row);
   }
