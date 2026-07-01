@@ -107,7 +107,7 @@ describe('POST /webhooks/payments', () => {
         body: JSON.stringify({ amountCents: 150000 }),
       })
     ).json();
-    return { requestId: request.id, paymentId: payment.id };
+    return { requestId: request.id, providerRef: payment.providerRef };
   }
 
   function webhook(body) {
@@ -125,34 +125,29 @@ describe('POST /webhooks/payments', () => {
   }
 
   it('confirms a pending payment as paid, idempotently', async () => {
-    const { requestId, paymentId } = await pendingPayment();
+    const { requestId, providerRef } = await pendingPayment();
 
-    const res = await webhook({ type: 'payment.succeeded', paymentId });
+    const res = await webhook({ type: 'payment.succeeded', providerRef });
     assert.equal(res.status, 200);
     assert.deepEqual(await res.json(), { received: true });
 
     assert.equal((await (await getPayment(requestId)).json()).status, 'paid');
 
     // A retried delivery is a no-op success (still paid).
-    assert.equal((await webhook({ type: 'payment.succeeded', paymentId })).status, 200);
+    assert.equal((await webhook({ type: 'payment.succeeded', providerRef })).status, 200);
     assert.equal((await (await getPayment(requestId)).json()).status, 'paid');
   });
 
   it('ignores an unhandled event type without settling the payment', async () => {
-    const { requestId, paymentId } = await pendingPayment();
+    const { requestId, providerRef } = await pendingPayment();
 
-    assert.equal((await webhook({ type: 'payment.processing', paymentId })).status, 200);
+    assert.equal((await webhook({ type: 'payment.processing', providerRef })).status, 200);
     assert.equal((await (await getPayment(requestId)).json()).status, 'pending');
   });
 
-  it('returns 404 for an unknown payment and 422 for an invalid payload', async () => {
+  it('returns 404 for an unknown provider reference and 422 for an invalid payload', async () => {
     assert.equal(
-      (
-        await webhook({
-          type: 'payment.succeeded',
-          paymentId: '999e4567-e89b-12d3-a456-426614174000',
-        })
-      ).status,
+      (await webhook({ type: 'payment.succeeded', providerRef: 'mock_unknown' })).status,
       404,
     );
     assert.equal((await webhook({ type: 'payment.succeeded' })).status, 422);

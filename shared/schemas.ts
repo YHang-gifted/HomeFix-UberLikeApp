@@ -422,7 +422,9 @@ export type CreatePaymentInput = z.infer<typeof createPaymentInputSchema>;
 // ignored) and `paymentId` references the platform's own payment.
 export const paymentWebhookEventSchema = z.object({
   type: z.string().min(1),
-  paymentId: z.uuid(),
+  // The provider's own charge reference (Payment.providerRef). Real providers'
+  // webhooks identify the charge by their id, which we map back to our payment.
+  providerRef: z.string().min(1),
 });
 export type PaymentWebhookEvent = z.infer<typeof paymentWebhookEventSchema>;
 

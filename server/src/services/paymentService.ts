@@ -235,6 +235,31 @@ export async function confirmPaymentRefunded(paymentId: string): Promise<Payment
   return markRefunded(payment);
 }
 
+/**
+ * Confirm a payment as paid from a webhook that references the provider's own
+ * charge id. Resolves our payment via that reference, then settles idempotently.
+ * 404 if no payment matches the reference.
+ */
+export async function confirmPaymentPaidByRef(providerRef: string): Promise<Payment> {
+  const payment = await paymentRepository.findByProviderRef(providerRef);
+  if (!payment) {
+    throw new AppError('Payment not found', 404);
+  }
+  return confirmPaymentPaid(payment.id);
+}
+
+/**
+ * Confirm a refund from a webhook that references the provider's own charge id.
+ * 404 if no payment matches the reference, 409 if it was never paid.
+ */
+export async function confirmPaymentRefundedByRef(providerRef: string): Promise<Payment> {
+  const payment = await paymentRepository.findByProviderRef(providerRef);
+  if (!payment) {
+    throw new AppError('Payment not found', 404);
+  }
+  return confirmPaymentRefunded(payment.id);
+}
+
 export async function resetPayments(): Promise<void> {
   await paymentRepository.clear();
 }

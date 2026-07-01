@@ -4,7 +4,7 @@ import { timingSafeEqual } from 'node:crypto';
 import type { PaymentWebhookEvent } from '../../../shared/schemas.ts';
 import type { Env } from '../config/env.ts';
 import { AppError } from '../errors/appError.ts';
-import { confirmPaymentPaid, confirmPaymentRefunded } from './paymentService.ts';
+import { confirmPaymentPaidByRef, confirmPaymentRefundedByRef } from './paymentService.ts';
 
 /** The webhook event types we act on; any other type is acknowledged and ignored. */
 const PAYMENT_SUCCEEDED = 'payment.succeeded';
@@ -37,16 +37,18 @@ export function verifyPaymentWebhook(providedSecret: string | undefined, env: En
 }
 
 /**
- * Act on a verified webhook event. A `payment.succeeded` event settles the
- * referenced payment (idempotently); any other event type is acknowledged with
- * no effect.
+ * Act on a verified webhook event. The event identifies the charge by the
+ * provider's own reference (`providerRef`), which we map back to our payment. A
+ * `payment.succeeded` event settles it and `payment.refunded` reverses it, both
+ * idempotently; any other event type is acknowledged with no effect (and no
+ * lookup, so unrelated events never 404).
  */
 export async function handlePaymentWebhook(event: PaymentWebhookEvent): Promise<void> {
   if (event.type === PAYMENT_SUCCEEDED) {
-    await confirmPaymentPaid(event.paymentId);
+    await confirmPaymentPaidByRef(event.providerRef);
     return;
   }
   if (event.type === PAYMENT_REFUNDED) {
-    await confirmPaymentRefunded(event.paymentId);
+    await confirmPaymentRefundedByRef(event.providerRef);
   }
 }
