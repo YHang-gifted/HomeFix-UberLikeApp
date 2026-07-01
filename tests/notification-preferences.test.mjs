@@ -3,8 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { after, before, describe, it } from 'node:test';
 
 import { createApp } from '../server/src/app.ts';
-import { userRepository } from '../server/src/repositories/userRepository.ts';
-import { defaultRecipientResolvers } from '../server/src/services/notificationDelivery.ts';
+import { createDefaultResolvers } from '../server/src/services/notificationDelivery.ts';
 
 describe('GET/PATCH /me/notification-preferences', () => {
   let server;
@@ -69,24 +68,30 @@ describe('GET/PATCH /me/notification-preferences', () => {
 });
 
 describe('default recipient resolvers honor preferences', () => {
-  it('resolves no email recipient once the user turns email off', async () => {
-    // Use a throwaway user so we never mutate shared demo state.
-    const id = randomUUID();
-    await userRepository.create({
-      id,
-      email: `res-${id}@homefix.test`,
-      role: 'customer',
-      displayName: 'Resolver User',
-      passwordHash: 'h',
-      tokenVersion: 0,
-      status: 'active',
-      notifyEmail: true,
-      notifyPush: true,
+  // A fake user store so the resolver logic is tested directly, without depending
+  // on any shared singleton or module identity.
+  function usersWith(prefs) {
+    const user = { email: 'u1@homefix.test', notifyEmail: true, notifyPush: true, ...prefs };
+    return {
+      findById: (id) => Promise.resolve(id === 'u1' ? user : undefined),
+    };
+  }
+  const noTokens = { listTokens: () => Promise.resolve([]) };
+
+  it('resolves the email when the user has email on', async () => {
+    const resolvers = createDefaultResolvers(usersWith({ notifyEmail: true }), noTokens);
+    assert.equal(await resolvers.email('u1'), 'u1@homefix.test');
+  });
+
+  it('resolves no email recipient when the user has email off', async () => {
+    const resolvers = createDefaultResolvers(usersWith({ notifyEmail: false }), noTokens);
+    assert.equal(await resolvers.email('u1'), undefined);
+  });
+
+  it('resolves no push recipient when the user has push off', async () => {
+    const resolvers = createDefaultResolvers(usersWith({ notifyPush: false }), {
+      listTokens: () => Promise.resolve(['device-token']),
     });
-
-    assert.equal(await defaultRecipientResolvers.email(id), `res-${id}@homefix.test`);
-
-    await userRepository.updateNotificationPreferences(id, { email: false });
-    assert.equal(await defaultRecipientResolvers.email(id), undefined);
+    assert.equal(await resolvers.push('u1'), undefined);
   });
 });
