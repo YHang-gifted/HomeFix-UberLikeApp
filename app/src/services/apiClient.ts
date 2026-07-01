@@ -11,6 +11,7 @@ import type {
   Message,
   Notification,
   NotificationList,
+  NotificationPreferences,
   Payment,
   Payout,
   Principal,
@@ -22,6 +23,7 @@ import type {
   ServiceRequest,
   ServiceRequestPage,
   ServiceRequestStatus,
+  UpdateNotificationPreferencesInput,
   UpdateProfileInput,
   UploadTarget,
   UserProfile,
@@ -38,6 +40,7 @@ import {
   messageListSchema,
   messageSchema,
   notificationListSchema,
+  notificationPreferencesSchema,
   notificationSchema,
   paymentListSchema,
   paymentSchema,
@@ -194,6 +197,18 @@ export class ApiClient {
   public async updateProfile(input: UpdateProfileInput): Promise<UserProfile> {
     const data = await this.send('PATCH', '/me', input, true);
     return userProfileSchema.parse(data);
+  }
+
+  public async getNotificationPreferences(): Promise<NotificationPreferences> {
+    const data = await this.send('GET', '/me/notification-preferences', undefined, true);
+    return notificationPreferencesSchema.parse(data);
+  }
+
+  public async updateNotificationPreferences(
+    input: UpdateNotificationPreferencesInput,
+  ): Promise<NotificationPreferences> {
+    const data = await this.send('PATCH', '/me/notification-preferences', input, true);
+    return notificationPreferencesSchema.parse(data);
   }
 
   public async createServiceRequest(input: CreateServiceRequestInput): Promise<ServiceRequest> {
