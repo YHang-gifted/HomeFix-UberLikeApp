@@ -151,4 +151,41 @@ describe('audit log', () => {
     const res = await fetch(`${baseUrl}/audit`);
     assert.equal(res.status, 401);
   });
+
+  // These two mutate the acting user (a password change bumps the token version,
+  // invalidating that user's token), so they run last — after the auth-gate tests
+  // above that reuse the customer/worker tokens.
+  it('records a profile update with the changed field names (not values)', async () => {
+    const res = await fetch(`${baseUrl}/me`, {
+      method: 'PATCH',
+      headers: headers(WORKER_ID, 'worker'),
+      body: JSON.stringify({ displayName: 'Updated Name', phone: '0912345678' }),
+    });
+    assert.equal(res.status, 200);
+
+    const page = await audit();
+    const event = page.items.find((e) => e.action === 'profile.updated');
+    assert.ok(event);
+    assert.equal(event.actorId, WORKER_ID);
+    assert.equal(event.resourceId, WORKER_ID);
+    assert.match(event.details.fields, /displayName/);
+    // The audit records field NAMES only — never the personal values.
+    assert.ok(!JSON.stringify(event.details).includes('0912345678'));
+  });
+
+  it('records a password change with the acting user as actor and resource', async () => {
+    const res = await fetch(`${baseUrl}/auth/change-password`, {
+      method: 'POST',
+      headers: headers(CUSTOMER_ID, 'customer'),
+      body: JSON.stringify({ currentPassword: 'customer-pass', newPassword: 'new-password-123' }),
+    });
+    assert.equal(res.status, 200);
+
+    const page = await audit();
+    const event = page.items.find((e) => e.action === 'account.password_changed');
+    assert.ok(event);
+    assert.equal(event.actorId, CUSTOMER_ID);
+    assert.equal(event.actorRole, 'customer');
+    assert.equal(event.resourceId, CUSTOMER_ID);
+  });
 });

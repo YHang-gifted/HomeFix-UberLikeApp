@@ -12,6 +12,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   'account.suspended': 'Suspended account',
   'account.reinstated': 'Reinstated account',
   'account.deleted': 'Deleted account',
+  'account.password_changed': 'Changed password',
+  'profile.updated': 'Updated profile',
   'quote.proposed': 'Proposed quote',
   'quote.accepted': 'Accepted quote',
   'quote.declined': 'Declined quote',
