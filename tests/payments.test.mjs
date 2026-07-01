@@ -105,6 +105,8 @@ describe('request payments (mock)', () => {
     // Marketplace split at the default 15%: platform keeps 22500, worker nets 127500.
     assert.equal(payment.platformFeeCents, 22500);
     assert.equal(payment.workerNetCents, 127500);
+    // The provider (mock by default) assigned a reference for this charge.
+    assert.match(payment.providerRef, /^mock_/);
   });
 
   it('marks the payment paid and notifies the worker', async () => {

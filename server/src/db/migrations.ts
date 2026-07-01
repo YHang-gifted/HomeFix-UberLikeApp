@@ -391,4 +391,15 @@ export const migrations: Migration[] = [
       ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_push boolean NOT NULL DEFAULT true
     `,
   },
+  {
+    // The payment provider's reference for a charge (mock provider assigns one).
+    // A partial unique index keeps the mapping one provider-ref → one payment,
+    // which is how a provider's webhook resolves back to our payment.
+    id: '0029_payments_provider_ref',
+    sql: `
+      ALTER TABLE payments ADD COLUMN IF NOT EXISTS provider_ref text;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_provider_ref
+        ON payments (provider_ref) WHERE provider_ref IS NOT NULL
+    `,
+  },
 ];
