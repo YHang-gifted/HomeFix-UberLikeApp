@@ -253,10 +253,15 @@ testable v1.
   injectable sink) — merged.
 - **118** database backup runbook (`docs/backups.md`) + `scripts/backup-db.mjs`
   (`npm run backup:db` — `pg_dump` wrapper; credentials passed via `PG*` env, never
-  in argv/logs) — _in review_. Completes the observability/backups track.
+  in argv/logs) — merged. Completes the observability/backups track.
+- **119** end-to-end smoke test (`tests/e2e-smoke.test.mjs`) — the full three-role
+  journey over HTTP driven by real demo logins (post → assign → quote → accept →
+  pay w/ split → payout → message → complete → review → audit), plus a refreshed
+  `docs/qa-checklist.md` covering payments/prefs/map/upload/observability — _in
+  review_.
 
-_All merged to `main` except **118** (backups), which was handed off and may still
-be in review at the time of this snapshot._
+_All slices above are merged to `main` except **119** (E2E smoke test), which was
+handed off and may still be in review at the time of this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);

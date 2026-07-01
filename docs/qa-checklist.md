@@ -6,10 +6,15 @@ and date at the bottom. Pair this with the automated suite (`npm test`,
 `app-expo` jest) — this checklist is for what unit/integration tests can't cover:
 real devices, native modules, and full user journeys._
 
+_The happy-path server loop (customer -> worker -> admin: post, assign, quote,
+accept, pay with commission split, payout, message, complete, review, audit) is
+also covered automatically by `tests/e2e-smoke.test.mjs` in `npm test`. This
+checklist adds the device- and native-module coverage that can't._
+
 ## 0. Prerequisites & environment
 
-- [ ] Backend running with a real Postgres (`DATABASE_URL` set); migrations
-      `0001`–`0011` applied on boot.
+- [ ] Backend running with a real Postgres (`DATABASE_URL` set); all migrations
+      (`0001`–`0029`) applied on boot.
 - [ ] `JWT_SECRET` set to a strong, non-default value (the server refuses to boot
       in production otherwise).
 - [ ] `CORS_ALLOWED_ORIGINS` set to the app/web origin(s) if testing from a
@@ -143,7 +148,53 @@ real devices, native modules, and full user journeys._
 - [ ] Tap targets are large enough; text is legible; color contrast is adequate.
 - [ ] Cold start and screen transitions feel responsive on a mid-range device.
 
-## 11. Known limitations to confirm (not bugs)
+## 11. Payments — split, refund, payout
 
-- [ ] Payments are **mock** — no real money moves.
-- [ ] Notification email/p
+- [ ] Creating a payment records a **commission split**: the customer sees the
+      gross amount, and the "Worker net · Platform fee" line shows the 15% split
+      (e.g. NT$1,500 → worker NT$1,275, platform NT$225). Legacy/zero-fee
+      payments show no split line.
+- [ ] "Pay now" marks the payment **paid** (mock — no real charge) and the worker
+      is notified.
+- [ ] The paid payment schedules a **pending payout** for the worker net; the
+      worker's Payouts screen lists it as pending, then as paid after a
+      `payout.paid` webhook.
+- [ ] An **admin** can refund a paid payment; the status shows **Refunded** and
+      both parties are notified. A worker/customer has no refund action.
+- [ ] A refunded request can be re-pooled (released/reset) — the refund remains in
+      the audit log.
+
+## 12. Notification preferences
+
+- [ ] Profile shows **Email** and **Push** notification toggles reflecting the
+      saved preference.
+- [ ] Turning a channel **off** stops that channel's delivery while in-app
+      notifications still appear; turning it back on resumes delivery. (Delivery =
+      globally enabled channels ∩ the user's preference.)
+- [ ] A failed toggle reverts the switch (optimistic update rolls back).
+
+## 13. Map picker & image upload (native)
+
+- [ ] Create request → **"Pick on map"** opens the map; dropping/dragging the pin
+      and confirming fills the latitude/longitude fields. (Native only — the
+      button is hidden on web.)
+- [ ] Create request → **"Add photo"** picks an image, uploads it, and the photo
+      appears on the submitted request. Denying photo permission fails gracefully.
+
+## 14. Observability & backups (operator)
+
+- [ ] Each response carries an `X-Request-Id`; an induced 5xx is logged with
+      structured context (request id, method, path, error) while the client only
+      sees a generic 500 — no internal detail leaks.
+- [ ] `npm run backup:db` produces a timestamped dump from `DATABASE_URL`; a
+      restore into a scratch database boots and serves (see `docs/backups.md`).
+
+## 15. Known limitations to confirm (not bugs)
+
+- [ ] Payments are **mock** — no real money moves. The provider seam
+      (`providerRef`, HMAC-signed webhooks) is real-shaped but backed by an inert
+      mock until a provider adapter and credentials are wired.
+- [ ] Notification email/push only **actually send** when the provider env vars
+      are set (see §7); otherwise the sender logs only.
+- [ ] Uploaded images use an in-memory mock store (dev/test) — not durable object
+      storage yet.
