@@ -5,13 +5,14 @@ import {
   type NativeStackScreenProps,
 } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 
 import { clearSession, persistSession, restoreSession } from '../app/src/auth/session';
 import { registerForPush } from '../app/src/features/notifications/pushRegistration';
 import { apiClient } from './src/api';
 import { deviceImagePicker } from './src/imagePicker';
 import { deviceGeocoder, deviceLocationProvider } from './src/location';
+import { MapPickerHost, deviceMapPicker } from './src/mapPicker';
 import { devicePushTokenProvider } from './src/push';
 import { tokenStore } from './src/tokenStore';
 import { useFocusRefreshToken } from './src/hooks/useFocusRefreshToken';
@@ -161,6 +162,7 @@ function CreateRequestRoute({
       locationProvider={deviceLocationProvider}
       geocoder={deviceGeocoder}
       imagePicker={deviceImagePicker}
+      mapPicker={Platform.OS === 'web' ? undefined : deviceMapPicker}
       onCreated={() => {
         navigation.goBack();
       }}
@@ -431,6 +433,7 @@ export default function App(): ReactElement {
     <AuthContext.Provider value={actions}>
       <NavigationContainer>
         <StatusBar style="auto" />
+        <MapPickerHost />
         <Stack.Navigator>
           {!signedIn && (
             <>
