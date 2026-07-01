@@ -20,7 +20,10 @@ import {
   validateCreateRequestForm,
 } from '../../../app/src/features/serviceRequests/createRequestForm';
 import type { LocationProvider } from '../../../app/src/features/location/currentLocation';
-import { fetchCurrentLocation } from '../../../app/src/features/location/currentLocation';
+import {
+  fetchCurrentLocation,
+  toCoordinateStrings,
+} from '../../../app/src/features/location/currentLocation';
 import type { GeocodeResult, Geocoder } from '../../../app/src/features/location/geocoding';
 import {
   resultToCoordinateStrings,
@@ -28,7 +31,6 @@ import {
 } from '../../../app/src/features/location/geocoding';
 import type { MapPicker } from '../../../app/src/features/location/mapPicker';
 import { initialMapRegion } from '../../../app/src/features/location/mapPicker';
-import { toCoordinateStrings } from '../../../app/src/features/location/currentLocation';
 import type { ImagePicker } from '../../../app/src/features/uploads/uploadImage';
 import { uploadPickedImage } from '../../../app/src/features/uploads/uploadImage';
 import type { ServiceCategory, ServiceRequest } from '../../../shared/schemas';
