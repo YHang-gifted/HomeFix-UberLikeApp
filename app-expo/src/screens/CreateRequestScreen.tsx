@@ -26,6 +26,9 @@ import {
   resultToCoordinateStrings,
   searchAddress,
 } from '../../../app/src/features/location/geocoding';
+import type { MapPicker } from '../../../app/src/features/location/mapPicker';
+import { initialMapRegion } from '../../../app/src/features/location/mapPicker';
+import { toCoordinateStrings } from '../../../app/src/features/location/currentLocation';
 import type { ImagePicker } from '../../../app/src/features/uploads/uploadImage';
 import { uploadPickedImage } from '../../../app/src/features/uploads/uploadImage';
 import type { ServiceCategory, ServiceRequest } from '../../../shared/schemas';
@@ -56,6 +59,12 @@ export interface CreateRequestScreenProps {
    * expo-image-picker; left undefined the button is hidden.
    */
   imagePicker?: ImagePicker;
+  /**
+   * Interactive map picker. When provided, a "Pick on map" button opens a map and
+   * fills the coordinates from the dropped pin. App.tsx injects the real
+   * react-native-maps picker; left undefined (tests/web) the button is hidden.
+   */
+  mapPicker?: MapPicker;
 }
 
 export function CreateRequestScreen({
@@ -64,6 +73,7 @@ export function CreateRequestScreen({
   locationProvider,
   geocoder,
   imagePicker,
+  mapPicker,
 }: CreateRequestScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
@@ -146,6 +156,20 @@ export function CreateRequestScreen({
     } finally {
       setPhotoBusy(false);
     }
+  }
+
+  async function pickOnMap(): Promise<void> {
+    if (mapPicker === undefined) {
+      return;
+    }
+    const picked = await mapPicker(initialMapRegion(latitude, longitude));
+    if (picked === null) {
+      return;
+    }
+    const coords = toCoordinateStrings(picked);
+    setLatitude(coords.latitude);
+    setLongitude(coords.longitude);
+    setErrors((current) => ({ ...current, latitude: undefined, longitude: undefined }));
   }
 
   async function submit(): Promise<void> {
@@ -296,6 +320,20 @@ export function CreateRequestScreen({
           ) : (
             <Text style={styles.locationButtonText}>Use my current location</Text>
           )}
+        </Pressable>
+      )}
+
+      {mapPicker !== undefined && (
+        <Pressable
+          style={({ pressed }) => [styles.locationButton, pressed && styles.locationButtonPressed]}
+          onPress={() => {
+            void pickOnMap();
+          }}
+          disabled={submitting}
+          accessibilityRole="button"
+          accessibilityLabel="Pick on map"
+        >
+          <Text style={styles.locationButtonText}>Pick on map</Text>
         </Pressable>
       )}
 
