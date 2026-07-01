@@ -19,7 +19,7 @@ export function postUpload(req: Request, res: Response, next: NextFunction): voi
     next(new AppError('Invalid upload request', 422));
     return;
   }
-  res.status(200).json(createUploadTarget());
+  res.status(200).json(createUploadTarget(parsed.data));
 }
 
 /** Receive the uploaded image bytes (raw body parsed on the route). */
