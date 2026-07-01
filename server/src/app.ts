@@ -1,7 +1,7 @@
 import process from 'node:process';
 
 import express from 'express';
-import type { Express } from 'express';
+import type { Express, Request } from 'express';
 
 import { loadEnv } from './config/env.ts';
 import { createCorsMiddleware } from './middlewares/cors.ts';
@@ -32,7 +32,15 @@ export function createApp(): Express {
   const underTest = env.NODE_ENV === 'test' || process.env['NODE_TEST_CONTEXT'] !== undefined;
   app.use(createRequestLogger(underTest ? () => undefined : undefined));
   app.use(createCorsMiddleware(env.CORS_ALLOWED_ORIGINS));
-  app.use(express.json());
+  // Capture the raw JSON body so webhook handlers can verify a provider's HMAC
+  // signature over the exact bytes (a real provider signs the raw payload).
+  app.use(
+    express.json({
+      verify: (req, _res, buf) => {
+        (req as Request).rawBody = buf;
+      },
+    }),
+  );
   app.use(healthRouter);
   app.use(authRouter);
   app.use(profileRouter);

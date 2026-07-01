@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer';
+
 import type { NextFunction, Request, Response } from 'express';
 
 import { createPaymentInputSchema, paymentWebhookEventSchema } from '../../../shared/schemas.ts';
@@ -140,8 +142,8 @@ export async function postPaymentWebhook(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const header = req.header('x-webhook-secret');
-    verifyPaymentWebhook(header ?? undefined, loadEnv());
+    const rawBody = req.rawBody ?? Buffer.alloc(0);
+    verifyPaymentWebhook(rawBody, req.header('x-webhook-signature') ?? undefined, loadEnv());
 
     const parsed = paymentWebhookEventSchema.safeParse(req.body);
     if (!parsed.success) {

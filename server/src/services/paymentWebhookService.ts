@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer';
-import { timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import type { PaymentWebhookEvent } from '../../../shared/schemas.ts';
 import type { Env } from '../config/env.ts';
@@ -10,28 +10,35 @@ import { confirmPaymentPaidByRef, confirmPaymentRefundedByRef } from './paymentS
 const PAYMENT_SUCCEEDED = 'payment.succeeded';
 const PAYMENT_REFUNDED = 'payment.refunded';
 
-function secretsMatch(provided: string, expected: string): boolean {
+function signaturesMatch(provided: string, expected: string): boolean {
   const a = Buffer.from(provided);
   const b = Buffer.from(expected);
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
 /**
- * Authenticate a payment-provider webhook. When `PAYMENTS_WEBHOOK_SECRET` is set,
- * the request must carry a matching `x-webhook-secret`. When it is unset, the
- * (mock) webhook is accepted outside production but rejected in production, so a
- * real deployment can never confirm a payment without configuring the secret.
+ * Authenticate a payment-provider webhook by verifying an HMAC-SHA256 signature
+ * over the raw request body (what real providers sign — the signature covers the
+ * exact bytes, so a tampered payload fails). When `PAYMENTS_WEBHOOK_SECRET` is set,
+ * the request's `x-webhook-signature` must equal `hmac_sha256(secret, rawBody)`.
+ * When it is unset, the (mock) webhook is accepted outside production but rejected
+ * in production, so a real deployment can never confirm a payment without a secret.
  * Throws `AppError(401)` when authentication fails.
  */
-export function verifyPaymentWebhook(providedSecret: string | undefined, env: Env): void {
-  const expected = env.PAYMENTS_WEBHOOK_SECRET;
-  if (expected === undefined) {
+export function verifyPaymentWebhook(
+  rawBody: Buffer,
+  providedSignature: string | undefined,
+  env: Env,
+): void {
+  const secret = env.PAYMENTS_WEBHOOK_SECRET;
+  if (secret === undefined) {
     if (env.NODE_ENV === 'production') {
       throw new AppError('Payment webhooks are not configured', 401);
     }
     return;
   }
-  if (providedSecret === undefined || !secretsMatch(providedSecret, expected)) {
+  const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
+  if (providedSignature === undefined || !signaturesMatch(providedSignature, expected)) {
     throw new AppError('Invalid webhook signature', 401);
   }
 }

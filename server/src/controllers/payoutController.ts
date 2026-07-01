@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer';
+
 import type { NextFunction, Request, Response } from 'express';
 
 import { payoutWebhookEventSchema } from '../../../shared/schemas.ts';
@@ -21,9 +23,9 @@ export async function getMyPayouts(req: Request, res: Response, next: NextFuncti
 }
 
 /**
- * Payout-provider webhook (unauthenticated — verified by the shared webhook
- * secret). Confirms a payout was settled to the worker's account. The seam a real
- * provider calls; mock by default.
+ * Payout-provider webhook (unauthenticated — verified by an HMAC signature over
+ * the raw body, the same scheme as the payment webhook). Confirms a payout was
+ * settled to the worker's account. The seam a real provider calls; mock by default.
  */
 export async function postPayoutWebhook(
   req: Request,
@@ -31,7 +33,8 @@ export async function postPayoutWebhook(
   next: NextFunction,
 ): Promise<void> {
   try {
-    verifyPaymentWebhook(req.header('x-webhook-secret') ?? undefined, loadEnv());
+    const rawBody = req.rawBody ?? Buffer.alloc(0);
+    verifyPaymentWebhook(rawBody, req.header('x-webhook-signature') ?? undefined, loadEnv());
 
     const parsed = payoutWebhookEventSchema.safeParse(req.body);
     if (!parsed.success) {

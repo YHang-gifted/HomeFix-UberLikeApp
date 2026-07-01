@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
+import { createHmac } from 'node:crypto';
 import { after, before, beforeEach, describe, it } from 'node:test';
 
 import { createApp } from '../server/src/app.ts';
@@ -17,26 +19,37 @@ function headers(id, role) {
 }
 
 describe('verifyPaymentWebhook', () => {
-  it('accepts a matching secret and rejects a wrong or missing one', () => {
+  const body = Buffer.from(JSON.stringify({ type: 'payment.succeeded', providerRef: 'mock_x' }));
+  const sign = (secret, buf) => createHmac('sha256', secret).update(buf).digest('hex');
+
+  it('accepts a valid HMAC signature over the raw body and rejects a wrong/missing one', () => {
     const env = { PAYMENTS_WEBHOOK_SECRET: 'sek', NODE_ENV: 'production' };
-    assert.doesNotThrow(() => verifyPaymentWebhook('sek', env));
+    assert.doesNotThrow(() => verifyPaymentWebhook(body, sign('sek', body), env));
     assert.throws(
-      () => verifyPaymentWebhook('nope', env),
+      () => verifyPaymentWebhook(body, sign('wrong-secret', body), env),
       (e) => e.statusCode === 401,
     );
     assert.throws(
-      () => verifyPaymentWebhook(undefined, env),
+      () => verifyPaymentWebhook(body, undefined, env),
+      (e) => e.statusCode === 401,
+    );
+    // A tampered body no longer matches the signature computed over the original.
+    assert.throws(
+      () => verifyPaymentWebhook(Buffer.from('{"tampered":true}'), sign('sek', body), env),
       (e) => e.statusCode === 401,
     );
   });
 
   it('without a configured secret, allows outside production but blocks in production', () => {
     assert.doesNotThrow(() =>
-      verifyPaymentWebhook(undefined, { PAYMENTS_WEBHOOK_SECRET: undefined, NODE_ENV: 'test' }),
+      verifyPaymentWebhook(body, undefined, {
+        PAYMENTS_WEBHOOK_SECRET: undefined,
+        NODE_ENV: 'test',
+      }),
     );
     assert.throws(
       () =>
-        verifyPaymentWebhook(undefined, {
+        verifyPaymentWebhook(body, undefined, {
           PAYMENTS_WEBHOOK_SECRET: undefined,
           NODE_ENV: 'production',
         }),
