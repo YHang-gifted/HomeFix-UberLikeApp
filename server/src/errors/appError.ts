@@ -10,3 +10,19 @@ export class AppError extends Error {
     Object.setPrototypeOf(this, AppError.prototype);
   }
 }
+
+/**
+ * Structural guard for AppError. Avoids cross-module `instanceof`, which is
+ * unreliable under tsx on Linux CI (the same .ts can load as two module
+ * instances, so an AppError from one is not `instanceof` the class in another).
+ */
+export function isAppError(err: unknown): err is AppError {
+  return (
+    err instanceof AppError ||
+    (typeof err === 'object' &&
+      err !== null &&
+      (err as { name?: unknown }).name === 'AppError' &&
+      typeof (err as { statusCode?: unknown }).statusCode === 'number' &&
+      typeof (err as { message?: unknown }).message === 'string')
+  );
+}

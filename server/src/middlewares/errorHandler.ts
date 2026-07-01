@@ -1,6 +1,6 @@
 import type { ErrorRequestHandler, NextFunction, Request, Response } from 'express';
 
-import { AppError } from '../errors/appError.ts';
+import { isAppError } from '../errors/appError.ts';
 import { logger } from '../utils/logger.ts';
 
 export function notFoundHandler(_req: Request, res: Response): void {
@@ -36,7 +36,7 @@ export function createErrorHandler(
     res: Response,
     _next: NextFunction,
   ): void {
-    if (err instanceof AppError) {
+    if (isAppError(err)) {
       res.status(err.statusCode).json({ error: err.message });
       return;
     }
