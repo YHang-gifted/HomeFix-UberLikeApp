@@ -30,6 +30,14 @@ startup by `server/src/config/env.ts` (see `.env.example`). The active variables
   API, `https://exp.host/--/api/v2/push/send`). Set it to actually send push;
   leave unset and the push channel only logs. The endpoint receives a JSON
   `{ to, title, body }` POST.
+- `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION` / `STORAGE_S3_ACCESS_KEY_ID` /
+  `STORAGE_S3_SECRET_ACCESS_KEY` — object storage for uploaded images. Set all
+  four to store images in real S3 (the API returns a presigned PUT URL the client
+  uploads to directly); leave any unset and uploads use the in-memory mock store
+  (dev/test). Optional: `STORAGE_S3_PUBLIC_BASE_URL` (a CDN/read base — defaults to
+  the bucket's virtual-hosted URL), `STORAGE_S3_ENDPOINT` (S3-compatible stores
+  like R2/MinIO), `STORAGE_S3_UPLOAD_EXPIRES_SECONDS` (presigned URL lifetime,
+  default 900). Credentials are never committed.
 
 ## Build
 

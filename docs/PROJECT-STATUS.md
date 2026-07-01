@@ -267,9 +267,15 @@ testable v1.
   factory + singleton). `uploadService.createUploadTarget` now delegates through the
   seam and threads the image `contentType`; behavior unchanged (mock by default,
   serves bytes from memory). The seam a real S3/GCS presigned-URL adapter slots
-  into — _in review_.
+  into — merged.
+- **121b** real S3 storage provider (`createS3StorageProvider` via
+  `@aws-sdk/client-s3` + `s3-request-presigner`) — config-gated on `STORAGE_S3_*`
+  env (bucket/region/credentials, optional CDN base / S3-compatible endpoint /
+  expiry). Returns a presigned PUT URL (client uploads directly) + the public
+  object URL; the seam is now async; **mock still the default**. First real
+  external SDK dependency (user-approved over hand-rolled SigV4) — _in review_.
 
-_All slices above are merged to `main` except **121a** (storage seam), which was
+_All slices above are merged to `main` except **121b** (S3 provider), which was
 handed off and may still be in review at the time of this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

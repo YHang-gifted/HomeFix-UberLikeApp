@@ -12,7 +12,7 @@ import type { CreateUploadTargetInput } from './storageProvider.ts';
  * hands back URLs on our own API (relative to the API base — the client resolves
  * them); a real provider returns a presigned object-storage URL instead.
  */
-export function createUploadTarget(input: CreateUploadTargetInput): UploadTarget {
+export function createUploadTarget(input: CreateUploadTargetInput): Promise<UploadTarget> {
   return storageProvider.createUploadTarget(input);
 }
 
