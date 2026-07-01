@@ -88,5 +88,5 @@ inbound one) that matches the structured access log line for that request.
 
 - Demo users are seeded outside production only (see `SEED_DEMO_USERS`); a real
   production deploy creates no demo accounts by default.
-- Log shipping/rotation and a managed Postgres backup policy are still to be
-  configured on the deploy target.
+- Unexpected (5xx) errors are logged with structured context (request id, method,
+  route path, error name, mess
