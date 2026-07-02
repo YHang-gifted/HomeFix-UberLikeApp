@@ -309,10 +309,16 @@ testable v1.
   assets + an SPA fallback (`text/html` navigations only) **after** the API routes,
   so it never shadows them (unknown API paths still 404 as JSON). Config-gated —
   unset in dev/test. `app.ts` wired; `.env.example` + `docs/deployment.md` updated.
-  The app's API URL is already overridable via `EXPO_PUBLIC_API_BASE_URL` — _in
-  review_.
+  The app's API URL is already overridable via `EXPO_PUBLIC_API_BASE_URL` —
+  merged.
+- **123b** Dockerfile web-build stage: a `webbuild` stage runs `export:web` (with
+  the required `EXPO_PUBLIC_API_BASE_URL` build arg, inlined at build time) and the
+  runtime stage copies `app-expo/dist` in and sets `WEB_DIST_DIR`, so a single
+  `docker build` produces one same-origin image (server + web). `.dockerignore`
+  un-ignores `app`/`app-expo` (node*modules still excluded); docs updated. Infra
+  only — validated by a local `docker build`, not the CI gates — \_in review*.
 
-_All slices above are merged to `main` except **123a** (same-origin web hosting),
+_All slices above are merged to `main` except **123b** (Dockerfile web build),
 which was handed off and may still be in review at the time of this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
