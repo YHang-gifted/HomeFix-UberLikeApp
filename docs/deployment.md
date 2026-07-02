@@ -92,6 +92,17 @@ and drained when its database goes away:
 Every response carries an `X-Request-Id` header (generated, or echoed from an
 inbound one) that matches the structured access log line for that request.
 
+## Realtime (WebSocket)
+
+Live chat is pushed over a WebSocket at `GET /ws/messages?requestId=<id>&token=<jwt>`
+(the bearer token rides the query string because browsers can't set an
+Authorization header on a WebSocket). The socket is authenticated and authorized
+exactly like the REST message routes (token signature, token-version revocation,
+active account, and the request-party check), then receives each new message on
+that thread as JSON. It shares the HTTP server/port, so any proxy in front must
+allow WebSocket upgrades on that path. Message polling remains as a fallback, so
+the feature degrades gracefully if the socket can't connect.
+
 ## Notes and future work
 
 - Demo users are seeded outside production only (see `SEED_DEMO_USERS`); a real

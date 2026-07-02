@@ -28,6 +28,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "22.15.29",
     "@types/pg": "^8.20.0",
+    "@types/ws": "^8.18.1",
     "eslint": "9.28.0",
     "eslint-config-prettier": "10.1.5",
     "prettier": "3.5.3",
@@ -41,6 +42,7 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.22.0",
+    "ws": "^8.21.0",
     "zod": "^4.4.3"
   }
 }
