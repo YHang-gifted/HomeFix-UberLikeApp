@@ -7,6 +7,7 @@ import { loadEnv } from './config/env.ts';
 import { createCorsMiddleware } from './middlewares/cors.ts';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.ts';
 import { createRequestLogger } from './middlewares/requestLogger.ts';
+import { createWebAppHandlers, isBuiltWebDir } from './middlewares/webApp.ts';
 import { adminRouter } from './routes/admin.ts';
 import { auditRouter } from './routes/audit.ts';
 import { authRouter } from './routes/auth.ts';
@@ -57,6 +58,11 @@ export function createApp(): Express {
   app.use(quoteRouter);
   app.use(auditRouter);
   app.use(adminRouter);
+  // Optionally serve the built web app same-origin (after the API routes, so it
+  // never shadows them). Skipped when unset or not yet built (dev/test).
+  if (env.WEB_DIST_DIR !== undefined && isBuiltWebDir(env.WEB_DIST_DIR)) {
+    app.use(...createWebAppHandlers(env.WEB_DIST_DIR));
+  }
   app.use(notFoundHandler);
   app.use(errorHandler);
   return app;
