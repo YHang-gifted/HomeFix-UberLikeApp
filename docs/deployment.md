@@ -103,6 +103,36 @@ that thread as JSON. It shares the HTTP server/port, so any proxy in front must
 allow WebSocket upgrades on that path. Message polling remains as a fallback, so
 the feature degrades gracefully if the socket can't connect.
 
+## Serving the web app (same origin)
+
+The Expo web build can be served by this same server, so the web app and API
+share one origin — no CORS to configure, and the WebSocket connects to the same
+host automatically.
+
+1. Build the web bundle, pointing it at the API origin it will be served from
+   (Expo inlines `EXPO_PUBLIC_*` at build time). For a same-origin deploy this is
+   the deployment's own URL:
+
+   ```bash
+   cd app-expo
+   EXPO_PUBLIC_API_BASE_URL=https://api.homefix.example npm run export:web
+   # → app-expo/dist
+   ```
+
+2. Point the server at that bundle with `WEB_DIST_DIR` (an absolute path). On boot
+   it serves the static assets and an SPA fallback (so client-side routes work on
+   refresh/deep-link) **after** the API routes, so it never shadows the API — an
+   unknown API path still returns the normal JSON 404. Leave `WEB_DIST_DIR` unset
+   and only the API is served.
+
+   ```bash
+   WEB_DIST_DIR=/app/app-expo/dist npm start
+   ```
+
+In a Docker/Railway deploy, run the web export in the build stage and copy
+`app-expo/dist` into the image, then set `WEB_DIST_DIR` to its path. Because the
+app is same-origin, `CORS_ALLOWED_ORIGINS` can stay empty for this setup.
+
 ## Notes and future work
 
 - Demo users are seeded outside production only (see `SEED_DEMO_USERS`); a real

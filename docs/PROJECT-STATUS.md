@@ -303,9 +303,16 @@ testable v1.
   the `ready` ack; wired into `App.tsx` `MessagesRoute`. No web stub needed
   (WebSocket is universal). Not unit-tested (native provider; 122c's injected fake
   covers the logic). Completes the **WebSocket realtime-chat track** (122a hub →
-  122b server push → 122c app logic → 122d native provider) — _in review_.
+  122b server push → 122c app logic → 122d native provider) — merged.
+- **123a** same-origin web hosting (`server/src/middlewares/webApp.ts`): when
+  `WEB_DIST_DIR` points at the built Expo web export, Express serves the static
+  assets + an SPA fallback (`text/html` navigations only) **after** the API routes,
+  so it never shadows them (unknown API paths still 404 as JSON). Config-gated —
+  unset in dev/test. `app.ts` wired; `.env.example` + `docs/deployment.md` updated.
+  The app's API URL is already overridable via `EXPO_PUBLIC_API_BASE_URL` — _in
+  review_.
 
-_All slices above are merged to `main` except **122d** (native message stream),
+_All slices above are merged to `main` except **123a** (same-origin web hosting),
 which was handed off and may still be in review at the time of this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

@@ -113,6 +113,13 @@ const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.coerce.number().int().positive().max(3600).default(900),
     ),
+    // Absolute path to the built web bundle (the Expo web export, `app-expo/dist`).
+    // Set it to serve the web app same-origin with the API (static assets + an SPA
+    // fallback); leave unset (dev/test) and only the API is served. Empty = unset.
+    WEB_DIST_DIR: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production' && env.JWT_SECRET === DEV_JWT_SECRET) {
