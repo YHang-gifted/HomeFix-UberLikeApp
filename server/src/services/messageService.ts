@@ -5,6 +5,7 @@ import { AppError } from '../errors/appError.ts';
 import { messageRepository } from '../repositories/messageRepository.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { isRequestParty } from './serviceRequestService.ts';
+import { messageHub } from './messageHub.ts';
 
 async function requireParty(requestId: string, principal: Principal): Promise<void> {
   const request = await serviceRequestRepository.findById(requestId);
@@ -38,6 +39,9 @@ export async function postMessage(
     createdAt: new Date().toISOString(),
   };
   await messageRepository.save(message);
+  // Notify any live subscribers (the WebSocket layer) so connected parties see the
+  // message without polling. Best-effort, in-process; persistence already happened.
+  messageHub.publish(message);
   return message;
 }
 

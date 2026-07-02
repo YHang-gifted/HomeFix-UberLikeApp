@@ -217,6 +217,12 @@ testable v1.
 
 ## 5. Recommended next slices (in order)
 
+0. **App upload to S3 (121c)** — `apiClient.putUploadBytes` currently always
+   attaches `Authorization: Bearer` on the PUT. That's correct for the same-origin
+   mock upload but breaks an S3 **presigned** PUT (already authenticated by its
+   query signature — an extra auth header is rejected). Fix: only attach the bearer
+   token when the upload URL is same-origin/relative. Needed before real S3 uploads
+   work from the app.
 1. **Host the frontend web app** — deploy the merged `app-expo/dist`, set
    `CORS_ALLOWED_ORIGINS` to the frontend origin, and verify the login loop on
    web (guard native-only push/location/map calls behind `Platform.OS`).
@@ -273,9 +279,13 @@ testable v1.
   env (bucket/region/credentials, optional CDN base / S3-compatible endpoint /
   expiry). Returns a presigned PUT URL (client uploads directly) + the public
   object URL; the seam is now async; **mock still the default**. First real
-  external SDK dependency (user-approved over hand-rolled SigV4) — _in review_.
+  external SDK dependency (user-approved over hand-rolled SigV4) — merged.
+- **122a** message pub/sub hub (`server/src/services/messageHub.ts`, in-process
+  per-request subscribe/publish). `messageService.postMessage` publishes each saved
+  message; the WebSocket layer (122b) will subscribe and push. No dependency, no
+  transport yet — _in review_.
 
-_All slices above are merged to `main` except **121b** (S3 provider), which was
+_All slices above are merged to `main` except **122a** (message hub), which was
 handed off and may still be in review at the time of this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
