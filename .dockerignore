@@ -8,9 +8,9 @@ coverage
 dist
 build
 
-# Mobile app and browser-only logic are not part of the API image.
-app-expo
-app
+# Note: `app-expo` and `app` are intentionally NOT ignored — the web-build stage
+# exports the Expo web bundle from them (their node_modules are excluded above).
+# Only the built `app-expo/dist` is copied into the runtime image.
 
 # Tests, docs, and tooling are not needed at runtime.
 tests

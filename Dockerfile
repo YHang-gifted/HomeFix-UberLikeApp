@@ -1,11 +1,14 @@
-# HomeFix API server image (multi-stage).
+# HomeFix image (multi-stage).
 #
-# Stage 1 compiles the TypeScript sources to plain JavaScript with `tsc`
-# (tsconfig.build.json). Stage 2 is a dev-dependency-free runtime that ships only
-# the compiled `dist/` and production dependencies, so neither tsx nor the
-# TypeScript toolchain is present in the deployed image.
+# Stage 1 (build)    compiles the TypeScript server to plain JavaScript.
+# Stage 2 (webbuild) exports the Expo web bundle so the API can serve it
+#                    same-origin (app-expo/dist).
+# Stage 3 (runtime)  is a dev-dependency-free image that ships only the compiled
+#                    server, the web bundle, and production dependencies — neither
+#                    tsx, the TypeScript toolchain, nor the Expo build tooling is
+#                    present in the deployed image.
 
-# --- Build stage: full dependencies + compile to dist/ ---
+# --- Build stage: full dependencies + compile the server to dist/ ---
 FROM node:20-slim AS build
 
 WORKDIR /app
@@ -15,27 +18,59 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Only the sources the build needs (the Expo app and tests are excluded via
-# .dockerignore and the explicit COPY list below).
+# Only the sources the server build needs.
 COPY tsconfig.base.json tsconfig.build.json ./
 COPY shared ./shared
 COPY server ./server
 
 RUN npm run build
 
-# --- Runtime stage: production dependencies + compiled output only ---
+# --- Web build stage: export the Expo web bundle to app-expo/dist ---
+FROM node:20-slim AS webbuild
+
+WORKDIR /app
+
+# The web app calls the API at this absolute origin, inlined at build time so the
+# browser and the WebSocket both target the deployed host. It is REQUIRED for a
+# same-origin deploy — build with:
+#   docker build --build-arg EXPO_PUBLIC_API_BASE_URL=https://your-host .
+ARG EXPO_PUBLIC_API_BASE_URL
+ENV EXPO_PUBLIC_API_BASE_URL=${EXPO_PUBLIC_API_BASE_URL}
+RUN test -n "$EXPO_PUBLIC_API_BASE_URL" || ( \
+  echo "ERROR: build-arg EXPO_PUBLIC_API_BASE_URL is required (the absolute API origin the web app calls)." >&2; \
+  exit 1 )
+
+# Install app-expo dependencies first so this layer caches unless the lockfile
+# changes. (node_modules is excluded by .dockerignore, so the later source copy
+# never clobbers it.)
+COPY app-expo/package.json app-expo/package-lock.json ./app-expo/
+RUN cd app-expo && npm ci
+
+# The web export mirrors ../app and ../shared into the Expo project, so both must
+# sit alongside app-expo.
+COPY shared ./shared
+COPY app ./app
+COPY app-expo ./app-expo
+
+RUN cd app-expo && npm run export:web
+
+# --- Runtime stage: production dependencies + compiled server + web bundle ---
 FROM node:20-slim AS runtime
 
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install production dependencies only (no tsx, no typescript).
+# Install production dependencies only (no tsx, no typescript, no Expo tooling).
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-# Copy the compiled JavaScript emitted by the build stage.
+# Compiled server and the exported web bundle.
 COPY --from=build /app/dist ./dist
+COPY --from=webbuild /app/app-expo/dist ./app-expo/dist
+
+# Serve the web app same-origin with the API (see server/src/middlewares/webApp.ts).
+ENV WEB_DIST_DIR=/app/app-expo/dist
 
 # The server reads PORT (default 3000).
 EXPOSE 3000

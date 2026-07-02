@@ -55,29 +55,42 @@ development; only production runs the compiled output.
 
 ## Build and run with Docker
 
-The image is multi-stage: a build stage installs all dependencies and runs
-`npm run build`, and a slim runtime stage installs production dependencies only
-(`npm ci --omit=dev`) and copies in `dist/`. Neither `tsx` nor the TypeScript
-toolchain is present in the deployed image.
+The image is multi-stage: a `build` stage compiles the server, a `webbuild` stage
+exports the Expo web bundle, and a slim `runtime` stage installs production
+dependencies only (`npm ci --omit=dev`) and copies in the compiled `dist/` plus
+`app-expo/dist`. Neither `tsx`, the TypeScript toolchain, nor the Expo build
+tooling is present in the deployed image. The runtime sets `WEB_DIST_DIR`, so the
+image serves the web app same-origin out of the box.
+
+The web build inlines the API origin at build time, so pass it as a build arg
+(**required** — the build fails fast without it). For a same-origin deploy it is
+the deployment's own public URL:
 
 ```bash
-docker build -t homefix-api .
+docker build -t homefix-api \
+  --build-arg EXPO_PUBLIC_API_BASE_URL=https://app.homefix.example .
 
 docker run --rm -p 3000:3000 \
   -e NODE_ENV=production \
   -e DATABASE_URL="postgresql://user:password@db-host:5432/homefix" \
   -e JWT_SECRET="a-strong-secret-value" \
-  -e CORS_ALLOWED_ORIGINS="https://app.homefix.example" \
   homefix-api
 ```
+
+Because the web app is served same-origin, `CORS_ALLOWED_ORIGINS` can stay unset.
+Building the web bundle runs Metro and needs more memory/time than the server
+build alone.
 
 ## Deploying on Railway
 
 Railway auto-detects the `Dockerfile` and builds the image. Provision a Postgres
 plugin and the server picks up the injected `DATABASE_URL`; Railway also injects
-`PORT`, which the server already reads. Set `NODE_ENV=production`, a strong
-`JWT_SECRET`, and `CORS_ALLOWED_ORIGINS` for the real web origin(s) in the service
-variables. Pending migrations run automatically on boot.
+`PORT`, which the server already reads. Set `NODE_ENV=production` and a strong
+`JWT_SECRET` in the service variables, and set the **build arg**
+`EXPO_PUBLIC_API_BASE_URL` to the service's public URL so the bundled web app calls
+back to the same origin. Pending migrations run automatically on boot. For this
+same-origin setup `CORS_ALLOWED_ORIGINS` can stay unset; set it only if you also
+serve the app from a different origin.
 
 ## Health probes
 
