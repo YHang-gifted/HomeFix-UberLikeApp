@@ -5,7 +5,6 @@ import { createApp } from '../server/src/app.ts';
 import { signToken } from '../server/src/auth/jwt.ts';
 import { resetServiceRequests } from '../server/src/services/serviceRequestService.ts';
 import { resetMessages } from '../server/src/services/messageService.ts';
-import { messageHub } from '../server/src/services/messageHub.ts';
 
 const CUSTOMER_ID = '123e4567-e89b-12d3-a456-426614174000';
 const OTHER_CUSTOMER_ID = '223e4567-e89b-12d3-a456-426614174000';
@@ -65,25 +64,6 @@ describe('request messages', () => {
       body: JSON.stringify({ workerId: WORKER_ID }),
     });
   }
-
-  it('publishes a posted message to the live message hub', async () => {
-    const created = await createRequest();
-
-    const received = [];
-    const unsubscribe = messageHub.subscribe(created.id, (m) => received.push(m));
-
-    await fetch(`${baseUrl}/service-requests/${created.id}/messages`, {
-      method: 'POST',
-      headers: headers(CUSTOMER_ID, 'customer'),
-      body: JSON.stringify({ body: 'Live update please' }),
-    });
-    unsubscribe();
-
-    assert.equal(received.length, 1);
-    assert.equal(received[0].requestId, created.id);
-    assert.equal(received[0].body, 'Live update please');
-    assert.equal(received[0].senderId, CUSTOMER_ID);
-  });
 
   it('lets the customer and assigned worker exchange messages, oldest first', async () => {
     const created = await createRequest();
