@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
+import type { ConnectMessageStream } from '../../../app/src/features/messages/messageStream';
+import { mergeIncomingMessage } from '../../../app/src/features/messages/messageStream';
 import type { Message } from '../../../shared/schemas';
 import { apiClient } from '../api';
 
@@ -25,6 +27,12 @@ export interface MessagesScreenProps {
    * messages appear without manual refresh. 0 disables polling (used by tests).
    */
   pollIntervalMs?: number;
+  /**
+   * Live message stream (a WebSocket). When provided, new messages are pushed in
+   * real time and the poll interval is skipped (the socket handles liveness);
+   * when absent, the screen falls back to polling. Injected for tests/web.
+   */
+  connectStream?: ConnectMessageStream;
 }
 
 export function MessagesScreen({
@@ -32,6 +40,7 @@ export function MessagesScreen({
   client,
   refreshToken,
   pollIntervalMs = 5000,
+  connectStream,
 }: MessagesScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
   const principal = useMemo(() => activeClient.getPrincipal(), [activeClient]);
@@ -60,9 +69,24 @@ export function MessagesScreen({
     }
 
     void load();
-    // Poll while the thread is open so new messages arrive without a manual
-    // refresh. Each tick re-fetches; the FlatList is keyed by id, so unchanged
-    // messages don't flicker.
+
+    // Prefer a live WebSocket push when one is available: each pushed message is
+    // merged into the thread in real time, and we skip polling entirely.
+    if (connectStream !== undefined) {
+      const subscription = connectStream(requestId, (incoming) => {
+        if (active) {
+          setMessages((current) => mergeIncomingMessage(current, incoming));
+        }
+      });
+      return () => {
+        active = false;
+        subscription.close();
+      };
+    }
+
+    // Fallback: poll while the thread is open so new messages arrive without a
+    // manual refresh. Each tick re-fetches; the FlatList is keyed by id, so
+    // unchanged messages don't flicker.
     const interval =
       pollIntervalMs > 0
         ? setInterval(() => {
@@ -75,7 +99,7 @@ export function MessagesScreen({
         clearInterval(interval);
       }
     };
-  }, [activeClient, requestId, refreshToken, reload, pollIntervalMs]);
+  }, [activeClient, requestId, refreshToken, reload, pollIntervalMs, connectStream]);
 
   async function send(): Promise<void> {
     const trimmed = body.trim();
