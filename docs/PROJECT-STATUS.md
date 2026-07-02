@@ -296,9 +296,16 @@ testable v1.
   `MessagesScreen` `connectStream?` prop — when a stream is injected, pushed
   messages merge in real time and polling is skipped; absent, it falls back to
   polling. Native WebSocket provider wired in `App.tsx` is the follow-up (122d) —
-  _in review_.
+  merged.
+- **122d** native message-stream provider (`app-expo/src/messageStream.ts`):
+  `deviceConnectMessageStream` opens the platform `WebSocket` to `/ws/messages`
+  (API base http→ws + `getToken()` + requestId), forwards message frames, ignores
+  the `ready` ack; wired into `App.tsx` `MessagesRoute`. No web stub needed
+  (WebSocket is universal). Not unit-tested (native provider; 122c's injected fake
+  covers the logic). Completes the **WebSocket realtime-chat track** (122a hub →
+  122b server push → 122c app logic → 122d native provider) — _in review_.
 
-_All slices above are merged to `main` except **122c** (app live-chat logic),
+_All slices above are merged to `main` except **122d** (native message stream),
 which was handed off and may still be in review at the time of this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
