@@ -283,9 +283,16 @@ testable v1.
 - **122a** message pub/sub hub (`server/src/services/messageHub.ts`, in-process
   per-request subscribe/publish). `messageService.postMessage` publishes each saved
   message; the WebSocket layer (122b) will subscribe and push. No dependency, no
-  transport yet — _in review_.
+  transport yet — merged.
+- **122b** WebSocket message push (`server/src/realtime/messageSocket.ts` via `ws`):
+  a WebSocket server on `/ws/messages` authenticates the socket from a query
+  `token` (same token*version/active-account checks as HTTP), authorizes it with
+  the same `isRequestParty` gate, subscribes to `messageHub`, and pushes each new
+  message as JSON. Wired in `server.ts`. Adds the `ws` dependency (true push needs
+  a WebSocket server; the standard lib can't). Polling remains as the fallback —
+  \_in review*.
 
-_All slices above are merged to `main` except **122a** (message hub), which was
+_All slices above are merged to `main` except **122b** (WebSocket push), which was
 handed off and may still be in review at the time of this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
