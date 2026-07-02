@@ -13,7 +13,10 @@ const mirror = path.resolve(scriptDir, '..', '.shared');
 
 try {
   execSync(`node "${path.join(scriptDir, 'sync-shared.mjs')}"`, { stdio: 'inherit' });
-  execSync('npx expo export -p web', {
+  // `--clear` resets Metro's transform/resolution cache so a config or dependency
+  // change (e.g. the resolved `zod` version) is always reflected in the output,
+  // rather than silently reusing a stale bundle.
+  execSync('npx expo export -p web --clear', {
     stdio: 'inherit',
     env: { ...process.env, HOMEFIX_WEB_EXPORT: '1' },
   });

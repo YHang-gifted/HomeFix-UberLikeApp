@@ -112,6 +112,22 @@ function resolveSharedSource(context, moduleName, platform) {
   return null;
 }
 
+// True when `child` is `parent` or lives under it. Normalizes both paths first
+// (path.resolve unifies `/` vs `\`, and Windows is case-insensitive), because
+// Metro can hand back origin paths with a different separator/drive-letter case
+// than our `path.resolve`-derived constants — a raw `startsWith` then silently
+// fails on Windows and defeats the re-anchor below.
+function pathStartsWith(child, parent) {
+  let c = path.resolve(child);
+  let p = path.resolve(parent);
+  if (process.platform === 'win32') {
+    c = c.toLowerCase();
+    p = p.toLowerCase();
+  }
+  const withSep = p.endsWith(path.sep) ? p : p + path.sep;
+  return c === p || c.startsWith(withSep);
+}
+
 const baseResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   const resolve = baseResolveRequest ?? context.resolveRequest;
@@ -123,7 +139,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     USE_MIRROR &&
     (moduleName === 'zod' || moduleName.startsWith('zod/')) &&
     typeof context.originModulePath === 'string' &&
-    context.originModulePath.startsWith(SHARED_MIRROR)
+    pathStartsWith(context.originModulePath, SHARED_MIRROR)
   ) {
     const rootAnchor = path.join(ROOT_NODE_MODULES, '..', 'zodAnchor.js');
     return resolve({ ...context, originModulePath: rootAnchor }, moduleName, platform);

@@ -315,11 +315,22 @@ testable v1.
   the required `EXPO_PUBLIC_API_BASE_URL` build arg, inlined at build time) and the
   runtime stage copies `app-expo/dist` in and sets `WEB_DIST_DIR`, so a single
   `docker build` produces one same-origin image (server + web). `.dockerignore`
-  un-ignores `app`/`app-expo` (node*modules still excluded); docs updated. Infra
-  only — validated by a local `docker build`, not the CI gates — \_in review*.
+  un-ignores `app`/`app-expo` (their `node_modules` still excluded); docs updated.
+  Infra only — validate with a local `docker build` (not covered by CI gates) —
+  merged.
+- **124** web-export zod fix (blank web page): the shared code uses zod 4 APIs
+  (`z.uuid()`), but the web bundle picked up app-expo's transitive **zod 3.x**, so
+  `z.uuid()` threw and the app never rendered. Fix: pin **`zod ^4.4.3` directly in
+  app-expo** (its only zod dependents — babel-plugin-react-compiler,
+  eslint-plugin-react-hooks, zod-validation-error — all accept `^4`, so nothing
+  needs v3), so the resolved version is correct regardless of Metro's fragile
+  origin-based re-anchor; also made that re-anchor's path check
+  separator/case-robust (`pathStartsWith`) and added `--clear` to `export:web` so a
+  stale Metro cache can't mask a config/dep change. Needs `npm install` in app-expo
+  — _in review_.
 
-_All slices above are merged to `main` except **123b** (Dockerfile web build),
-which was handed off and may still be in review at the time of this snapshot._
+_All slices above are merged to `main` except **124** (web-export zod fix), which
+was handed off and may still be in review at the time of this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);
