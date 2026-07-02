@@ -286,14 +286,20 @@ testable v1.
   transport yet — merged.
 - **122b** WebSocket message push (`server/src/realtime/messageSocket.ts` via `ws`):
   a WebSocket server on `/ws/messages` authenticates the socket from a query
-  `token` (same token*version/active-account checks as HTTP), authorizes it with
+  `token` (same token\*version/active-account checks as HTTP), authorizes it with
   the same `isRequestParty` gate, subscribes to `messageHub`, and pushes each new
   message as JSON. Wired in `server.ts`. Adds the `ws` dependency (true push needs
   a WebSocket server; the standard lib can't). Polling remains as the fallback —
-  \_in review*.
+  merged.
+- **122c** app live-chat logic: `app/src/features/messages/messageStream.ts`
+  (injected `ConnectMessageStream` type + pure `mergeIncomingMessage` dedupe) and
+  `MessagesScreen` `connectStream?` prop — when a stream is injected, pushed
+  messages merge in real time and polling is skipped; absent, it falls back to
+  polling. Native WebSocket provider wired in `App.tsx` is the follow-up (122d) —
+  _in review_.
 
-_All slices above are merged to `main` except **122b** (WebSocket push), which was
-handed off and may still be in review at the time of this snapshot._
+_All slices above are merged to `main` except **122c** (app live-chat logic),
+which was handed off and may still be in review at the time of this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);
