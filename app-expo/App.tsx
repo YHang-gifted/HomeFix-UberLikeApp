@@ -13,6 +13,7 @@ import { apiClient } from './src/api';
 import { deviceImagePicker } from './src/imagePicker';
 import { deviceGeocoder, deviceLocationProvider } from './src/location';
 import { MapPickerHost, deviceMapPicker } from './src/mapPicker';
+import { deviceConnectMessageStream } from './src/messageStream';
 import { devicePushTokenProvider } from './src/push';
 import { tokenStore } from './src/tokenStore';
 import { useFocusRefreshToken } from './src/hooks/useFocusRefreshToken';
@@ -200,7 +201,12 @@ function MessagesRoute({
   const refreshToken = useFocusRefreshToken();
 
   return (
-    <MessagesScreen client={apiClient} requestId={route.params.id} refreshToken={refreshToken} />
+    <MessagesScreen
+      client={apiClient}
+      requestId={route.params.id}
+      refreshToken={refreshToken}
+      connectStream={deviceConnectMessageStream}
+    />
   );
 }
 
