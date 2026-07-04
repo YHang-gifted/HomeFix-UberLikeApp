@@ -43,6 +43,10 @@ describe('mockPaymentProvider', () => {
     const provider = selectPaymentProvider({ STRIPE_SECRET_KEY: 'sk_test_example' });
     assert.notEqual(provider, mockPaymentProvider);
   });
+
+  it('the mock provider does not use external checkout (mock /pay is allowed)', () => {
+    assert.equal(mockPaymentProvider.usesExternalCheckout, false);
+  });
 });
 
 describe('createStripePaymentProvider', () => {
@@ -82,5 +86,12 @@ describe('createStripePaymentProvider', () => {
 
     assert.equal(result.providerRef, 'pi_456');
     assert.equal(result.clientSecret, undefined);
+  });
+
+  it('uses external checkout (so the mock /pay is disabled in this mode)', () => {
+    const provider = createStripePaymentProvider(() =>
+      Promise.resolve({ id: 'pi_1', client_secret: null }),
+    );
+    assert.equal(provider.usesExternalCheckout, true);
   });
 });

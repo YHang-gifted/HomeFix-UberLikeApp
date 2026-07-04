@@ -353,10 +353,25 @@ testable v1.
   `clientSecret`. Config-gated on `STRIPE_SECRET_KEY` (`selectPaymentProvider`);
   **mock still the default**. The intent-creation seam is injectable, so the mapping
   is unit-tested offline with no Stripe network call. The webhook/HMAC confirmation
-  (115b/c) already maps the intent id back — _in review_.
+  (115b/c) already maps the intent id back — merged (deployed on Railway in **mock
+  mode**, i.e. no `STRIPE_SECRET_KEY`, so the mock `/pay` is the intended behavior).
+- **130a** Stripe wiring — backend (security + client secret). Closes two of the
+  three 129 gaps: (a) `paymentService.createPayment` now returns the provider's
+  `clientSecret` on the create response (ephemeral — added to `paymentSchema`
+  optional, never persisted, never on a later GET); (c) **security fix:**
+  `PaymentProvider.usesExternalCheckout` (mock=false, Stripe=true) + exported
+  `assertDirectPayAllowed(provider)`, called at the top of `payPayment` — with a
+  real provider the mock `/pay` now 409s, so a payment can be settled ONLY by the
+  verified webhook (no more "mark paid for free"). Tests: provider flags +
+  guard-throws-409. — _in review_.
+  **⚠️ STILL not fully production-ready:** gap (b) remains — the APP doesn't yet
+  use the `clientSecret` (RequestDetailScreen.payNow still calls the mock `/pay`,
+  which now just 409s in real mode). So with a Stripe key set the flow is now SAFE
+  (no bypass) but not FUNCTIONAL until the app checkout (130b) lands. Keep
+  `STRIPE_SECRET_KEY` unset until 130b.
 
-_All slices above are merged to `main` except **129** (Stripe provider), which was
-handed off and may still be in review at the time of this snapshot._
+_All slices above are merged to `main` at the time of this snapshot. The service is
+deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);
