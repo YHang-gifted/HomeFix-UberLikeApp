@@ -342,10 +342,16 @@ testable v1.
   now hidden on web (`Platform.OS === 'web'`) — expo-location forward geocoding is
   native-only — matching the already-web-hidden map picker. Current location
   (browser geolocation) and manual entry remain; nothing crashes on web. QA
-  checklist §8 documents the web degradation — _in review_.
+  checklist §8 documents the web degradation — merged.
+- **128** API base URL normalization (`app-expo/src/config.ts`): a bare-domain
+  `EXPO_PUBLIC_API_BASE_URL` (no scheme) now auto-gets `https://` and any trailing
+  slash is dropped, so the deploy footgun that broke every request ("Could not
+  reach the server") can't recur. Pure `normalizeApiBaseUrl` + jest tests — _in
+  review_.
 
-_All slices above are merged to `main` except **127** (map/location web compat),
-which was handed off and may still be in review at the time of this snapshot._
+_All slices above are merged to `main` except **128** (API base URL
+normalization), which was handed off and may still be in review at the time of
+this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);
