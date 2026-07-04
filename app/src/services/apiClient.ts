@@ -512,12 +512,22 @@ export class ApiClient {
 
   /** PUT raw image bytes to an upload target's `uploadUrl`. */
   public async putUploadBytes(uploadUrl: string, contentType: string, body: Blob): Promise<void> {
-    if (this.token === undefined) {
-      throw new ApiError(401, 'Not authenticated');
+    // A same-origin upload URL (relative, e.g. the mock `/uploads/:id`) hits our
+    // own auth-gated endpoint, so it carries the bearer token. An absolute URL is a
+    // presigned object-storage URL (e.g. S3): it is already authenticated by its
+    // query signature and rejects an extra Authorization header — so we must NOT
+    // attach one.
+    const sameOrigin = uploadUrl.startsWith('/');
+    const headers: Record<string, string> = { 'content-type': contentType };
+    if (sameOrigin) {
+      if (this.token === undefined) {
+        throw new ApiError(401, 'Not authenticated');
+      }
+      headers['Authorization'] = `Bearer ${this.token}`;
     }
     const response = await fetch(this.resolveUrl(uploadUrl), {
       method: 'PUT',
-      headers: { 'content-type': contentType, Authorization: `Bearer ${this.token}` },
+      headers,
       body,
     });
     if (!response.ok) {
