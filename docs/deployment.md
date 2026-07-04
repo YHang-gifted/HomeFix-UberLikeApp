@@ -30,6 +30,11 @@ startup by `server/src/config/env.ts` (see `.env.example`). The active variables
   API, `https://exp.host/--/api/v2/push/send`). Set it to actually send push;
   leave unset and the push channel only logs. The endpoint receives a JSON
   `{ to, title, body }` POST.
+- `STRIPE_SECRET_KEY` — set it to take real payments via Stripe (each payment opens
+  a PaymentIntent, idempotent on the payment id); leave unset and the inert mock
+  provider is used. Use a test-mode key (`sk_test_…`) outside production; pair it
+  with `PAYMENTS_WEBHOOK_SECRET` so Stripe's webhook can confirm the payment. Never
+  commit a real key.
 - `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION` / `STORAGE_S3_ACCESS_KEY_ID` /
   `STORAGE_S3_SECRET_ACCESS_KEY` — object storage for uploaded images. Set all
   four to store images in real S3 (the API returns a presigned PUT URL the client
