@@ -310,7 +310,8 @@ testable v1.
   runtime stage copies `app-expo/dist` in and sets `WEB_DIST_DIR`, so a single
   `docker build` produces one same-origin image (server + web). `.dockerignore`
   un-ignores `app`/`app-expo` (their `node_modules` still excluded); docs updated.
-  Infra only — validate with a local `docker build` (not covered by CI gates) —
+  Infra only — **validated: a local `docker build` succeeds (webbuild/export runs
+  in-container) and `docker run` serves the login page same-origin on one port.** —
   merged.
 - **124** web-export zod fix (blank web page): the shared code uses zod 4 APIs
   (`z.uuid()`), but the web bundle picked up app-expo's transitive **zod 3.x**, so
@@ -336,10 +337,15 @@ testable v1.
 - **126** Node 22 upgrade: `.nvmrc` 20→22, `engines` `>=20 <21`→`>=22` (also stops
   the `EBADENGINE` warnings on the dev's newer local Node), Dockerfile all three
   stages `node:22-slim`. CI reads `.nvmrc`, so the gates now run on Node 22 —
-  clears the AWS SDK "requires node >=22 after early 2027" warning — _in review_.
+  clears the AWS SDK "requires node >=22 after early 2027" warning — merged.
+- **127** map/location web compatibility: the address-search (`geocoder`) field is
+  now hidden on web (`Platform.OS === 'web'`) — expo-location forward geocoding is
+  native-only — matching the already-web-hidden map picker. Current location
+  (browser geolocation) and manual entry remain; nothing crashes on web. QA
+  checklist §8 documents the web degradation — _in review_.
 
-_All slices above are merged to `main` except **126** (Node 22 upgrade), which was
-handed off and may still be in review at the time of this snapshot._
+_All slices above are merged to `main` except **127** (map/location web compat),
+which was handed off and may still be in review at the time of this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);
