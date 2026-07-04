@@ -8,4 +8,25 @@
  * reach `localhost` on your machine — use your machine's LAN IP (or the deployed
  * URL) there.
  */
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
+
+const LOCAL_DEFAULT = 'http://localhost:3000';
+
+/**
+ * Normalize the configured API base URL so a small deploy typo can't break every
+ * request:
+ * - unset/empty → the local dev default;
+ * - a bare domain (no scheme) gets `https://` prepended — otherwise the browser
+ *   can't form an absolute URL from `${base}${path}` and every call fails with
+ *   "Could not reach the server" (a real footgun hit during the Railway deploy);
+ * - a trailing slash is dropped so paths don't double up.
+ */
+export function normalizeApiBaseUrl(raw: string | undefined): string {
+  const trimmed = raw?.trim();
+  if (trimmed === undefined || trimmed === '') {
+    return LOCAL_DEFAULT;
+  }
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  return withScheme.replace(/\/+$/, '');
+}
+
+export const API_BASE_URL = normalizeApiBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL);
