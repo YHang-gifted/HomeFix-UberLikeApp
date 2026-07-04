@@ -17,6 +17,7 @@ import { recordNotification } from './notificationService.ts';
 import { recordAuditEvent } from './auditService.ts';
 import { createPayoutForPayment } from './payoutService.ts';
 import { paymentProvider } from './paymentProvider.ts';
+import type { PaymentProvider } from './paymentProvider.ts';
 
 async function loadRequest(requestId: string): Promise<ServiceRequest> {
   const request = await serviceRequestRepository.findById(requestId);
@@ -119,7 +120,27 @@ export async function createPayment(
     resourceId: payment.id,
     details: { requestId, amountCents: String(input.amountCents) },
   });
-  return payment;
+  // Return the provider's client secret (if any) so the app can complete checkout.
+  // It is NOT persisted — it rides only on this create response, never a later GET.
+  return {
+    ...payment,
+    ...(charge.clientSecret !== undefined ? { clientSecret: charge.clientSecret } : {}),
+  };
+}
+
+/**
+ * Guard the mock `/pay` endpoint: when a real provider is active (the customer
+ * pays at the provider's checkout), a payment must NOT be markable as paid
+ * directly — it is settled only by the provider's verified webhook. Throws 409 in
+ * that mode; a no-op for the mock provider (dev/test).
+ */
+export function assertDirectPayAllowed(provider: PaymentProvider): void {
+  if (provider.usesExternalCheckout) {
+    throw new AppError(
+      'This payment is completed at checkout and confirmed automatically once paid.',
+      409,
+    );
+  }
 }
 
 /**
@@ -145,6 +166,9 @@ async function markPaid(payment: Payment): Promise<Payment> {
  * The owning customer only; notifies the worker.
  */
 export async function payPayment(requestId: string, principal: Principal): Promise<Payment> {
+  // With a real provider, payments settle only via the verified webhook — the mock
+  // direct-pay path is disabled so it can't be used to mark a payment paid for free.
+  assertDirectPayAllowed(paymentProvider);
   const request = await loadRequest(requestId);
   if (principal.role !== 'customer' || principal.id !== request.customerId) {
     throw new AppError('Only the owning customer may pay', 403);

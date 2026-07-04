@@ -29,6 +29,12 @@ export interface PaymentChargeResult {
  * real webhook then references that id.
  */
 export interface PaymentProvider {
+  /**
+   * True when the customer completes the payment at the provider's checkout (e.g.
+   * Stripe), so the payment is settled only by the provider's verified webhook —
+   * NOT by our mock `/pay` endpoint. False for the mock provider (dev/test).
+   */
+  readonly usesExternalCheckout: boolean;
   createCharge(input: PaymentChargeInput): Promise<PaymentChargeResult>;
 }
 
@@ -39,6 +45,7 @@ export interface PaymentProvider {
  * {@link selectPaymentProvider} without touching callers.
  */
 export const mockPaymentProvider: PaymentProvider = {
+  usesExternalCheckout: false,
   createCharge(_input: PaymentChargeInput): Promise<PaymentChargeResult> {
     return Promise.resolve({ providerRef: `mock_${randomUUID()}` });
   },
@@ -70,6 +77,7 @@ export type CreateStripeIntent = (
  */
 export function createStripePaymentProvider(createIntent: CreateStripeIntent): PaymentProvider {
   return {
+    usesExternalCheckout: true,
     async createCharge(input: PaymentChargeInput): Promise<PaymentChargeResult> {
       const intent = await createIntent(
         {

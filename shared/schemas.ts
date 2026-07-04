@@ -387,6 +387,10 @@ export const paymentSchema = z.object({
   // PaymentIntent id). Optional: the mock provider assigns one, and it is how a
   // real provider's webhooks map back to our payment. Legacy rows may lack it.
   providerRef: z.string().optional(),
+  // The provider's client secret for completing the payment (e.g. a Stripe
+  // PaymentIntent client secret). Ephemeral: returned ONLY on the create-payment
+  // response so the app can start checkout; never persisted, never on a later GET.
+  clientSecret: z.string().optional(),
 });
 export type Payment = z.infer<typeof paymentSchema>;
 
