@@ -224,10 +224,10 @@ testable v1.
    policy, ship the structured logs somewhere queryable). Structured 5xx error
    logging is done.
 3. A full **E2E / device QA** pass against `docs/qa-checklist.md`.
-4. **Concrete payment-provider adapter** — the webhook resolution (by
-   `providerRef`) and HMAC signature verification are done; a real adapter just
-   creates the charge with a client secret, once a provider and credentials are
-   chosen.
+4. **Real payment go-live** — the Stripe adapter (slice 129), webhook resolution
+   (by `providerRef`), and HMAC verification are all done; going live is now an
+   operator step: set `STRIPE_SECRET_KEY` + `PAYMENTS_WEBHOOK_SECRET`, point
+   Stripe's webhook at `/webhooks/payments`, and test with a `sk_test_…` key.
 5. **WebSocket true-push chat** — optional upgrade over the current polling.
 6. **Further audit coverage** — auth/profile actions (password change, profile
    edits) not yet audited.
@@ -346,12 +346,17 @@ testable v1.
 - **128** API base URL normalization (`app-expo/src/config.ts`): a bare-domain
   `EXPO_PUBLIC_API_BASE_URL` (no scheme) now auto-gets `https://` and any trailing
   slash is dropped, so the deploy footgun that broke every request ("Could not
-  reach the server") can't recur. Pure `normalizeApiBaseUrl` + jest tests — _in
-  review_.
+  reach the server") can't recur. Pure `normalizeApiBaseUrl` + jest tests — merged.
+- **129** real Stripe payment provider (`createStripePaymentProvider` via the
+  official `stripe` SDK): opens a PaymentIntent (amount in minor units, our ids in
+  metadata, `idempotencyKey` = payment id) and returns `providerRef` = intent id +
+  `clientSecret`. Config-gated on `STRIPE_SECRET_KEY` (`selectPaymentProvider`);
+  **mock still the default**. The intent-creation seam is injectable, so the mapping
+  is unit-tested offline with no Stripe network call. The webhook/HMAC confirmation
+  (115b/c) already maps the intent id back — _in review_.
 
-_All slices above are merged to `main` except **128** (API base URL
-normalization), which was handed off and may still be in review at the time of
-this snapshot._
+_All slices above are merged to `main` except **129** (Stripe provider), which was
+handed off and may still be in review at the time of this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);

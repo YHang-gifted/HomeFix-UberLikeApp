@@ -113,6 +113,13 @@ const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.coerce.number().int().positive().max(3600).default(900),
     ),
+    // Stripe secret key. Set it to take real payments via Stripe (createCharge opens
+    // a PaymentIntent); leave unset and the inert mock provider is used (dev/test).
+    // Supplied by the operator — never committed. Empty is treated as unset.
+    STRIPE_SECRET_KEY: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
     // Absolute path to the built web bundle (the Expo web export, `app-expo/dist`).
     // Set it to serve the web app same-origin with the API (static assets + an SPA
     // fallback); leave unset (dev/test) and only the API is served. Empty = unset.
