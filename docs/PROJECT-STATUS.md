@@ -217,12 +217,6 @@ testable v1.
 
 ## 5. Recommended next slices (in order)
 
-0. **App upload to S3 (121c)** — `apiClient.putUploadBytes` currently always
-   attaches `Authorization: Bearer` on the PUT. That's correct for the same-origin
-   mock upload but breaks an S3 **presigned** PUT (already authenticated by its
-   query signature — an extra auth header is rejected). Fix: only attach the bearer
-   token when the upload URL is same-origin/relative. Needed before real S3 uploads
-   work from the app.
 1. **Host the frontend web app** — deploy the merged `app-expo/dist`, set
    `CORS_ALLOWED_ORIGINS` to the frontend origin, and verify the login loop on
    web (guard native-only push/location/map calls behind `Platform.OS`).
@@ -327,9 +321,14 @@ testable v1.
   origin-based re-anchor; also made that re-anchor's path check
   separator/case-robust (`pathStartsWith`) and added `--clear` to `export:web` so a
   stale Metro cache can't mask a config/dep change. Needs `npm install` in app-expo
-  — _in review_.
+  — merged. Web app verified rendering + login locally at same-origin.
+- **121c** app upload to S3: `apiClient.putUploadBytes` now attaches the bearer
+  token only for a same-origin (relative) upload URL; an absolute presigned URL
+  (S3) is left unauthenticated, since it's already signed and rejects an extra
+  `Authorization` header. Fixes real S3 uploads from the app (mock upload path
+  unchanged). Test added — _in review_.
 
-_All slices above are merged to `main` except **124** (web-export zod fix), which
+_All slices above are merged to `main` except **121c** (app S3 upload auth), which
 was handed off and may still be in review at the time of this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
