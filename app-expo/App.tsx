@@ -161,7 +161,10 @@ function CreateRequestRoute({
     <CreateRequestScreen
       client={apiClient}
       locationProvider={deviceLocationProvider}
-      geocoder={deviceGeocoder}
+      // Forward geocoding (address search) isn't available on web via
+      // expo-location, so hide that field there; current-location (browser
+      // geolocation) and manual entry remain.
+      geocoder={Platform.OS === 'web' ? undefined : deviceGeocoder}
       imagePicker={deviceImagePicker}
       mapPicker={Platform.OS === 'web' ? undefined : deviceMapPicker}
       onCreated={() => {

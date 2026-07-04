@@ -133,6 +133,11 @@ checklist adds the device- and native-module coverage that can't._
 - [ ] **Known limitation:** forward-geocoding availability/accuracy depends on the
       platform/provider configuration; an unconfigured environment may return no
       results — the manual coordinate entry is the fallback.
+- [ ] **Web:** the app degrades gracefully. The **map picker** and **address
+      search** are hidden (both native-only via react-native-maps / expo-location
+      forward geocoding); **current location** uses the browser's geolocation; and
+      manual lat/long entry always works. Nothing crashes when these native
+      features are unavailable.
 
 ## 9. Resilience & UX spot-checks
 
