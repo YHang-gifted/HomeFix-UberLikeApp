@@ -3,8 +3,12 @@ import type {
   MessageStreamListener,
   MessageStreamSubscription,
 } from '../../app/src/features/messages/messageStream';
+import { createReconnectingStream } from '../../app/src/features/messages/messageStream';
 import type { Message } from '../../shared/schemas';
 import { apiClient } from './api';
+
+/** Server close codes that a reconnect can't fix (auth rejected / not a party). */
+const TERMINAL_CLOSE_CODES = new Set([4401, 4403]);
 
 /**
  * Build the ws(s) URL for a request's message socket from the API base and the
@@ -45,31 +49,43 @@ function forwardFrame(data: unknown, onMessage: MessageStreamListener): void {
 
 /**
  * Real message stream over the platform WebSocket (React Native and browser both
- * provide `WebSocket`). Opens a socket to `/ws/messages` and forwards each pushed
- * message to the listener. No reconnect is attempted — the thread re-subscribes
- * on focus and after sending, and message polling remains the fallback when the
- * stream isn't available at all.
+ * provide `WebSocket`). Opens a socket to `/ws/messages`, forwards each pushed
+ * message to the listener, and automatically reconnects with exponential backoff
+ * when the connection drops — except on a terminal auth close (4401/4403), which a
+ * retry can't fix. Message polling remains the fallback when the stream can't be
+ * opened at all.
  */
 export const deviceConnectMessageStream: ConnectMessageStream = (
   requestId,
   onMessage,
 ): MessageStreamSubscription => {
-  const url = socketUrl(requestId);
-  if (url === null) {
-    return { close: () => undefined };
-  }
-
-  const socket = new WebSocket(url);
-  socket.onmessage = (event) => {
-    forwardFrame((event as { data?: unknown }).data, onMessage);
-  };
-  // Swallow socket errors: without a reconnect strategy there's nothing to do but
-  // stop receiving; the user can refresh to re-open the thread.
-  socket.onerror = () => undefined;
-
-  return {
-    close: () => {
-      socket.close();
+  return createReconnectingStream(
+    (hooks) => {
+      const url = socketUrl(requestId);
+      if (url === null) {
+        // No token yet: report a terminal close so we stop rather than loop.
+        hooks.onClose(4401);
+        return { close: () => undefined };
+      }
+      const socket = new WebSocket(url);
+      socket.onmessage = (event) => {
+        forwardFrame((event as { data?: unknown }).data, hooks.onMessage);
+      };
+      socket.onopen = () => {
+        hooks.onOpen();
+      };
+      socket.onclose = (event) => {
+        hooks.onClose((event as { code?: number }).code);
+      };
+      // `onerror` is followed by `onclose`, which drives the reconnect.
+      socket.onerror = () => undefined;
+      return {
+        close: () => {
+          socket.close();
+        },
+      };
     },
-  };
+    onMessage,
+    { shouldReconnect: (code) => code === undefined || !TERMINAL_CLOSE_CODES.has(code) },
+  );
 };

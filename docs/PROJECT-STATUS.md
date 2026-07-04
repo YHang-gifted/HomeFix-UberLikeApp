@@ -326,9 +326,15 @@ testable v1.
   token only for a same-origin (relative) upload URL; an absolute presigned URL
   (S3) is left unauthenticated, since it's already signed and rejects an extra
   `Authorization` header. Fixes real S3 uploads from the app (mock upload path
-  unchanged). Test added — _in review_.
+  unchanged). Test added — merged. Completes the image-storage track end-to-end.
+- **125** WebSocket reconnect + backoff: `createReconnectingStream` (pure,
+  injectable timer/socket) wraps a socket opener with exponential backoff — a live
+  open resets the delay, an unexpected close retries (base, 2×, 4×, … capped), and
+  `close()` stops retrying and tears down the socket. The native provider uses it
+  and does NOT retry terminal auth closes (4401/4403). Backoff logic unit-tested —
+  _in review_.
 
-_All slices above are merged to `main` except **121c** (app S3 upload auth), which
+_All slices above are merged to `main` except **125** (WebSocket reconnect), which
 was handed off and may still be in review at the time of this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
