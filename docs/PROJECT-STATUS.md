@@ -332,10 +332,14 @@ testable v1.
   open resets the delay, an unexpected close retries (base, 2×, 4×, … capped), and
   `close()` stops retrying and tears down the socket. The native provider uses it
   and does NOT retry terminal auth closes (4401/4403). Backoff logic unit-tested —
-  _in review_.
+  merged.
+- **126** Node 22 upgrade: `.nvmrc` 20→22, `engines` `>=20 <21`→`>=22` (also stops
+  the `EBADENGINE` warnings on the dev's newer local Node), Dockerfile all three
+  stages `node:22-slim`. CI reads `.nvmrc`, so the gates now run on Node 22 —
+  clears the AWS SDK "requires node >=22 after early 2027" warning — _in review_.
 
-_All slices above are merged to `main` except **125** (WebSocket reconnect), which
-was handed off and may still be in review at the time of this snapshot._
+_All slices above are merged to `main` except **126** (Node 22 upgrade), which was
+handed off and may still be in review at the time of this snapshot._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);

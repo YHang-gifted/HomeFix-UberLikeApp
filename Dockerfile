@@ -9,7 +9,7 @@
 #                    present in the deployed image.
 
 # --- Build stage: full dependencies + compile the server to dist/ ---
-FROM node:20-slim AS build
+FROM node:22-slim AS build
 
 WORKDIR /app
 
@@ -26,7 +26,7 @@ COPY server ./server
 RUN npm run build
 
 # --- Web build stage: export the Expo web bundle to app-expo/dist ---
-FROM node:20-slim AS webbuild
+FROM node:22-slim AS webbuild
 
 WORKDIR /app
 
@@ -55,7 +55,7 @@ COPY app-expo ./app-expo
 RUN cd app-expo && npm run export:web
 
 # --- Runtime stage: production dependencies + compiled server + web bundle ---
-FROM node:20-slim AS runtime
+FROM node:22-slim AS runtime
 
 WORKDIR /app
 
