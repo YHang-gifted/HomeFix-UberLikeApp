@@ -95,6 +95,11 @@ export async function logoutAllDevices(principal: Principal): Promise<{ token: s
   if (newVersion === undefined) {
     throw new AppError('Account not found', 404);
   }
+  await recordAuditEvent({
+    actor: principal,
+    action: 'account.sessions_revoked',
+    resourceId: principal.id,
+  });
   return { token: signToken(principal, newVersion) };
 }
 

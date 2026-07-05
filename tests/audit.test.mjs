@@ -173,6 +173,23 @@ describe('audit log', () => {
     assert.ok(!JSON.stringify(event.details).includes('0912345678'));
   });
 
+  it('records a device token registration without the raw token', async () => {
+    const res = await fetch(`${baseUrl}/me/device-tokens`, {
+      method: 'POST',
+      headers: headers(WORKER_ID, 'worker'),
+      body: JSON.stringify({ token: 'ExponentPushToken[secret-abc-123]' }),
+    });
+    assert.equal(res.status, 201);
+
+    const page = await audit();
+    const event = page.items.find((e) => e.action === 'device.registered');
+    assert.ok(event);
+    assert.equal(event.actorId, WORKER_ID);
+    assert.equal(event.resourceId, WORKER_ID);
+    // The raw push token must never be stored in the audit event.
+    assert.ok(!JSON.stringify(event).includes('secret-abc-123'));
+  });
+
   it('records a password change with the acting user as actor and resource', async () => {
     const res = await fetch(`${baseUrl}/auth/change-password`, {
       method: 'POST',
@@ -187,5 +204,21 @@ describe('audit log', () => {
     assert.equal(event.actorId, CUSTOMER_ID);
     assert.equal(event.actorRole, 'customer');
     assert.equal(event.resourceId, CUSTOMER_ID);
+  });
+
+  // Runs last: logout-all bumps the worker's token version, invalidating the token
+  // the device-token test above reuses.
+  it('records signing out of all devices', async () => {
+    const res = await fetch(`${baseUrl}/auth/logout-all`, {
+      method: 'POST',
+      headers: headers(WORKER_ID, 'worker'),
+    });
+    assert.equal(res.status, 200);
+
+    const page = await audit();
+    const event = page.items.find((e) => e.action === 'account.sessions_revoked');
+    assert.ok(event);
+    assert.equal(event.actorId, WORKER_ID);
+    assert.equal(event.resourceId, WORKER_ID);
   });
 });

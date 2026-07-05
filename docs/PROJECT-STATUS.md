@@ -395,12 +395,18 @@ testable v1.
   `listServiceRequests`; `apiClient.listServiceRequests` + `useServiceRequestPage`
   thread it through; `AdminRequestsScreen` adds the existing `CategoryFilter` chips
   (status + keyword search were already there). Tests: server list category filter
-  (+ invalid→422) and the screen passing the chosen category to the query — _in
-  review_.
+  (+ invalid→422) and the screen passing the chosen category to the query — merged.
 
-_All slices above are merged to `main` except **133** (admin category filter),
-which was handed off. The service is deployed and ACTIVE on Railway in mock mode
-(no Stripe key)._
+- **134** audit for auth security actions: `account.sessions_revoked` (on
+  `logout-all`) and `device.registered` (on push-token registration, actor + user
+  id only — the **raw token is never recorded**). `authService.logoutAllDevices`
+  and `deviceTokenService.registerDeviceToken` record the events; AuditLogScreen
+  labels added; audit tests cover both (+ assert the token isn't in the event) —
+  _in review_.
+
+_All slices above are merged to `main` except **134** (auth audit), which was
+handed off. The service is deployed and ACTIVE on Railway in mock mode (no Stripe
+key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);
