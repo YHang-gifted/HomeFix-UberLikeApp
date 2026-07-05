@@ -1,6 +1,8 @@
 import { type ReactElement } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
+import { colors, radii } from '../theme';
+
 export interface SearchBoxProps {
   value: string;
   onChange: (text: string) => void;
@@ -26,14 +28,21 @@ export function SearchBox({ value, onChange }: SearchBoxProps): ReactElement {
 }
 
 const styles = StyleSheet.create({
-  wrap: { paddingHorizontal: 16, paddingBottom: 8 },
+  wrap: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    width: '100%',
+    maxWidth: 1040,
+    alignSelf: 'center',
+  },
   input: {
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     fontSize: 14,
-    color: '#0f172a',
+    color: colors.ink,
+    backgroundColor: colors.surface,
   },
 });

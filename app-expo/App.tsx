@@ -1,5 +1,5 @@
 import { type ReactElement, createContext, useContext, useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import {
   createNativeStackNavigator,
   type NativeStackScreenProps,
@@ -17,6 +17,7 @@ import { deviceConnectMessageStream } from './src/messageStream';
 import { devicePushTokenProvider } from './src/push';
 import { tokenStore } from './src/tokenStore';
 import { useFocusRefreshToken } from './src/hooks/useFocusRefreshToken';
+import { colors } from './src/theme';
 import { AdminRequestsScreen } from './src/screens/AdminRequestsScreen';
 import { AdminStatsScreen } from './src/screens/AdminStatsScreen';
 import { AdminUsersScreen } from './src/screens/AdminUsersScreen';
@@ -68,6 +69,19 @@ const AuthContext = createContext<AuthActions>({
 });
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+const navigationTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: colors.brand,
+    background: colors.canvas,
+    card: colors.surface,
+    text: colors.ink,
+    border: colors.line,
+    notification: colors.accent,
+  },
+};
 
 function LoginRoute({
   navigation,
@@ -440,10 +454,18 @@ export default function App(): ReactElement {
 
   return (
     <AuthContext.Provider value={actions}>
-      <NavigationContainer>
-        <StatusBar style="auto" />
+      <NavigationContainer theme={navigationTheme}>
+        <StatusBar style="dark" />
         <MapPickerHost />
-        <Stack.Navigator>
+        <Stack.Navigator
+          screenOptions={{
+            headerStyle: { backgroundColor: colors.surface },
+            headerTintColor: colors.ink,
+            headerTitleStyle: { fontWeight: '700' },
+            headerShadowVisible: false,
+            contentStyle: { backgroundColor: colors.canvas },
+          }}
+        >
           {!signedIn && (
             <>
               <Stack.Screen name="Login" component={LoginRoute} options={{ title: 'HomeFix' }} />
@@ -598,5 +620,10 @@ export default function App(): ReactElement {
 }
 
 const styles = StyleSheet.create({
-  splash: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
+  splash: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.canvas,
+  },
 });

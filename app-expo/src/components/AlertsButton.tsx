@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import { apiClient } from '../api';
+import { colors } from '../theme';
 
 export interface AlertsButtonProps {
   /** Optional client override (used by tests). Defaults to the app singleton. */
@@ -65,16 +66,16 @@ export function AlertsButton({ client, onPress, refreshToken }: AlertsButtonProp
 
 const styles = StyleSheet.create({
   button: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4 },
-  text: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
+  text: { color: colors.brand, fontSize: 13, fontWeight: '700' },
   badge: {
     marginLeft: 6,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
     paddingHorizontal: 5,
-    backgroundColor: '#dc2626',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeText: { color: '#ffffff', fontSize: 11, fontWeight: '700' },
+  badgeText: { color: colors.white, fontSize: 11, fontWeight: '700' },
 });

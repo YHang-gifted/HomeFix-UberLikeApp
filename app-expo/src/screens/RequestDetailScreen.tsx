@@ -23,6 +23,8 @@ import type { PaymentCheckout } from '../../../app/src/features/payments/checkou
 import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
 import type { AuditEvent, Payment, Quote, Review, ServiceRequest } from '../../../shared/schemas';
 import { apiClient } from '../api';
+import { StatusBadge } from '../components/StatusBadge';
+import { colors, radii, shadow, spacing } from '../theme';
 
 const RATINGS = [1, 2, 3, 4, 5];
 
@@ -470,8 +472,11 @@ export function RequestDetailScreen({
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
-        <Text style={styles.category}>{request.category}</Text>
-        <Text style={styles.status}>{request.status}</Text>
+        <View>
+          <Text style={styles.eyebrow}>SERVICE REQUEST</Text>
+          <Text style={styles.category}>{request.category}</Text>
+        </View>
+        <StatusBadge status={request.status} />
       </View>
 
       <Text style={styles.label}>Description</Text>
@@ -975,44 +980,72 @@ export function RequestDetailScreen({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
-  content: { padding: 24 },
+  container: { flex: 1, backgroundColor: colors.canvas },
+  content: { padding: spacing.xl, width: '100%', maxWidth: 760, alignSelf: 'center' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
+  error: { color: colors.danger, fontSize: 15, textAlign: 'center' },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  category: { fontSize: 20, fontWeight: '700', color: '#0f172a', textTransform: 'capitalize' },
-  status: { fontSize: 14, color: '#2563eb', textTransform: 'capitalize' },
-  label: { fontSize: 13, fontWeight: '600', color: '#64748b', marginTop: 20, marginBottom: 4 },
-  value: { fontSize: 16, color: '#0f172a' },
+  eyebrow: { fontSize: 10, fontWeight: '800', color: colors.brand },
+  category: { fontSize: 24, fontWeight: '800', color: colors.ink, textTransform: 'capitalize' },
+  label: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.inkMuted,
+    marginTop: 20,
+    marginBottom: 5,
+    textTransform: 'uppercase',
+  },
+  value: { fontSize: 15, lineHeight: 22, color: colors.ink },
   workerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   favorite: { fontSize: 22, color: '#cbd5e1' },
   favoriteOn: { color: '#dc2626' },
   messages: {
     marginTop: 24,
-    backgroundColor: '#2563eb',
-    borderRadius: 8,
+    backgroundColor: colors.ink,
+    borderRadius: radii.medium,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 44,
   },
-  messagesPressed: { backgroundColor: '#1d4ed8' },
-  messagesText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
+  messagesPressed: { backgroundColor: colors.brand },
+  messagesText: { color: colors.white, fontSize: 15, fontWeight: '700' },
   photoRow: { marginTop: 8 },
   photoRowContent: { gap: 8 },
-  photo: { width: 120, height: 120, borderRadius: 8, backgroundColor: '#e2e8f0' },
+  photo: {
+    width: 120,
+    height: 120,
+    borderRadius: radii.medium,
+    backgroundColor: colors.surfaceMuted,
+  },
   historyRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: colors.line,
   },
-  historyText: { fontSize: 14, color: '#0f172a' },
-  historyTime: { fontSize: 12, color: '#94a3b8' },
-  paymentBox: { marginTop: 8 },
-  quoteBox: { marginTop: 8 },
+  historyText: { fontSize: 14, color: colors.ink },
+  historyTime: { fontSize: 12, color: colors.inkMuted },
+  paymentBox: {
+    marginTop: 16,
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    ...shadow,
+  },
+  quoteBox: {
+    marginTop: 16,
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    ...shadow,
+  },
   quoteDeclined: { fontSize: 14, fontWeight: '600', color: '#dc2626' },
   quoteNoteInput: { marginTop: 8, minHeight: 48, textAlignVertical: 'top' },
   quoteActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
@@ -1023,8 +1056,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-  paymentAmount: { fontSize: 18, fontWeight: '700', color: '#0f172a' },
-  paymentSplit: { fontSize: 13, color: '#475569', marginTop: 6 },
+  paymentAmount: { fontSize: 22, fontWeight: '800', color: colors.ink },
+  paymentSplit: { fontSize: 13, color: colors.inkMuted, marginTop: 6 },
   paymentPending: { fontSize: 14, fontWeight: '600', color: '#d97706' },
   paymentPaid: { fontSize: 14, fontWeight: '600', color: '#16a34a' },
   paymentRefunded: { fontSize: 14, fontWeight: '600', color: '#64748b' },
@@ -1042,24 +1075,25 @@ const styles = StyleSheet.create({
   refundText: { color: '#dc2626', fontSize: 15, fontWeight: '600' },
   paymentInput: {
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 8,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#0f172a',
+    color: colors.ink,
+    backgroundColor: colors.canvas,
   },
   payButton: {
     marginTop: 12,
-    backgroundColor: '#16a34a',
-    borderRadius: 8,
+    backgroundColor: colors.brand,
+    borderRadius: radii.medium,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 44,
   },
-  payButtonPressed: { backgroundColor: '#15803d' },
-  payButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
+  payButtonPressed: { backgroundColor: colors.brandPressed },
+  payButtonText: { color: colors.white, fontSize: 15, fontWeight: '700' },
   reasonInput: {
     borderWidth: 1,
     borderColor: '#cbd5e1',
@@ -1083,8 +1117,16 @@ const styles = StyleSheet.create({
   },
   cancelPressed: { backgroundColor: '#b91c1c' },
   cancelText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
-  reviewBox: { marginTop: 32, borderTopWidth: 1, borderTopColor: '#e2e8f0', paddingTop: 20 },
-  reviewHeading: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 12 },
+  reviewBox: {
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    ...shadow,
+  },
+  reviewHeading: { fontSize: 16, fontWeight: '800', color: colors.ink, marginBottom: 12 },
   ratingRow: { flexDirection: 'row', gap: 6 },
   star: { fontSize: 32, color: '#cbd5e1' },
   starSelected: { color: '#f59e0b' },

@@ -5,6 +5,7 @@ import type { ApiClient } from '../../../app/src/services/apiClient';
 import { formatCents } from '../../../app/src/features/payments/paymentFormat';
 import type { AdminStats, ServiceRequestStatus } from '../../../shared/schemas';
 import { apiClient } from '../api';
+import { colors, radii, shadow, spacing } from '../theme';
 
 const STATUS_ORDER: ServiceRequestStatus[] = [
   'pending',
@@ -83,43 +84,101 @@ export function AdminStatsScreen({ client, refreshToken }: AdminStatsScreenProps
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.sectionTitle}>Requests</Text>
-      <StatRow label="Total" value={String(stats.totalRequests)} />
-      {STATUS_ORDER.map((status) => (
-        <StatRow
-          key={status}
-          label={statusLabel(status)}
-          value={String(stats.requestsByStatus[status])}
-        />
-      ))}
+      <Text style={styles.eyebrow}>OPERATIONS OVERVIEW</Text>
+      <Text style={styles.title}>Today at a glance</Text>
+      <Text style={styles.subtitle}>Marketplace activity, cash flow, and worker capacity.</Text>
 
-      <Text style={styles.sectionTitle}>Payments</Text>
-      <StatRow label="Paid count" value={String(stats.paidPaymentsCount)} />
-      <StatRow label="Paid total" value={formatCents(stats.paidAmountCents)} />
+      <View style={styles.metrics}>
+        <View style={[styles.metric, styles.metricBrand]}>
+          <Text style={styles.metricLabel}>OPEN REQUESTS</Text>
+          <Text style={styles.metricValue}>
+            {stats.totalRequests -
+              stats.requestsByStatus.completed -
+              stats.requestsByStatus.cancelled}
+          </Text>
+        </View>
+        <View style={[styles.metric, styles.metricGold]}>
+          <Text style={styles.metricLabel}>COMPLETION RATE</Text>
+          <Text style={styles.metricValue}>
+            {stats.totalRequests === 0
+              ? '0%'
+              : `${String(Math.round((stats.requestsByStatus.completed / stats.totalRequests) * 100))}%`}
+          </Text>
+        </View>
+        <View style={[styles.metric, styles.metricCoral]}>
+          <Text style={styles.metricLabel}>WORKERS</Text>
+          <Text style={styles.metricValue}>{stats.workerCount}</Text>
+        </View>
+      </View>
 
-      <Text style={styles.sectionTitle}>Payouts</Text>
-      <StatRow label="Owed to workers" value={formatCents(stats.pendingPayoutAmountCents)} />
-      <StatRow label="Pending count" value={String(stats.pendingPayoutsCount)} />
-      <StatRow label="Paid out total" value={formatCents(stats.paidPayoutAmountCents)} />
-      <StatRow label="Paid out count" value={String(stats.paidPayoutsCount)} />
+      <View style={styles.grid}>
+        <View style={styles.panel}>
+          <Text style={styles.sectionTitle}>Request pipeline</Text>
+          <StatRow label="Total" value={String(stats.totalRequests)} />
+          {STATUS_ORDER.map((status) => (
+            <StatRow
+              key={status}
+              label={statusLabel(status)}
+              value={String(stats.requestsByStatus[status])}
+            />
+          ))}
+        </View>
 
-      <Text style={styles.sectionTitle}>Workers</Text>
-      <StatRow label="Total workers" value={String(stats.workerCount)} />
+        <View style={styles.panel}>
+          <Text style={styles.sectionTitle}>Payments</Text>
+          <StatRow label="Paid count" value={String(stats.paidPaymentsCount)} />
+          <StatRow label="Paid total" value={formatCents(stats.paidAmountCents)} />
+
+          <Text style={styles.sectionTitle}>Payouts</Text>
+          <StatRow label="Owed to workers" value={formatCents(stats.pendingPayoutAmountCents)} />
+          <StatRow label="Pending count" value={String(stats.pendingPayoutsCount)} />
+          <StatRow label="Paid out total" value={formatCents(stats.paidPayoutAmountCents)} />
+          <StatRow label="Paid out count" value={String(stats.paidPayoutsCount)} />
+        </View>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
-  content: { padding: 24 },
+  container: { flex: 1, backgroundColor: colors.canvas },
+  content: { padding: spacing.xl, width: '100%', maxWidth: 1040, alignSelf: 'center' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
+  error: { color: colors.danger, fontSize: 15, textAlign: 'center' },
+  eyebrow: { color: colors.brand, fontSize: 10, fontWeight: '800' },
+  title: { color: colors.ink, fontSize: 26, fontWeight: '800', marginTop: 3 },
+  subtitle: { color: colors.inkMuted, fontSize: 14, marginTop: 4, marginBottom: spacing.xl },
+  metrics: { flexDirection: 'row', gap: spacing.md, flexWrap: 'wrap' },
+  metric: {
+    flexGrow: 1,
+    flexBasis: 180,
+    minHeight: 112,
+    padding: spacing.lg,
+    borderRadius: radii.medium,
+    justifyContent: 'space-between',
+  },
+  metricBrand: { backgroundColor: colors.brandSoft },
+  metricGold: { backgroundColor: colors.goldSoft },
+  metricCoral: { backgroundColor: colors.accentSoft },
+  metricLabel: { color: colors.inkMuted, fontSize: 10, fontWeight: '800' },
+  metricValue: { color: colors.ink, fontSize: 26, fontWeight: '800' },
+  grid: { flexDirection: 'row', gap: spacing.lg, flexWrap: 'wrap', marginTop: spacing.lg },
+  panel: {
+    flexGrow: 1,
+    flexBasis: 300,
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: radii.medium,
+    padding: spacing.lg,
+    ...shadow,
+  },
   sectionTitle: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#64748b',
+    fontWeight: '800',
+    color: colors.ink,
     textTransform: 'uppercase',
-    marginTop: 24,
+    marginTop: 16,
     marginBottom: 8,
   },
   row: {
@@ -128,8 +187,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: colors.surfaceMuted,
   },
-  rowLabel: { fontSize: 15, color: '#334155' },
-  rowValue: { fontSize: 16, fontWeight: '700', color: '#0f172a' },
+  rowLabel: { fontSize: 14, color: colors.inkMuted },
+  rowValue: { fontSize: 16, fontWeight: '800', color: colors.ink },
 });

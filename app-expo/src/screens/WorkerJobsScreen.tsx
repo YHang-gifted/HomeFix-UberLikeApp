@@ -10,11 +10,13 @@ import type { ServiceRequest, ServiceRequestStatus, WorkerReviews } from '../../
 import { AlertsButton } from '../components/AlertsButton';
 import { LoadMoreFooter } from '../components/LoadMoreFooter';
 import { SearchBox } from '../components/SearchBox';
+import { StatusBadge } from '../components/StatusBadge';
 import { StatusFilter } from '../components/StatusFilter';
 import { useCustomerNames } from '../hooks/useCustomerNames';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useServiceRequestPage } from '../hooks/useServiceRequestPage';
 import { apiClient } from '../api';
+import { colors, radii, shadow, spacing } from '../theme';
 
 export interface WorkerJobsScreenProps {
   /** Optional client override (used by tests). Defaults to the app singleton. */
@@ -135,6 +137,7 @@ export function WorkerJobsScreen({
     <View style={styles.root}>
       <View style={styles.header}>
         <View>
+          <Text style={styles.eyebrow}>PRO WORKSPACE</Text>
           <Text style={styles.heading}>Assigned jobs</Text>
           {reviews !== null && <Text style={styles.rating}>{ratingText(reviews)}</Text>}
         </View>
@@ -243,7 +246,7 @@ export function WorkerJobsScreen({
               >
                 <View style={styles.cardHeader}>
                   <Text style={styles.category}>{item.category}</Text>
-                  <Text style={styles.status}>{item.status}</Text>
+                  <StatusBadge status={item.status} />
                 </View>
                 {customerNames[item.customerId] !== undefined && (
                   <Text style={styles.customer}>Customer: {customerNames[item.customerId]}</Text>
@@ -276,44 +279,50 @@ export function WorkerJobsScreen({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#ffffff' },
+  root: { flex: 1, backgroundColor: colors.canvas },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    padding: spacing.lg,
+    gap: spacing.lg,
+    flexWrap: 'wrap',
+    width: '100%',
+    maxWidth: 1040,
+    alignSelf: 'center',
   },
-  heading: { fontSize: 18, fontWeight: '700', color: '#0f172a' },
-  rating: { fontSize: 13, color: '#f59e0b', fontWeight: '600', marginTop: 2 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  profileText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
-  logoutText: { color: '#64748b', fontSize: 14, fontWeight: '600' },
+  eyebrow: { fontSize: 10, fontWeight: '800', color: colors.brand },
+  heading: { fontSize: 24, fontWeight: '800', color: colors.ink, marginTop: 2 },
+  rating: { fontSize: 13, color: colors.gold, fontWeight: '700', marginTop: 3 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 14, flexWrap: 'wrap' },
+  profileText: { color: colors.brand, fontSize: 13, fontWeight: '700' },
+  logoutText: { color: colors.inkMuted, fontSize: 13, fontWeight: '700' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
-  empty: { color: '#64748b', fontSize: 15, textAlign: 'center' },
-  list: { flex: 1 },
+  error: { color: colors.danger, fontSize: 15, textAlign: 'center' },
+  empty: { color: colors.inkMuted, fontSize: 15, textAlign: 'center' },
+  list: { flex: 1, width: '100%', maxWidth: 1040, alignSelf: 'center' },
   card: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 10,
-    padding: 16,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    padding: spacing.lg,
     marginHorizontal: 16,
     marginBottom: 12,
+    backgroundColor: colors.surface,
+    ...shadow,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  category: { fontSize: 15, fontWeight: '700', color: '#0f172a', textTransform: 'capitalize' },
-  status: { fontSize: 13, color: '#2563eb', textTransform: 'capitalize' },
-  customer: { fontSize: 13, color: '#475569', marginBottom: 6 },
-  description: { fontSize: 14, color: '#334155', marginBottom: 12 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8, gap: 12 },
+  category: { fontSize: 15, fontWeight: '800', color: colors.ink, textTransform: 'capitalize' },
+  customer: { fontSize: 12, fontWeight: '600', color: colors.info, marginBottom: 6 },
+  description: { fontSize: 14, lineHeight: 20, color: colors.inkMuted, marginBottom: 12 },
   action: {
-    backgroundColor: '#2563eb',
-    borderRadius: 8,
+    backgroundColor: colors.brand,
+    borderRadius: radii.medium,
     paddingVertical: 12,
     alignItems: 'center',
     minHeight: 44,
     justifyContent: 'center',
   },
-  actionPressed: { backgroundColor: '#1d4ed8' },
-  actionText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
+  actionPressed: { backgroundColor: colors.brandPressed },
+  actionText: { color: colors.white, fontSize: 14, fontWeight: '700' },
 });

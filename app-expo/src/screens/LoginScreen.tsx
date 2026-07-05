@@ -6,6 +6,7 @@ import type { LoginFieldErrors } from '../../../app/src/features/auth/loginForm'
 import { validateLoginForm } from '../../../app/src/features/auth/loginForm';
 import { performLogin } from '../../../app/src/features/auth/loginAction';
 import { apiClient } from '../api';
+import { colors, radii, shadow, spacing } from '../theme';
 
 export interface LoginScreenProps {
   /** Optional client override (used by tests). Defaults to the app singleton. */
@@ -55,76 +56,95 @@ export function LoginScreen({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>HomeFix</Text>
-      <Text style={styles.subtitle}>Sign in to continue</Text>
+      <View style={styles.shell}>
+        <View style={styles.brandRow}>
+          <View style={styles.brandMark}>
+            <Text style={styles.brandMarkText}>HF</Text>
+          </View>
+          <View>
+            <Text style={styles.title}>HomeFix</Text>
+            <Text style={styles.eyebrow}>LOCAL REPAIR, DONE RIGHT</Text>
+          </View>
+        </View>
+        <Text style={styles.subtitle}>
+          Welcome back. Sign in to manage your home or your workday.
+        </Text>
 
-      <Text style={styles.label}>Email</Text>
-      <TextInput
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="email-address"
-        placeholder="you@example.com"
-        accessibilityLabel="Email"
-        editable={!submitting}
-      />
-      {errors.email !== undefined && <Text style={styles.error}>{errors.email}</Text>}
+        <View style={styles.form}>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            placeholder="you@example.com"
+            accessibilityLabel="Email"
+            editable={!submitting}
+          />
+          {errors.email !== undefined && <Text style={styles.error}>{errors.email}</Text>}
 
-      <Text style={styles.label}>Password</Text>
-      <TextInput
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        placeholder="Your password"
-        accessibilityLabel="Password"
-        editable={!submitting}
-      />
-      {errors.password !== undefined && <Text style={styles.error}>{errors.password}</Text>}
+          <Text style={styles.label}>Password</Text>
+          <TextInput
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholder="Your password"
+            accessibilityLabel="Password"
+            editable={!submitting}
+          />
+          {errors.password !== undefined && <Text style={styles.error}>{errors.password}</Text>}
 
-      <Pressable
-        style={({ pressed }) => [styles.button, (pressed || submitting) && styles.buttonPressed]}
-        onPress={() => {
-          void submit();
-        }}
-        disabled={submitting}
-        accessibilityRole="button"
-        accessibilityLabel="Sign in"
-      >
-        {submitting ? (
-          <ActivityIndicator color="#ffffff" />
-        ) : (
-          <Text style={styles.buttonText}>Sign in</Text>
-        )}
-      </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.button,
+              (pressed || submitting) && styles.buttonPressed,
+            ]}
+            onPress={() => {
+              void submit();
+            }}
+            disabled={submitting}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in"
+          >
+            {submitting ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.buttonText}>Sign in</Text>
+            )}
+          </Pressable>
 
-      {banner !== null && <Text style={styles.banner}>{banner}</Text>}
+          {banner !== null && <Text style={styles.banner}>{banner}</Text>}
 
-      <Pressable
-        style={styles.linkButton}
-        onPress={() => {
-          onForgotPassword?.();
-        }}
-        disabled={submitting}
-        accessibilityRole="button"
-        accessibilityLabel="Forgot password"
-      >
-        <Text style={styles.link}>Forgot password?</Text>
-      </Pressable>
+          <View style={styles.links}>
+            <Pressable
+              style={styles.linkButton}
+              onPress={() => {
+                onForgotPassword?.();
+              }}
+              disabled={submitting}
+              accessibilityRole="button"
+              accessibilityLabel="Forgot password"
+            >
+              <Text style={styles.link}>Forgot password?</Text>
+            </Pressable>
 
-      <Pressable
-        style={styles.linkButton}
-        onPress={() => {
-          onRegister?.();
-        }}
-        disabled={submitting}
-        accessibilityRole="button"
-        accessibilityLabel="Create account"
-      >
-        <Text style={styles.link}>New to HomeFix? Create an account</Text>
-      </Pressable>
+            <Pressable
+              style={styles.linkButton}
+              onPress={() => {
+                onRegister?.();
+              }}
+              disabled={submitting}
+              accessibilityRole="button"
+              accessibilityLabel="Create account"
+            >
+              <Text style={styles.link}>New to HomeFix? Create an account</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
     </View>
   );
 }
@@ -133,34 +153,62 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    backgroundColor: '#ffffff',
+    padding: spacing.xl,
+    backgroundColor: colors.canvas,
   },
-  title: { fontSize: 32, fontWeight: '700', color: '#0f172a' },
-  subtitle: { fontSize: 16, color: '#64748b', marginBottom: 24 },
-  label: { fontSize: 14, fontWeight: '600', color: '#334155', marginTop: 12, marginBottom: 4 },
+  shell: { width: '100%', maxWidth: 480, alignSelf: 'center' },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: spacing.lg },
+  brandMark: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.medium,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.brand,
+  },
+  brandMarkText: { color: colors.white, fontSize: 16, fontWeight: '800' },
+  title: { fontSize: 30, fontWeight: '800', color: colors.ink },
+  eyebrow: { fontSize: 10, fontWeight: '700', color: colors.brand, marginTop: 2 },
+  subtitle: { fontSize: 16, lineHeight: 24, color: colors.inkMuted, marginBottom: spacing.xl },
+  form: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    padding: spacing.xl,
+    ...shadow,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.ink,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
   input: {
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
     fontSize: 16,
-    color: '#0f172a',
+    color: colors.ink,
+    backgroundColor: colors.canvas,
   },
-  error: { color: '#dc2626', fontSize: 13, marginTop: 4 },
+  error: { color: colors.danger, fontSize: 13, marginTop: 4 },
   button: {
-    marginTop: 24,
-    backgroundColor: '#2563eb',
-    borderRadius: 8,
+    marginTop: spacing.xl,
+    backgroundColor: colors.brand,
+    borderRadius: radii.medium,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
   },
-  buttonPressed: { backgroundColor: '#1d4ed8' },
-  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
-  banner: { marginTop: 16, textAlign: 'center', fontSize: 14, color: '#0f172a' },
-  linkButton: { marginTop: 20, alignItems: 'center' },
-  link: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
+  buttonPressed: { backgroundColor: colors.brandPressed },
+  buttonText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  banner: { marginTop: spacing.lg, textAlign: 'center', fontSize: 14, color: colors.ink },
+  links: { marginTop: spacing.lg, gap: 4 },
+  linkButton: { paddingVertical: 8, alignItems: 'center' },
+  link: { color: colors.brand, fontSize: 14, fontWeight: '700' },
 });
