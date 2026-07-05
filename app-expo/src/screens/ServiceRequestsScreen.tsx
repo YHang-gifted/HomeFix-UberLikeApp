@@ -6,10 +6,12 @@ import type { ServiceRequestStatus } from '../../../shared/schemas';
 import { AlertsButton } from '../components/AlertsButton';
 import { LoadMoreFooter } from '../components/LoadMoreFooter';
 import { SearchBox } from '../components/SearchBox';
+import { StatusBadge } from '../components/StatusBadge';
 import { StatusFilter } from '../components/StatusFilter';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useServiceRequestPage } from '../hooks/useServiceRequestPage';
 import { apiClient } from '../api';
+import { colors, radii, shadow, spacing } from '../theme';
 
 export interface ServiceRequestsScreenProps {
   /** Optional client override (used by tests). Defaults to the app singleton. */
@@ -72,61 +74,68 @@ export function ServiceRequestsScreen({
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        <Pressable
-          style={({ pressed }) => [styles.newButton, pressed && styles.newButtonPressed]}
-          onPress={() => {
-            onNewRequest?.();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="New request"
-        >
-          <Text style={styles.newButtonText}>+ New request</Text>
-        </Pressable>
-        <Pressable
-          style={styles.logoutButton}
-          onPress={() => {
-            onViewProfile?.();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Profile"
-        >
-          <Text style={styles.profileText}>Profile</Text>
-        </Pressable>
-        <Pressable
-          style={styles.logoutButton}
-          onPress={() => {
-            onViewFavorites?.();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Favorites"
-        >
-          <Text style={styles.profileText}>Favorites</Text>
-        </Pressable>
-        <Pressable
-          style={styles.logoutButton}
-          onPress={() => {
-            onViewPayments?.();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Payments"
-        >
-          <Text style={styles.profileText}>Payments</Text>
-        </Pressable>
-        <AlertsButton
-          client={activeClient}
-          onPress={onViewNotifications}
-          refreshToken={refreshToken}
-        />
-        <Pressable
-          style={styles.logoutButton}
-          onPress={() => {
-            onLogout?.();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Log out"
-        >
-          <Text style={styles.logoutText}>Log out</Text>
-        </Pressable>
+        <View style={styles.headerCopy}>
+          <Text style={styles.eyebrow}>CUSTOMER WORKSPACE</Text>
+          <Text style={styles.heading}>Your repairs</Text>
+          <Text style={styles.subheading}>Track every request from first note to final fix.</Text>
+        </View>
+        <View style={styles.headerActions}>
+          <Pressable
+            style={({ pressed }) => [styles.newButton, pressed && styles.newButtonPressed]}
+            onPress={() => {
+              onNewRequest?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="New request"
+          >
+            <Text style={styles.newButtonText}>+ New request</Text>
+          </Pressable>
+          <Pressable
+            style={styles.logoutButton}
+            onPress={() => {
+              onViewProfile?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Profile"
+          >
+            <Text style={styles.profileText}>Profile</Text>
+          </Pressable>
+          <Pressable
+            style={styles.logoutButton}
+            onPress={() => {
+              onViewFavorites?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Favorites"
+          >
+            <Text style={styles.profileText}>Favorites</Text>
+          </Pressable>
+          <Pressable
+            style={styles.logoutButton}
+            onPress={() => {
+              onViewPayments?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Payments"
+          >
+            <Text style={styles.profileText}>Payments</Text>
+          </Pressable>
+          <AlertsButton
+            client={activeClient}
+            onPress={onViewNotifications}
+            refreshToken={refreshToken}
+          />
+          <Pressable
+            style={styles.logoutButton}
+            onPress={() => {
+              onLogout?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Log out"
+          >
+            <Text style={styles.logoutText}>Log out</Text>
+          </Pressable>
+        </View>
       </View>
 
       <StatusFilter value={status} onChange={setStatus} />
@@ -169,9 +178,10 @@ export function ServiceRequestsScreen({
             >
               <View style={styles.cardHeader}>
                 <Text style={styles.category}>{item.category}</Text>
-                <Text style={styles.status}>{item.status}</Text>
+                <StatusBadge status={item.status} />
               </View>
               <Text style={styles.description}>{item.description}</Text>
+              <Text style={styles.cardMeta}>{new Date(item.createdAt).toLocaleDateString()}</Text>
             </Pressable>
           )}
           ListFooterComponent={
@@ -190,42 +200,52 @@ export function ServiceRequestsScreen({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#ffffff' },
+  root: { flex: 1, backgroundColor: colors.canvas },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
+    padding: spacing.lg,
+    gap: spacing.lg,
+    width: '100%',
+    maxWidth: 1040,
+    alignSelf: 'center',
+    flexWrap: 'wrap',
   },
+  headerCopy: { flexGrow: 1, minWidth: 220 },
+  eyebrow: { fontSize: 10, fontWeight: '800', color: colors.brand },
+  heading: { fontSize: 24, fontWeight: '800', color: colors.ink, marginTop: 2 },
+  subheading: { fontSize: 13, color: colors.inkMuted, marginTop: 3 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
   newButton: {
-    flex: 1,
-    backgroundColor: '#2563eb',
-    borderRadius: 8,
-    paddingVertical: 12,
+    backgroundColor: colors.brand,
+    borderRadius: radii.medium,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     alignItems: 'center',
   },
-  newButtonPressed: { backgroundColor: '#1d4ed8' },
-  newButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
-  logoutButton: { paddingVertical: 12, paddingHorizontal: 4 },
-  profileText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
-  logoutText: { color: '#64748b', fontSize: 14, fontWeight: '600' },
+  newButtonPressed: { backgroundColor: colors.brandPressed },
+  newButtonText: { color: colors.white, fontSize: 14, fontWeight: '700' },
+  logoutButton: { paddingVertical: 10, paddingHorizontal: 2 },
+  profileText: { color: colors.brand, fontSize: 13, fontWeight: '700' },
+  logoutText: { color: colors.inkMuted, fontSize: 13, fontWeight: '700' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
-  empty: { color: '#64748b', fontSize: 15, textAlign: 'center' },
-  list: { flex: 1 },
+  error: { color: colors.danger, fontSize: 15, textAlign: 'center' },
+  empty: { color: colors.inkMuted, fontSize: 15, textAlign: 'center' },
+  list: { flex: 1, width: '100%', maxWidth: 1040, alignSelf: 'center' },
   card: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 10,
-    padding: 16,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    padding: spacing.lg,
     marginHorizontal: 16,
     marginBottom: 12,
+    backgroundColor: colors.surface,
+    ...shadow,
   },
-  cardPressed: { backgroundColor: '#f1f5f9' },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  category: { fontSize: 15, fontWeight: '700', color: '#0f172a', textTransform: 'capitalize' },
-  status: { fontSize: 13, color: '#2563eb', textTransform: 'capitalize' },
-  description: { fontSize: 14, color: '#334155' },
+  cardPressed: { backgroundColor: colors.brandSoft },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, gap: 12 },
+  category: { fontSize: 15, fontWeight: '800', color: colors.ink, textTransform: 'capitalize' },
+  description: { fontSize: 14, lineHeight: 20, color: colors.inkMuted },
+  cardMeta: { fontSize: 11, color: colors.inkMuted, marginTop: spacing.md },
 });

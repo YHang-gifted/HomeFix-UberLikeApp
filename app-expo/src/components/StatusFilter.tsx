@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 import type { ServiceRequestStatus } from '../../../shared/schemas';
 import { serviceRequestStatusSchema } from '../../../shared/schemas';
+import { colors, radii } from '../theme';
 
 const STATUSES = serviceRequestStatusSchema.options;
 
@@ -50,15 +51,16 @@ export function StatusFilter({ value, onChange }: StatusFilterProps): ReactEleme
 
 const styles = StyleSheet.create({
   scroll: { flexGrow: 0 },
-  row: { paddingHorizontal: 16, paddingBottom: 8, gap: 8 },
+  row: { paddingHorizontal: 16, paddingBottom: 10, gap: 6 },
   chip: {
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 999,
+    borderColor: colors.line,
+    borderRadius: radii.small,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
+    backgroundColor: colors.surface,
   },
-  chipSelected: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  text: { fontSize: 13, color: '#334155', textTransform: 'capitalize' },
-  textSelected: { color: '#ffffff' },
+  chipSelected: { backgroundColor: colors.ink, borderColor: colors.ink },
+  text: { fontSize: 12, fontWeight: '600', color: colors.inkMuted, textTransform: 'capitalize' },
+  textSelected: { color: colors.white },
 });

@@ -4,8 +4,10 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import type { ServiceCategory, ServiceRequest } from '../../../shared/schemas';
 import { CategoryFilter } from '../components/CategoryFilter';
+import { StatusBadge } from '../components/StatusBadge';
 import { useCustomerNames } from '../hooks/useCustomerNames';
 import { apiClient } from '../api';
+import { colors, radii, shadow, spacing } from '../theme';
 
 export interface AvailableJobsScreenProps {
   /** Optional client override (used by tests). Defaults to the app singleton. */
@@ -111,6 +113,13 @@ export function AvailableJobsScreen({
 
   return (
     <View style={styles.root}>
+      <View style={styles.intro}>
+        <Text style={styles.eyebrow}>NEARBY OPPORTUNITIES</Text>
+        <Text style={styles.heading}>Find your next job</Text>
+        <Text style={styles.subheading}>
+          Fresh requests matched to your trade and service area.
+        </Text>
+      </View>
       <CategoryFilter value={category} onChange={setCategory} />
 
       {error !== null && (
@@ -146,7 +155,7 @@ export function AvailableJobsScreen({
             >
               <View style={styles.cardHeader}>
                 <Text style={styles.category}>{item.category}</Text>
-                <Text style={styles.status}>{item.status}</Text>
+                <StatusBadge status={item.status} />
               </View>
               {customerNames[item.customerId] !== undefined && (
                 <Text style={styles.customer}>Customer: {customerNames[item.customerId]}</Text>
@@ -176,34 +185,39 @@ export function AvailableJobsScreen({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#ffffff' },
+  root: { flex: 1, backgroundColor: colors.canvas },
+  intro: { padding: spacing.lg, width: '100%', maxWidth: 1040, alignSelf: 'center' },
+  eyebrow: { fontSize: 10, fontWeight: '800', color: colors.brand },
+  heading: { fontSize: 24, fontWeight: '800', color: colors.ink, marginTop: 2 },
+  subheading: { fontSize: 13, color: colors.inkMuted, marginTop: 3 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
-  empty: { color: '#64748b', fontSize: 15, textAlign: 'center' },
-  banner: { backgroundColor: '#fef2f2', padding: 12 },
-  bannerText: { color: '#dc2626', fontSize: 14, textAlign: 'center' },
-  list: { flex: 1 },
+  error: { color: colors.danger, fontSize: 15, textAlign: 'center' },
+  empty: { color: colors.inkMuted, fontSize: 15, textAlign: 'center' },
+  banner: { backgroundColor: colors.dangerSoft, padding: 12 },
+  bannerText: { color: colors.danger, fontSize: 14, textAlign: 'center' },
+  list: { flex: 1, width: '100%', maxWidth: 1040, alignSelf: 'center' },
   card: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 10,
-    padding: 16,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    padding: spacing.lg,
     marginHorizontal: 16,
     marginTop: 12,
+    backgroundColor: colors.surface,
+    ...shadow,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  category: { fontSize: 15, fontWeight: '700', color: '#0f172a', textTransform: 'capitalize' },
-  status: { fontSize: 13, color: '#2563eb', textTransform: 'capitalize' },
-  customer: { fontSize: 13, color: '#475569', marginBottom: 6 },
-  description: { fontSize: 14, color: '#334155', marginBottom: 12 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8, gap: 12 },
+  category: { fontSize: 15, fontWeight: '800', color: colors.ink, textTransform: 'capitalize' },
+  customer: { fontSize: 12, fontWeight: '600', color: colors.info, marginBottom: 6 },
+  description: { fontSize: 14, lineHeight: 20, color: colors.inkMuted, marginBottom: 12 },
   claim: {
-    backgroundColor: '#16a34a',
-    borderRadius: 8,
+    backgroundColor: colors.brand,
+    borderRadius: radii.medium,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 44,
   },
-  claimPressed: { backgroundColor: '#15803d' },
-  claimText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
+  claimPressed: { backgroundColor: colors.brandPressed },
+  claimText: { color: colors.white, fontSize: 14, fontWeight: '700' },
 });
