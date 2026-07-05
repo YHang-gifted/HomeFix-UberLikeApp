@@ -5,6 +5,7 @@ import {
   createMessageInputSchema,
   createServiceRequestInputSchema,
   paginationQuerySchema,
+  serviceCategorySchema,
   serviceRequestStatusSchema,
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
@@ -36,6 +37,7 @@ const assignBodySchema = z.object({ workerId: z.uuid() });
 const listQuerySchema = paginationQuerySchema.extend({
   status: serviceRequestStatusSchema.optional(),
   q: z.string().trim().max(100).optional(),
+  category: serviceCategorySchema.optional(),
 });
 const availableQuerySchema = paginationQuerySchema.extend({
   category: z.string().trim().min(1).max(50).optional(),
@@ -90,6 +92,7 @@ export async function getServiceRequests(
       parsed.data.offset,
       parsed.data.status,
       parsed.data.q,
+      parsed.data.category,
     );
     res.status(200).json(page);
   } catch (error) {

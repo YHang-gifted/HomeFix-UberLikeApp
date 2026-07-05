@@ -20,6 +20,7 @@ import type {
   RegisterInput,
   RequestContacts,
   Review,
+  ServiceCategory,
   ServiceRequest,
   ServiceRequestPage,
   ServiceRequestStatus,
@@ -298,6 +299,7 @@ export class ApiClient {
     offset?: number;
     status?: ServiceRequestStatus;
     q?: string;
+    category?: ServiceCategory;
   }): Promise<ServiceRequestPage> {
     const query = new URLSearchParams();
     if (params?.limit !== undefined) {
@@ -311,6 +313,9 @@ export class ApiClient {
     }
     if (params?.q !== undefined && params.q.trim() !== '') {
       query.set('q', params.q.trim());
+    }
+    if (params?.category !== undefined) {
+      query.set('category', params.category);
     }
     const queryString = query.toString();
     const path = queryString.length > 0 ? `/service-requests?${queryString}` : '/service-requests';
