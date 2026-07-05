@@ -1,6 +1,7 @@
 import type { AdminStats, Principal, RequestsByStatus } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { paymentRepository } from '../repositories/paymentRepository.ts';
+import { payoutRepository } from '../repositories/payoutRepository.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { userRepository } from '../repositories/userRepository.ts';
 
@@ -21,10 +22,11 @@ export async function getAdminStats(principal: Principal): Promise<AdminStats> {
     throw new AppError('Only an admin may view dashboard stats', 403);
   }
 
-  const [requests, paid, workers] = await Promise.all([
+  const [requests, paid, workers, payouts] = await Promise.all([
     serviceRequestRepository.findAll(),
     paymentRepository.paidTotals(),
     userRepository.listByRole('worker'),
+    payoutRepository.outstandingTotals(),
   ]);
 
   const requestsByStatus = emptyByStatus();
@@ -38,5 +40,9 @@ export async function getAdminStats(principal: Principal): Promise<AdminStats> {
     paidPaymentsCount: paid.count,
     paidAmountCents: paid.amountCents,
     workerCount: workers.length,
+    pendingPayoutsCount: payouts.pendingCount,
+    pendingPayoutAmountCents: payouts.pendingAmountCents,
+    paidPayoutsCount: payouts.paidCount,
+    paidPayoutAmountCents: payouts.paidAmountCents,
   };
 }

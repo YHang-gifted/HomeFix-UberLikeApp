@@ -94,4 +94,29 @@ describe('PostgresPayoutRepository (PGlite)', () => {
     assert.equal(list[0].id, PAYOUT2);
     assert.equal(list[1].id, PAYOUT1);
   });
+
+  it('aggregates outstanding totals by status', async () => {
+    await repo.save(makePayout({ amountCents: 127500 }));
+    await repo.save(
+      makePayout({ id: PAYOUT2, paymentId: PAY2, amountCents: 90000, status: 'paid' }),
+    );
+
+    const totals = await repo.outstandingTotals();
+    assert.deepEqual(totals, {
+      pendingCount: 1,
+      pendingAmountCents: 127500,
+      paidCount: 1,
+      paidAmountCents: 90000,
+    });
+  });
+
+  it('returns zeros when there are no payouts', async () => {
+    const totals = await repo.outstandingTotals();
+    assert.deepEqual(totals, {
+      pendingCount: 0,
+      pendingAmountCents: 0,
+      paidCount: 0,
+      paidAmountCents: 0,
+    });
+  });
 });

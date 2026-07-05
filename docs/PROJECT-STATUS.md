@@ -370,15 +370,23 @@ testable v1.
   `clientSecret` and a checkout provider is injected, "Pay now" runs the provider
   checkout and refreshes (webhook settles); `failed` shows the message, `canceled`
   is a no-op; otherwise it falls back to the mock `/pay`. RNTL tests for the
-  checkout success + failure paths — _in review_.
+  checkout success + failure paths — merged.
   **⚠️ STILL not fully production-ready:** the real Stripe checkout PROVIDER isn't
   wired yet (130c) — `App.tsx` passes no `checkout`, so in real mode "Pay now" hits
   the mock `/pay` (which 409s). Remaining 130c: a native `@stripe/stripe-react-native`
   PaymentSheet + web Stripe.js provider, wired in `App.tsx`, plus a publishable key
   (`EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY`). Keep `STRIPE_SECRET_KEY` unset until 130c.
 
-_All slices above are merged to `main` at the time of this snapshot. The service is
-deployed and ACTIVE on Railway in mock mode (no Stripe key)._
+- **131** admin payout/financial overview: `AdminStats` gains a **Payouts** section
+  — money owed to workers (`pendingPayout{sCount,AmountCents}`) vs. already paid out
+  (`paidPayout{sCount,AmountCents}`). `payoutRepository.outstandingTotals()`
+  aggregates by status (InMemory + a Postgres `FILTER` query); `statsService` feeds
+  it; `AdminStatsScreen` renders it. Tests: admin-stats e2e (pending payout = worker
+  net 127500), postgres-payout aggregate, AdminStatsScreen display — _in review_.
+
+_All slices above are merged to `main` except **131** (admin payout overview),
+which was handed off. The service is deployed and ACTIVE on Railway in mock mode
+(no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);

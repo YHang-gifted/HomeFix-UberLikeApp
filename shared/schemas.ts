@@ -93,6 +93,12 @@ export const adminStatsSchema = z.object({
   paidPaymentsCount: countField,
   paidAmountCents: countField,
   workerCount: countField,
+  // Worker payouts (Model B): what is still owed (scheduled, pending) vs. already
+  // paid out. Lets an operator see the platform's outstanding liability to workers.
+  pendingPayoutsCount: countField,
+  pendingPayoutAmountCents: countField,
+  paidPayoutsCount: countField,
+  paidPayoutAmountCents: countField,
 });
 export type AdminStats = z.infer<typeof adminStatsSchema>;
 

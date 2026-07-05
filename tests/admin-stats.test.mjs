@@ -6,6 +6,7 @@ import { signToken } from '../server/src/auth/jwt.ts';
 import { resetServiceRequests } from '../server/src/services/serviceRequestService.ts';
 import { resetPayments } from '../server/src/services/paymentService.ts';
 import { resetQuotes } from '../server/src/services/quoteService.ts';
+import { resetPayouts } from '../server/src/services/payoutService.ts';
 
 const CUSTOMER_ID = '123e4567-e89b-12d3-a456-426614174000';
 const ADMIN_ID = '323e4567-e89b-12d3-a456-426614174000';
@@ -41,6 +42,7 @@ describe('GET /admin/stats', () => {
     await resetServiceRequests();
     await resetPayments();
     await resetQuotes();
+    await resetPayouts();
   });
 
   async function createRequest() {
@@ -103,6 +105,11 @@ describe('GET /admin/stats', () => {
     assert.equal(body.workerCount, 1);
     assert.equal(body.paidPaymentsCount, 1);
     assert.equal(body.paidAmountCents, 150000);
+    // Paying schedules a pending payout of the worker net (150000 - 15% = 127500).
+    assert.equal(body.pendingPayoutsCount, 1);
+    assert.equal(body.pendingPayoutAmountCents, 127500);
+    assert.equal(body.paidPayoutsCount, 0);
+    assert.equal(body.paidPayoutAmountCents, 0);
   });
 
   it('forbids a non-admin (403)', async () => {

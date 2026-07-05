@@ -15,7 +15,17 @@ export interface PayoutRepository {
   findByPayment(paymentId: string): Promise<Payout | undefined>;
   /** A worker's payouts, most-recent-first. */
   findByWorker(workerId: string): Promise<Payout[]>;
+  /** Count + summed amount of payouts still owed (pending) and already paid. */
+  outstandingTotals(): Promise<PayoutTotals>;
   clear(): Promise<void>;
+}
+
+/** Aggregate payout figures for the admin dashboard. */
+export interface PayoutTotals {
+  pendingCount: number;
+  pendingAmountCents: number;
+  paidCount: number;
+  paidAmountCents: number;
 }
 
 export class InMemoryPayoutRepository implements PayoutRepository {
@@ -42,6 +52,25 @@ export class InMemoryPayoutRepository implements PayoutRepository {
         .filter((payout) => payout.workerId === workerId)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     );
+  }
+
+  public outstandingTotals(): Promise<PayoutTotals> {
+    const totals: PayoutTotals = {
+      pendingCount: 0,
+      pendingAmountCents: 0,
+      paidCount: 0,
+      paidAmountCents: 0,
+    };
+    for (const payout of this.payouts.values()) {
+      if (payout.status === 'paid') {
+        totals.paidCount += 1;
+        totals.paidAmountCents += payout.amountCents;
+      } else {
+        totals.pendingCount += 1;
+        totals.pendingAmountCents += payout.amountCents;
+      }
+    }
+    return Promise.resolve(totals);
   }
 
   public clear(): Promise<void> {
