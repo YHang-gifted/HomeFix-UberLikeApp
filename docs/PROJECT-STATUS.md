@@ -382,9 +382,15 @@ testable v1.
   (`paidPayout{sCount,AmountCents}`). `payoutRepository.outstandingTotals()`
   aggregates by status (InMemory + a Postgres `FILTER` query); `statsService` feeds
   it; `AdminStatsScreen` renders it. Tests: admin-stats e2e (pending payout = worker
-  net 127500), postgres-payout aggregate, AdminStatsScreen display — _in review_.
+  net 127500), postgres-payout aggregate, AdminStatsScreen display — merged.
 
-_All slices above are merged to `main` except **131** (admin payout overview),
+- **132** admin users search + filter: `filterAdminUsers` (pure — query on
+  email/display name + optional role/status) in `app/src/features/admin/`, and
+  `AdminUsersScreen` gains a search box + role/status filter chips applied client-
+  side over the fetched list (empty state when nothing matches). Tests: pure filter
+  cases + screen search/role narrowing — _in review_.
+
+_All slices above are merged to `main` except **132** (admin users search/filter),
 which was handed off. The service is deployed and ACTIVE on Railway in mock mode
 (no Stripe key)._
 
