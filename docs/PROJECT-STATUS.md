@@ -363,12 +363,19 @@ testable v1.
   `assertDirectPayAllowed(provider)`, called at the top of `payPayment` — with a
   real provider the mock `/pay` now 409s, so a payment can be settled ONLY by the
   verified webhook (no more "mark paid for free"). Tests: provider flags +
-  guard-throws-409. — _in review_.
-  **⚠️ STILL not fully production-ready:** gap (b) remains — the APP doesn't yet
-  use the `clientSecret` (RequestDetailScreen.payNow still calls the mock `/pay`,
-  which now just 409s in real mode). So with a Stripe key set the flow is now SAFE
-  (no bypass) but not FUNCTIONAL until the app checkout (130b) lands. Keep
-  `STRIPE_SECRET_KEY` unset until 130b.
+  guard-throws-409. — merged.
+- **130b** Stripe wiring — app checkout logic (gap b, logic half). Added the
+  injected `PaymentCheckout` seam (`app/src/features/payments/checkout.ts`) +
+  `RequestDetailScreen` `checkout?` prop: when the created payment carries a
+  `clientSecret` and a checkout provider is injected, "Pay now" runs the provider
+  checkout and refreshes (webhook settles); `failed` shows the message, `canceled`
+  is a no-op; otherwise it falls back to the mock `/pay`. RNTL tests for the
+  checkout success + failure paths — _in review_.
+  **⚠️ STILL not fully production-ready:** the real Stripe checkout PROVIDER isn't
+  wired yet (130c) — `App.tsx` passes no `checkout`, so in real mode "Pay now" hits
+  the mock `/pay` (which 409s). Remaining 130c: a native `@stripe/stripe-react-native`
+  PaymentSheet + web Stripe.js provider, wired in `App.tsx`, plus a publishable key
+  (`EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY`). Keep `STRIPE_SECRET_KEY` unset until 130c.
 
 _All slices above are merged to `main` at the time of this snapshot. The service is
 deployed and ACTIVE on Railway in mock mode (no Stripe key)._

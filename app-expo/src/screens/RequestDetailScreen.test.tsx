@@ -87,6 +87,62 @@ describe('RequestDetailScreen payments', () => {
     await findByText('Paid');
   });
 
+  it('completes payment via the provider checkout when a client secret is present', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const createPayment = jest.fn().mockResolvedValue(makePayment({ clientSecret: 'pi_1_secret' }));
+    const getPayment = jest
+      .fn()
+      .mockRejectedValueOnce(new ApiError(404, 'no payment'))
+      .mockResolvedValue(makePayment({ status: 'paid', paidAt: '2026-06-22T01:00:00.000Z' }));
+    const payPayment = jest.fn();
+    const checkout = jest.fn().mockResolvedValue({ status: 'succeeded' });
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      getPayment,
+      createPayment,
+      payPayment,
+    });
+
+    const { findByLabelText, findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} checkout={checkout} />,
+    );
+
+    await fireEvent.changeText(await findByLabelText('Payment amount'), '1500');
+    await fireEvent.press(await findByLabelText('Set up payment'));
+    await findByText('NT$1,500.00');
+
+    await fireEvent.press(await findByLabelText('Pay now'));
+    await waitFor(() => {
+      expect(checkout).toHaveBeenCalledWith('pi_1_secret');
+    });
+    // The mock /pay is never used in real-provider mode.
+    expect(payPayment).not.toHaveBeenCalled();
+    await findByText('Paid');
+  });
+
+  it('shows an error when the provider checkout fails', async () => {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    const createPayment = jest.fn().mockResolvedValue(makePayment({ clientSecret: 'pi_2_secret' }));
+    const checkout = jest.fn().mockResolvedValue({ status: 'failed', message: 'Card declined.' });
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      getPayment: jest.fn().mockRejectedValue(new ApiError(404, 'no payment')),
+      createPayment,
+      payPayment: jest.fn(),
+    });
+
+    const { findByLabelText, findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} checkout={checkout} />,
+    );
+
+    await fireEvent.changeText(await findByLabelText('Payment amount'), '1500');
+    await fireEvent.press(await findByLabelText('Set up payment'));
+    await findByText('NT$1,500.00');
+
+    await fireEvent.press(await findByLabelText('Pay now'));
+    await findByText('Card declined.');
+  });
+
   it('prefills the payment amount from an accepted quote', async () => {
     const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
     const createPayment = jest.fn().mockResolvedValue(makePayment({ amountCents: 250000 }));
