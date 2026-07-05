@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import type { AdminUserSummary } from '../../../shared/schemas';
@@ -6,6 +6,34 @@ import { AdminUsersScreen } from './AdminUsersScreen';
 
 const ADMIN_ID = '323e4567-e89b-12d3-a456-426614174000';
 const VICTIM_ID = '123e4567-e89b-12d3-a456-426614174000';
+const WORKER_ID = '423e4567-e89b-12d3-a456-426614174000';
+
+// Display names deliberately avoid the filter-chip words (All/Customer/Worker/…).
+function mixedUsers(): AdminUserSummary[] {
+  return [
+    {
+      id: ADMIN_ID,
+      email: 'ada@homefix.test',
+      displayName: 'Ada',
+      role: 'admin',
+      status: 'active',
+    },
+    {
+      id: VICTIM_ID,
+      email: 'victor@homefix.test',
+      displayName: 'Victor',
+      role: 'customer',
+      status: 'active',
+    },
+    {
+      id: WORKER_ID,
+      email: 'wendy@homefix.test',
+      displayName: 'Wendy',
+      role: 'worker',
+      status: 'active',
+    },
+  ];
+}
 
 function users(victimStatus: AdminUserSummary['status']): AdminUserSummary[] {
   return [
@@ -63,5 +91,35 @@ describe('AdminUsersScreen', () => {
 
     expect(adminReinstateUser).toHaveBeenCalledWith(VICTIM_ID);
     await findByLabelText('Suspend Victim');
+  });
+
+  it('narrows the list with the search box', async () => {
+    const client = makeClient({ adminListUsers: jest.fn().mockResolvedValue(mixedUsers()) });
+    const { findByText, findByLabelText, queryByText } = await render(
+      <AdminUsersScreen client={client} />,
+    );
+    await findByText('Wendy');
+
+    await fireEvent.changeText(await findByLabelText('Search users'), 'wendy');
+
+    await waitFor(() => {
+      expect(queryByText('Victor')).toBeNull();
+    });
+    await findByText('Wendy');
+  });
+
+  it('filters by role via the chips', async () => {
+    const client = makeClient({ adminListUsers: jest.fn().mockResolvedValue(mixedUsers()) });
+    const { findByText, findByLabelText, queryByText } = await render(
+      <AdminUsersScreen client={client} />,
+    );
+    await findByText('Wendy');
+
+    await fireEvent.press(await findByLabelText('Role Worker'));
+
+    await waitFor(() => {
+      expect(queryByText('Victor')).toBeNull();
+    });
+    await findByText('Wendy');
   });
 });

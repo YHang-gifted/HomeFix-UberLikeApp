@@ -1,10 +1,49 @@
 import { type ReactElement, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import { isApiError } from '../../../app/src/services/apiClient';
-import type { AccountStatus, AdminUserSummary } from '../../../shared/schemas';
+import { filterAdminUsers } from '../../../app/src/features/admin/filterUsers';
+import type { AccountStatus, AdminUserSummary, Role } from '../../../shared/schemas';
 import { apiClient } from '../api';
+
+const ROLE_OPTIONS: Array<Role | 'all'> = ['all', 'customer', 'worker', 'admin'];
+const STATUS_OPTIONS: Array<AccountStatus | 'all'> = ['all', 'active', 'suspended', 'deleted'];
+
+function optionLabel(option: string): string {
+  return option === 'all' ? 'All' : option.charAt(0).toUpperCase() + option.slice(1);
+}
+
+function FilterChip({
+  label,
+  accessibilityLabel,
+  active,
+  onPress,
+}: {
+  label: string;
+  accessibilityLabel: string;
+  active: boolean;
+  onPress: () => void;
+}): ReactElement {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={[styles.chip, active && styles.chipActive]}
+    >
+      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
 
 export interface AdminUsersScreenProps {
   /** Optional client override (used by tests). Defaults to the app singleton. */
@@ -27,6 +66,17 @@ export function AdminUsersScreen({ client, refreshToken }: AdminUsersScreenProps
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<Role | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<AccountStatus | 'all'>('all');
+
+  const visibleUsers = useMemo(
+    () =>
+      users === null
+        ? []
+        : filterAdminUsers(users, { query, role: roleFilter, status: statusFilter }),
+    [users, query, roleFilter, statusFilter],
+  );
 
   useEffect(() => {
     let active = true;
@@ -92,11 +142,50 @@ export function AdminUsersScreen({ client, refreshToken }: AdminUsersScreenProps
 
   return (
     <View style={styles.container}>
+      <View style={styles.filters}>
+        <TextInput
+          style={styles.search}
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search name or email"
+          accessibilityLabel="Search users"
+          autoCapitalize="none"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+        />
+        <View style={styles.chipRow}>
+          {ROLE_OPTIONS.map((option) => (
+            <FilterChip
+              key={option}
+              label={optionLabel(option)}
+              accessibilityLabel={`Role ${optionLabel(option)}`}
+              active={roleFilter === option}
+              onPress={() => {
+                setRoleFilter(option);
+              }}
+            />
+          ))}
+        </View>
+        <View style={styles.chipRow}>
+          {STATUS_OPTIONS.map((option) => (
+            <FilterChip
+              key={option}
+              label={optionLabel(option)}
+              accessibilityLabel={`Status ${optionLabel(option)}`}
+              active={statusFilter === option}
+              onPress={() => {
+                setStatusFilter(option);
+              }}
+            />
+          ))}
+        </View>
+      </View>
       {actionError !== null && <Text style={styles.actionError}>{actionError}</Text>}
       <FlatList
-        data={users}
+        data={visibleUsers}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.content}
+        ListEmptyComponent={<Text style={styles.empty}>No users match your filters.</Text>}
         renderItem={({ item }) => {
           const palette = STATUS_STYLE[item.status];
           const isSelf = item.id === selfId;
@@ -146,6 +235,35 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
   content: { padding: 16 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  empty: { color: '#64748b', fontSize: 14, textAlign: 'center', paddingVertical: 24 },
+  filters: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  search: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: '#0f172a',
+  },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chip: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  chipActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  chipText: { fontSize: 13, color: '#475569' },
+  chipTextActive: { color: '#ffffff', fontWeight: '600' },
   error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
   actionError: { color: '#dc2626', fontSize: 14, padding: 16, paddingBottom: 0 },
   row: {
