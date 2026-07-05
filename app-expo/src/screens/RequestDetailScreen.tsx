@@ -19,6 +19,7 @@ import {
   formatCents,
 } from '../../../app/src/features/payments/paymentFormat';
 import { hasPlatformFee, paymentSplit } from '../../../app/src/features/payments/paymentSplit';
+import type { PaymentCheckout } from '../../../app/src/features/payments/checkout';
 import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
 import type { AuditEvent, Payment, Quote, Review, ServiceRequest } from '../../../shared/schemas';
 import { apiClient } from '../api';
@@ -52,6 +53,12 @@ export interface RequestDetailScreenProps {
   onReset?: () => void;
   /** Called when the user opens the request's message thread. */
   onViewMessages?: () => void;
+  /**
+   * Runs the provider's checkout (Stripe) for a payment's client secret. When
+   * provided and the created payment carries a client secret, "Pay now" uses it
+   * instead of the mock `/pay`. Injected for tests/web; wired in App.tsx.
+   */
+  checkout?: PaymentCheckout;
 }
 
 export function RequestDetailScreen({
@@ -61,6 +68,7 @@ export function RequestDetailScreen({
   onReleased,
   onReset,
   onViewMessages,
+  checkout,
 }: RequestDetailScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
   const principal = useMemo(() => activeClient.getPrincipal(), [activeClient]);
@@ -294,8 +302,21 @@ export function RequestDetailScreen({
     setPaymentError(null);
     setPaymentBusy(true);
     try {
-      const paid = await activeClient.payPayment(requestId);
-      setPayment(paid);
+      const clientSecret = payment?.clientSecret;
+      if (clientSecret !== undefined && checkout !== undefined) {
+        // Real provider: complete the payment at the provider's checkout. The
+        // payment is then settled by the provider's verified webhook, so we refresh
+        // to reflect the latest status (it may still be pending until it lands).
+        const outcome = await checkout(clientSecret);
+        if (outcome.status === 'failed') {
+          setPaymentError(outcome.message ?? 'Payment failed. Please try again.');
+        } else if (outcome.status !== 'canceled') {
+          setPayment(await activeClient.getPayment(requestId));
+        }
+      } else {
+        // Mock provider (dev/test): the server marks it paid directly.
+        setPayment(await activeClient.payPayment(requestId));
+      }
     } catch (payError) {
       setPaymentError(isApiError(payError) ? payError.message : 'Could not complete the payment.');
     } finally {
