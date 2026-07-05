@@ -15,8 +15,8 @@ import { filterAdminUsers } from '../../../app/src/features/admin/filterUsers';
 import type { AccountStatus, AdminUserSummary, Role } from '../../../shared/schemas';
 import { apiClient } from '../api';
 
-const ROLE_OPTIONS: Array<Role | 'all'> = ['all', 'customer', 'worker', 'admin'];
-const STATUS_OPTIONS: Array<AccountStatus | 'all'> = ['all', 'active', 'suspended', 'deleted'];
+const ROLE_OPTIONS: (Role | 'all')[] = ['all', 'customer', 'worker', 'admin'];
+const STATUS_OPTIONS: (AccountStatus | 'all')[] = ['all', 'active', 'suspended', 'deleted'];
 
 function optionLabel(option: string): string {
   return option === 'all' ? 'All' : option.charAt(0).toUpperCase() + option.slice(1);

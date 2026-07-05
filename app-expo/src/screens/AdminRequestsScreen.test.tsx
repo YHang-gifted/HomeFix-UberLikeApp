@@ -56,6 +56,22 @@ describe('AdminRequestsScreen', () => {
     getByLabelText('Assign to Demo Worker');
   });
 
+  it('passes the selected category to the list query', async () => {
+    const listServiceRequests = jest.fn().mockResolvedValue(makePage([makeRequest()]));
+    const client = baseClient({ listServiceRequests }) as unknown as ApiClient;
+
+    const { findByText, getByLabelText } = await render(<AdminRequestsScreen client={client} />);
+    await findByText('Leaking kitchen sink');
+
+    await fireEvent.press(getByLabelText('Category electrical'));
+
+    await waitFor(() => {
+      expect(listServiceRequests).toHaveBeenCalledWith(
+        expect.objectContaining({ category: 'electrical' }),
+      );
+    });
+  });
+
   it('assigns a worker when the action is pressed', async () => {
     const request = makeRequest({ status: 'pending' });
     const listServiceRequests = jest

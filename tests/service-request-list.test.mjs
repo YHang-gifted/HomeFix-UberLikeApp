@@ -146,6 +146,34 @@ describe('GET /service-requests (list)', () => {
     assert.equal(cancelledBody.items[0].id, a.id);
   });
 
+  it('filters the list by category', async () => {
+    await createFor(CUSTOMER_ID); // plumbing
+    await globalThis.fetch(`${baseUrl}/service-requests`, {
+      method: 'POST',
+      headers: headers(CUSTOMER_ID, 'customer'),
+      body: JSON.stringify({
+        customerId: CUSTOMER_ID,
+        category: 'electrical',
+        description: 'Flickering lights',
+        location: { latitude: 25.03, longitude: 121.56 },
+      }),
+    });
+
+    const res = await globalThis.fetch(`${baseUrl}/service-requests?category=electrical`, {
+      headers: headers(CUSTOMER_ID),
+    });
+    const body = await res.json();
+    assert.equal(body.total, 1);
+    assert.ok(body.items.every((item) => item.category === 'electrical'));
+  });
+
+  it('rejects an invalid category filter (422)', async () => {
+    const res = await globalThis.fetch(`${baseUrl}/service-requests?category=bogus`, {
+      headers: headers(CUSTOMER_ID),
+    });
+    assert.equal(res.status, 422);
+  });
+
   it('rejects an invalid status filter (422)', async () => {
     const res = await globalThis.fetch(`${baseUrl}/service-requests?status=bogus`, {
       headers: headers(CUSTOMER_ID),

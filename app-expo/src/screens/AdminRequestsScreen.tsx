@@ -3,11 +3,13 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import type {
+  ServiceCategory,
   ServiceRequest,
   ServiceRequestStatus,
   WorkerRating,
   WorkerSummary,
 } from '../../../shared/schemas';
+import { CategoryFilter } from '../components/CategoryFilter';
 import { LoadMoreFooter } from '../components/LoadMoreFooter';
 import { SearchBox } from '../components/SearchBox';
 import { StatusFilter } from '../components/StatusFilter';
@@ -49,6 +51,7 @@ export function AdminRequestsScreen({
 
   const [workers, setWorkers] = useState<WorkerSummary[]>([]);
   const [status, setStatus] = useState<ServiceRequestStatus | null>(null);
+  const [category, setCategory] = useState<ServiceCategory | null>(null);
   const [searchText, setSearchText] = useState('');
   const q = useDebouncedValue(searchText, 300);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,6 +67,7 @@ export function AdminRequestsScreen({
     client: activeClient,
     status,
     q,
+    category,
     refreshToken,
     errorMessage: 'Could not load requests.',
     onSettled,
@@ -192,6 +196,7 @@ export function AdminRequestsScreen({
       </View>
 
       <StatusFilter value={status} onChange={setStatus} />
+      <CategoryFilter value={category} onChange={setCategory} />
       <SearchBox value={searchText} onChange={setSearchText} />
 
       {displayError !== null && (

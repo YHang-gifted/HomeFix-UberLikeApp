@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
-import type { ServiceRequest, ServiceRequestStatus } from '../../../shared/schemas';
+import type {
+  ServiceCategory,
+  ServiceRequest,
+  ServiceRequestStatus,
+} from '../../../shared/schemas';
 
 const PAGE_SIZE = 20;
 
@@ -9,6 +13,8 @@ export interface UseServiceRequestPageOptions {
   client: ApiClient;
   status: ServiceRequestStatus | null;
   q: string;
+  /** Optional category filter. Omit/null for all categories. */
+  category?: ServiceCategory | null;
   /** Bump from the parent (e.g. on focus) to reset to the first page. */
   refreshToken?: number;
   errorMessage: string;
@@ -37,7 +43,7 @@ export interface ServiceRequestPageResult {
 export function useServiceRequestPage(
   options: UseServiceRequestPageOptions,
 ): ServiceRequestPageResult {
-  const { client, status, q, refreshToken, errorMessage, onSettled } = options;
+  const { client, status, q, category, refreshToken, errorMessage, onSettled } = options;
 
   const [items, setItems] = useState<ServiceRequest[] | null>(null);
   const [total, setTotal] = useState(0);
@@ -49,10 +55,11 @@ export function useServiceRequestPage(
     (offset: number) => ({
       status: status ?? undefined,
       q: q.trim() === '' ? undefined : q.trim(),
+      category: category ?? undefined,
       limit: PAGE_SIZE,
       offset,
     }),
-    [status, q],
+    [status, q, category],
   );
 
   useEffect(() => {

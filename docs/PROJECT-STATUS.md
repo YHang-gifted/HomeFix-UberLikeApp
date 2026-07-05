@@ -388,9 +388,17 @@ testable v1.
   email/display name + optional role/status) in `app/src/features/admin/`, and
   `AdminUsersScreen` gains a search box + role/status filter chips applied client-
   side over the fetched list (empty state when nothing matches). Tests: pure filter
-  cases + screen search/role narrowing — _in review_.
+  cases + screen search/role narrowing — merged.
 
-_All slices above are merged to `main` except **132** (admin users search/filter),
+- **133** admin requests category filter: `GET /service-requests` now accepts a
+  `category` query param (validated against `serviceCategorySchema`), filtered in
+  `listServiceRequests`; `apiClient.listServiceRequests` + `useServiceRequestPage`
+  thread it through; `AdminRequestsScreen` adds the existing `CategoryFilter` chips
+  (status + keyword search were already there). Tests: server list category filter
+  (+ invalid→422) and the screen passing the chosen category to the query — _in
+  review_.
+
+_All slices above are merged to `main` except **133** (admin category filter),
 which was handed off. The service is deployed and ACTIVE on Railway in mock mode
 (no Stripe key)._
 
