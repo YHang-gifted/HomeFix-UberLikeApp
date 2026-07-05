@@ -97,6 +97,12 @@ export function AdminStatsScreen({ client, refreshToken }: AdminStatsScreenProps
       <StatRow label="Paid count" value={String(stats.paidPaymentsCount)} />
       <StatRow label="Paid total" value={formatCents(stats.paidAmountCents)} />
 
+      <Text style={styles.sectionTitle}>Payouts</Text>
+      <StatRow label="Owed to workers" value={formatCents(stats.pendingPayoutAmountCents)} />
+      <StatRow label="Pending count" value={String(stats.pendingPayoutsCount)} />
+      <StatRow label="Paid out total" value={formatCents(stats.paidPayoutAmountCents)} />
+      <StatRow label="Paid out count" value={String(stats.paidPayoutsCount)} />
+
       <Text style={styles.sectionTitle}>Workers</Text>
       <StatRow label="Total workers" value={String(stats.workerCount)} />
     </ScrollView>

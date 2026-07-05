@@ -18,6 +18,10 @@ function makeStats(overrides: Partial<AdminStats> = {}): AdminStats {
     paidPaymentsCount: 3,
     paidAmountCents: 200000,
     workerCount: 4,
+    pendingPayoutsCount: 2,
+    pendingPayoutAmountCents: 170000,
+    paidPayoutsCount: 1,
+    paidPayoutAmountCents: 85000,
     ...overrides,
   };
 }
@@ -33,6 +37,9 @@ describe('AdminStatsScreen', () => {
     getByText('7'); // total requests
     getByText('In progress'); // status label with underscore replaced
     getByText('NT$2,000.00'); // paid total
+    getByText('Payouts'); // payouts section
+    getByText('NT$1,700.00'); // owed to workers (pending payout amount)
+    getByText('NT$850.00'); // paid out total
   });
 
   it('shows an error message when loading fails', async () => {
