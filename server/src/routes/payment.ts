@@ -7,6 +7,7 @@ import {
   postServiceRequestPayment,
   postServiceRequestPaymentPay,
   postServiceRequestPaymentRefund,
+  postStripeWebhook,
 } from '../controllers/paymentController.ts';
 import { authenticate } from '../middlewares/auth.ts';
 
@@ -23,3 +24,5 @@ paymentRouter.post(
 );
 // Payment-provider webhook (verified by a shared secret, not a session).
 paymentRouter.post('/webhooks/payments', postPaymentWebhook);
+// Stripe hosted-checkout webhook (verified by Stripe's own signature).
+paymentRouter.post('/webhooks/stripe', postStripeWebhook);

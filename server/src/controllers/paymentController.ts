@@ -15,6 +15,10 @@ import {
   refundPayment,
 } from '../services/paymentService.ts';
 import { handlePaymentWebhook, verifyPaymentWebhook } from '../services/paymentWebhookService.ts';
+import {
+  handleStripeWebhook,
+  selectStripeEventConstructor,
+} from '../services/stripeWebhookService.ts';
 
 function parseId(req: Request, next: NextFunction): string | undefined {
   return parseUuidParam(req, next, 'id', 'service request id');
@@ -152,6 +156,33 @@ export async function postPaymentWebhook(
     }
 
     await handlePaymentWebhook(parsed.data);
+    res.status(200).json({ received: true });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Stripe hosted-checkout webhook (unauthenticated — verified by Stripe's own
+ * signature). A `checkout.session.completed` event settles the matching payment.
+ * Disabled (404) unless STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET are configured.
+ */
+export async function postStripeWebhook(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const construct = selectStripeEventConstructor(loadEnv());
+    if (construct === undefined) {
+      throw new AppError('Stripe webhooks are not configured', 404);
+    }
+    const signature = req.header('stripe-signature');
+    if (signature === undefined) {
+      throw new AppError('Missing Stripe signature', 400);
+    }
+    const rawBody = req.rawBody ?? Buffer.alloc(0);
+    await handleStripeWebhook(construct(rawBody, signature));
     res.status(200).json({ received: true });
   } catch (error) {
     next(error);

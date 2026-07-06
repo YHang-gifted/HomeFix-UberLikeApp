@@ -131,6 +131,15 @@ const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.url().optional(),
     ),
+    // Stripe webhook signing secret (`whsec_…`). Set it (with STRIPE_SECRET_KEY) to
+    // accept Stripe's `/webhooks/stripe` callbacks — the request's `Stripe-Signature`
+    // is verified against it, and a `checkout.session.completed` event settles the
+    // matching payment. Unset and the Stripe webhook endpoint is disabled (404).
+    // Supplied by the operator — never committed. Empty is treated as unset.
+    STRIPE_WEBHOOK_SECRET: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
     // Absolute path to the built web bundle (the Expo web export, `app-expo/dist`).
     // Set it to serve the web app same-origin with the API (static assets + an SPA
     // fallback); leave unset (dev/test) and only the API is served. Empty = unset.

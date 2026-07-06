@@ -37,9 +37,15 @@ startup by `server/src/config/env.ts` (see `.env.example`). The active variables
   `STRIPE_CHECKOUT_CANCEL_URL` are **required** — the server fails fast on boot
   otherwise. Point them at the app's public URL with a marker, e.g.
   `https://app.homefix.example/?payment=success` and `…/?payment=cancelled`. Use a
-  test-mode key (`sk_test_…`) outside production; pair it with
-  `PAYMENTS_WEBHOOK_SECRET` so Stripe's webhook can confirm the payment. Never
-  commit a real key.
+  test-mode key (`sk_test_…`) outside production. Never commit a real key.
+- `STRIPE_WEBHOOK_SECRET` — Stripe's webhook signing secret (`whsec_…`). Set it
+  together with `STRIPE_SECRET_KEY` to accept `POST /webhooks/stripe`: the
+  `Stripe-Signature` header is verified against it and a `checkout.session.completed`
+  event settles the matching payment (resolved via the payment id in the session
+  metadata). Leave it unset and the Stripe webhook endpoint is disabled (404) — do
+  this until go-live so no real payment can be confirmed by accident. Point Stripe's
+  dashboard webhook at `https://<your-host>/webhooks/stripe`. (The separate
+  `PAYMENTS_WEBHOOK_SECRET` guards the mock `POST /webhooks/payments` HMAC endpoint.)
 - `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION` / `STORAGE_S3_ACCESS_KEY_ID` /
   `STORAGE_S3_SECRET_ACCESS_KEY` — object storage for uploaded images. Set all
   four to store images in real S3 (the API returns a presigned PUT URL the client

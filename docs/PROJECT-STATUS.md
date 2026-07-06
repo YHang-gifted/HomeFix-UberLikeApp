@@ -224,10 +224,13 @@ testable v1.
    policy, ship the structured logs somewhere queryable). Structured 5xx error
    logging is done.
 3. A full **E2E / device QA** pass against `docs/qa-checklist.md`.
-4. **Real payment go-live** — the Stripe adapter (slice 129), webhook resolution
-   (by `providerRef`), and HMAC verification are all done; going live is now an
-   operator step: set `STRIPE_SECRET_KEY` + `PAYMENTS_WEBHOOK_SECRET`, point
-   Stripe's webhook at `/webhooks/payments`, and test with a `sk_test_…` key.
+4. **Real payment go-live** — the full Stripe hosted-Checkout flow is now done:
+   backend Checkout Session (130c), app redirect (130d), and the signed
+   `checkout.session.completed` webhook that settles the payment (130e). Going live
+   is an operator step: set `STRIPE_SECRET_KEY`, `STRIPE_CHECKOUT_SUCCESS_URL`,
+   `STRIPE_CHECKOUT_CANCEL_URL`, and `STRIPE_WEBHOOK_SECRET`, point Stripe's
+   dashboard webhook at `/webhooks/stripe`, and test end-to-end with a `sk_test_…`
+   key before switching to live keys.
 5. **WebSocket true-push chat** — optional upgrade over the current polling.
 6. **Further audit coverage** — auth/profile actions (password change, profile
    edits) not yet audited.
@@ -403,7 +406,23 @@ testable v1.
   `Linking.openURL`; wired into `RequestDetailRoute` in `App.tsx`. RNTL tests updated
   for the redirect (opener called with the URL, mock `/pay` not used, notice shown)
   and the open-failure error path. Still keep `STRIPE_SECRET_KEY` unset until 130e —
-  _handed off_.
+  merged.
+- **130e** Stripe wiring — signed webhook (settlement). New
+  `stripeWebhookService.ts`: an injected `ConstructStripeEvent = (rawBody,
+signature) => { type, paymentId }` (real `stripeEventConstructor` verifies the
+  `Stripe-Signature` via `stripe.webhooks.constructEvent` — local, no network — and
+  reads _our_ payment id from the session metadata), `selectStripeEventConstructor`
+  (disabled unless `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` are both set), and
+  `handleStripeWebhook` which settles the payment idempotently on
+  `checkout.session.completed` (via `confirmPaymentPaid` by our own id — no
+  provider-ref ambiguity) and ignores everything else. New `POST /webhooks/stripe`
+  (`postStripeWebhook`) reuses the raw-body capture; 404 when unconfigured, 400 on a
+  missing signature, 401 on a bad one. New env `STRIPE_WEBHOOK_SECRET`. Tests: real
+  constructor with a valid/invalid/`generateTestHeaderString` signature + metadata
+  reduction, select-gating, and an e2e settle-idempotent / ignore-other-events pass.
+  `.env.example` + `deployment.md` + go-live runbook updated. **Stripe flow is now
+  complete (130c/d/e)** — go-live is an operator config step; keep the keys unset
+  until then — _handed off_.
 
 - **131** admin payout/financial overview: `AdminStats` gains a **Payouts** section
   — money owed to workers (`pendingPayout{sCount,AmountCents}`) vs. already paid out
@@ -443,7 +462,7 @@ testable v1.
   Messages, Payments, Notifications, Register — _in review_.
 
 _All slices above are merged to `main` except **134** (auth audit), **135** (UI
-design system round 1), and **130d** (Stripe app redirect), which were handed off.
+design system round 1), and **130e** (Stripe signed webhook), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
