@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import type { Notification, NotificationList } from '../../../shared/schemas';
 import { apiClient } from '../api';
+import { colors, radii, shadow, spacing } from '../theme';
 
 export interface NotificationsScreenProps {
   /** Optional client override (used by tests). Defaults to the app singleton. */
@@ -93,6 +94,7 @@ export function NotificationsScreen({
   return (
     <FlatList
       style={styles.list}
+      contentContainerStyle={styles.listContent}
       data={list.items}
       keyExtractor={(item) => item.id}
       ListHeaderComponent={
@@ -129,21 +131,33 @@ export function NotificationsScreen({
 }
 
 const styles = StyleSheet.create({
-  list: { flex: 1, backgroundColor: '#ffffff' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
-  empty: { color: '#64748b', fontSize: 15, textAlign: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  unread: { fontSize: 13, fontWeight: '600', color: '#64748b', padding: 16 },
-  markAll: { fontSize: 13, fontWeight: '600', color: '#2563eb', padding: 16 },
-  row: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  list: { flex: 1, backgroundColor: colors.canvas },
+  listContent: { width: '100%', maxWidth: 760, alignSelf: 'center', paddingBottom: spacing.lg },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  error: { color: colors.danger, fontSize: 15, textAlign: 'center' },
+  empty: { color: colors.inkMuted, fontSize: 15, textAlign: 'center' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
   },
-  rowUnread: { backgroundColor: '#eff6ff' },
-  message: { fontSize: 15, color: '#334155' },
-  messageUnread: { color: '#0f172a', fontWeight: '600' },
-  time: { fontSize: 12, color: '#94a3b8', marginTop: 4 },
+  unread: { fontSize: 11, fontWeight: '800', color: colors.inkMuted, textTransform: 'uppercase' },
+  markAll: { fontSize: 13, fontWeight: '700', color: colors.brand },
+  row: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    ...shadow,
+  },
+  rowUnread: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
+  message: { fontSize: 15, color: colors.inkMuted },
+  messageUnread: { color: colors.ink, fontWeight: '700' },
+  time: { fontSize: 12, color: colors.inkMuted, marginTop: spacing.xs },
 });

@@ -6,6 +6,7 @@ import { formatCents } from '../../../app/src/features/payments/paymentFormat';
 import { hasPlatformFee, paymentSplit } from '../../../app/src/features/payments/paymentSplit';
 import type { Payment } from '../../../shared/schemas';
 import { apiClient } from '../api';
+import { colors, radii, shadow, spacing } from '../theme';
 
 /** "Worker net NT$1,275.00 · Platform fee NT$225.00" for a payment with a fee. */
 function splitLine(payment: Payment): string {
@@ -82,6 +83,7 @@ export function PaymentsScreen({
   return (
     <FlatList
       style={styles.list}
+      contentContainerStyle={styles.listContent}
       data={payments}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
@@ -111,21 +113,27 @@ export function PaymentsScreen({
 }
 
 const styles = StyleSheet.create({
-  list: { flex: 1, backgroundColor: '#ffffff' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
-  empty: { color: '#64748b', fontSize: 15, textAlign: 'center' },
+  list: { flex: 1, backgroundColor: colors.canvas },
+  listContent: { width: '100%', maxWidth: 760, alignSelf: 'center', paddingVertical: spacing.md },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  error: { color: colors.danger, fontSize: 15, textAlign: 'center' },
+  empty: { color: colors.inkMuted, fontSize: 15, textAlign: 'center' },
   row: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadow,
   },
-  rowPressed: { backgroundColor: '#f1f5f9' },
+  rowPressed: { backgroundColor: colors.brandSoft },
   rowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  amount: { fontSize: 16, fontWeight: '700', color: '#0f172a' },
-  status: { fontSize: 13, fontWeight: '600', color: '#64748b', textTransform: 'capitalize' },
-  statusPaid: { color: '#16a34a' },
-  split: { fontSize: 13, color: '#475569', marginTop: 6 },
-  time: { fontSize: 12, color: '#94a3b8', marginTop: 4 },
+  amount: { fontSize: 18, fontWeight: '800', color: colors.ink },
+  status: { fontSize: 13, fontWeight: '700', color: colors.inkMuted, textTransform: 'capitalize' },
+  statusPaid: { color: colors.brand },
+  split: { fontSize: 13, color: colors.inkMuted, marginTop: spacing.sm },
+  time: { fontSize: 12, color: colors.inkMuted, marginTop: spacing.xs },
 });

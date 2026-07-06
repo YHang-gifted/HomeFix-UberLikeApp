@@ -459,11 +459,21 @@ signature) => { type, paymentId }` (real `stripeEventConstructor` verifies the
   `RequestDetail` (quote/payment/review as work sections); `App.tsx` navigation
   theming + desktop max-width / mobile wrapping. Verified on desktop + 390×844 (no
   overflow/overlap); root 650/650 + app-expo 137/137 green. Next round: Profile,
-  Messages, Payments, Notifications, Register — _in review_.
+  Messages, Payments, Notifications, Register — merged.
+- **136** UI design system — round 2 (visual/layout only, no API/schema/behavior
+  change; every `accessibilityLabel`, `testID`, and rendered string preserved).
+  Rolled the `theme.ts` tokens into the five remaining screens: `Notifications` and
+  `Payments` lists become centered (`maxWidth 760`) token-styled cards (brand-soft
+  tint for unread), `Messages` bubbles/composer/send use brand + surface tokens,
+  `Profile` fully re-tokened (brand chips/role, brand-outline "log out other
+  devices", danger-token delete) with a `maxWidth 640` column, and `Register` gets
+  the `Login` shell+card treatment (eyebrow, form card, brand role toggles). All
+  hardcoded slate/blue hexes removed in favor of tokens. Visual QA (desktop +
+  narrow) is a reviewer step — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit), **135** (UI
-design system round 1), and **130e** (Stripe signed webhook), which were handed off.
-The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
+_All slices above are merged to `main` except **134** (auth audit) and **136** (UI
+design system round 2), which were handed off. The service is deployed and ACTIVE on
+Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);

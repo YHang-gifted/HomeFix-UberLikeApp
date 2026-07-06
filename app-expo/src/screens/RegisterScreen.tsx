@@ -7,6 +7,7 @@ import { validateRegisterForm } from '../../../app/src/features/auth/registerFor
 import type { RegisterRole } from '../../../app/src/features/auth/registerAction';
 import { performRegister } from '../../../app/src/features/auth/registerAction';
 import { apiClient } from '../api';
+import { colors, radii, shadow, spacing } from '../theme';
 
 const ROLES: { value: RegisterRole; label: string }[] = [
   { value: 'customer', label: 'I need repairs' },
@@ -67,99 +68,109 @@ export function RegisterScreen({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create your account</Text>
-      <Text style={styles.subtitle}>Join HomeFix</Text>
+      <View style={styles.shell}>
+        <Text style={styles.eyebrow}>JOIN HOMEFIX</Text>
+        <Text style={styles.title}>Create your account</Text>
+        <Text style={styles.subtitle}>One account for booking or doing local repairs.</Text>
 
-      <Text style={styles.label}>Name</Text>
-      <TextInput
-        style={styles.input}
-        value={displayName}
-        onChangeText={setDisplayName}
-        placeholder="Your name"
-        accessibilityLabel="Name"
-        editable={!submitting}
-      />
-      {errors.displayName !== undefined && <Text style={styles.error}>{errors.displayName}</Text>}
+        <View style={styles.form}>
+          <Text style={styles.label}>Name</Text>
+          <TextInput
+            style={styles.input}
+            value={displayName}
+            onChangeText={setDisplayName}
+            placeholder="Your name"
+            accessibilityLabel="Name"
+            editable={!submitting}
+          />
+          {errors.displayName !== undefined && (
+            <Text style={styles.error}>{errors.displayName}</Text>
+          )}
 
-      <Text style={styles.label}>Email</Text>
-      <TextInput
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="email-address"
-        placeholder="you@example.com"
-        accessibilityLabel="Email"
-        editable={!submitting}
-      />
-      {errors.email !== undefined && <Text style={styles.error}>{errors.email}</Text>}
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            placeholder="you@example.com"
+            accessibilityLabel="Email"
+            editable={!submitting}
+          />
+          {errors.email !== undefined && <Text style={styles.error}>{errors.email}</Text>}
 
-      <Text style={styles.label}>Password</Text>
-      <TextInput
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        placeholder="At least 8 characters"
-        accessibilityLabel="Password"
-        editable={!submitting}
-      />
-      {errors.password !== undefined && <Text style={styles.error}>{errors.password}</Text>}
+          <Text style={styles.label}>Password</Text>
+          <TextInput
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholder="At least 8 characters"
+            accessibilityLabel="Password"
+            editable={!submitting}
+          />
+          {errors.password !== undefined && <Text style={styles.error}>{errors.password}</Text>}
 
-      <Text style={styles.label}>I am a…</Text>
-      <View style={styles.roleRow}>
-        {ROLES.map((option) => {
-          const selected = role === option.value;
-          return (
-            <Pressable
-              key={option.value}
-              style={[styles.role, selected && styles.roleSelected]}
-              onPress={() => {
-                setRole(option.value);
-              }}
-              disabled={submitting}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              accessibilityLabel={option.label}
-            >
-              <Text style={[styles.roleText, selected && styles.roleTextSelected]}>
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+          <Text style={styles.label}>I am a…</Text>
+          <View style={styles.roleRow}>
+            {ROLES.map((option) => {
+              const selected = role === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  style={[styles.role, selected && styles.roleSelected]}
+                  onPress={() => {
+                    setRole(option.value);
+                  }}
+                  disabled={submitting}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={option.label}
+                >
+                  <Text style={[styles.roleText, selected && styles.roleTextSelected]}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.button,
+              (pressed || submitting) && styles.buttonPressed,
+            ]}
+            onPress={() => {
+              void submit();
+            }}
+            disabled={submitting}
+            accessibilityRole="button"
+            accessibilityLabel="Create account"
+          >
+            {submitting ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.buttonText}>Create account</Text>
+            )}
+          </Pressable>
+
+          {banner !== null && <Text style={styles.banner}>{banner}</Text>}
+
+          <Pressable
+            style={styles.linkButton}
+            onPress={() => {
+              onBackToLogin?.();
+            }}
+            disabled={submitting}
+            accessibilityRole="button"
+            accessibilityLabel="Back to sign in"
+          >
+            <Text style={styles.link}>Already have an account? Sign in</Text>
+          </Pressable>
+        </View>
       </View>
-
-      <Pressable
-        style={({ pressed }) => [styles.button, (pressed || submitting) && styles.buttonPressed]}
-        onPress={() => {
-          void submit();
-        }}
-        disabled={submitting}
-        accessibilityRole="button"
-        accessibilityLabel="Create account"
-      >
-        {submitting ? (
-          <ActivityIndicator color="#ffffff" />
-        ) : (
-          <Text style={styles.buttonText}>Create account</Text>
-        )}
-      </Pressable>
-
-      {banner !== null && <Text style={styles.banner}>{banner}</Text>}
-
-      <Pressable
-        style={styles.linkButton}
-        onPress={() => {
-          onBackToLogin?.();
-        }}
-        disabled={submitting}
-        accessibilityRole="button"
-        accessibilityLabel="Back to sign in"
-      >
-        <Text style={styles.link}>Already have an account? Sign in</Text>
-      </Pressable>
     </View>
   );
 }
@@ -168,46 +179,64 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    backgroundColor: '#ffffff',
+    padding: spacing.xl,
+    backgroundColor: colors.canvas,
   },
-  title: { fontSize: 28, fontWeight: '700', color: '#0f172a' },
-  subtitle: { fontSize: 16, color: '#64748b', marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: '#334155', marginTop: 12, marginBottom: 4 },
+  shell: { width: '100%', maxWidth: 480, alignSelf: 'center' },
+  eyebrow: { fontSize: 10, fontWeight: '800', color: colors.brand },
+  title: { fontSize: 28, fontWeight: '800', color: colors.ink, marginTop: 2 },
+  subtitle: { fontSize: 16, lineHeight: 24, color: colors.inkMuted, marginBottom: spacing.lg },
+  form: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    padding: spacing.xl,
+    ...shadow,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.ink,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
   input: {
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
     fontSize: 16,
-    color: '#0f172a',
+    color: colors.ink,
+    backgroundColor: colors.canvas,
   },
-  error: { color: '#dc2626', fontSize: 13, marginTop: 4 },
-  roleRow: { flexDirection: 'row', gap: 10 },
+  error: { color: colors.danger, fontSize: 13, marginTop: spacing.xs },
+  roleRow: { flexDirection: 'row', gap: spacing.sm },
   role: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 8,
-    paddingVertical: 12,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    paddingVertical: spacing.md,
     alignItems: 'center',
+    backgroundColor: colors.surface,
   },
-  roleSelected: { borderColor: '#2563eb', backgroundColor: '#eff6ff' },
-  roleText: { fontSize: 14, color: '#334155', fontWeight: '600' },
-  roleTextSelected: { color: '#2563eb' },
+  roleSelected: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
+  roleText: { fontSize: 14, color: colors.inkMuted, fontWeight: '700' },
+  roleTextSelected: { color: colors.brand },
   button: {
-    marginTop: 24,
-    backgroundColor: '#2563eb',
-    borderRadius: 8,
+    marginTop: spacing.xl,
+    backgroundColor: colors.brand,
+    borderRadius: radii.medium,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
   },
-  buttonPressed: { backgroundColor: '#1d4ed8' },
-  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
-  banner: { marginTop: 16, textAlign: 'center', fontSize: 14, color: '#dc2626' },
-  linkButton: { marginTop: 20, alignItems: 'center' },
-  link: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
+  buttonPressed: { backgroundColor: colors.brandPressed },
+  buttonText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  banner: { marginTop: spacing.lg, textAlign: 'center', fontSize: 14, color: colors.danger },
+  linkButton: { marginTop: spacing.lg, alignItems: 'center', paddingVertical: spacing.sm },
+  link: { color: colors.brand, fontSize: 14, fontWeight: '700' },
 });
