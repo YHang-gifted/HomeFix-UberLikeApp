@@ -87,24 +87,22 @@ describe('RequestDetailScreen payments', () => {
     await findByText('Paid');
   });
 
-  it('completes payment via the provider checkout when a client secret is present', async () => {
+  it('redirects to the hosted checkout page when the payment carries a checkout URL', async () => {
     const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
-    const createPayment = jest.fn().mockResolvedValue(makePayment({ clientSecret: 'pi_1_secret' }));
-    const getPayment = jest
+    const createPayment = jest
       .fn()
-      .mockRejectedValueOnce(new ApiError(404, 'no payment'))
-      .mockResolvedValue(makePayment({ status: 'paid', paidAt: '2026-06-22T01:00:00.000Z' }));
+      .mockResolvedValue(makePayment({ checkoutUrl: 'https://checkout.stripe.com/pay/cs_1' }));
     const payPayment = jest.fn();
-    const checkout = jest.fn().mockResolvedValue({ status: 'succeeded' });
+    const openCheckout = jest.fn().mockResolvedValue(undefined);
     const client = clientWith({
       getServiceRequest: jest.fn().mockResolvedValue(request),
-      getPayment,
+      getPayment: jest.fn().mockRejectedValue(new ApiError(404, 'no payment')),
       createPayment,
       payPayment,
     });
 
     const { findByLabelText, findByText } = await render(
-      <RequestDetailScreen requestId={request.id} client={client} checkout={checkout} />,
+      <RequestDetailScreen requestId={request.id} client={client} openCheckout={openCheckout} />,
     );
 
     await fireEvent.changeText(await findByLabelText('Payment amount'), '1500');
@@ -113,17 +111,19 @@ describe('RequestDetailScreen payments', () => {
 
     await fireEvent.press(await findByLabelText('Pay now'));
     await waitFor(() => {
-      expect(checkout).toHaveBeenCalledWith('pi_1_secret');
+      expect(openCheckout).toHaveBeenCalledWith('https://checkout.stripe.com/pay/cs_1');
     });
-    // The mock /pay is never used in real-provider mode.
+    // The mock /pay is never used in real-provider mode; settlement is via webhook.
     expect(payPayment).not.toHaveBeenCalled();
-    await findByText('Paid');
+    await findByText(/Complete the payment in the page that opened/);
   });
 
-  it('shows an error when the provider checkout fails', async () => {
+  it('shows an error when the hosted checkout page cannot be opened', async () => {
     const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
-    const createPayment = jest.fn().mockResolvedValue(makePayment({ clientSecret: 'pi_2_secret' }));
-    const checkout = jest.fn().mockResolvedValue({ status: 'failed', message: 'Card declined.' });
+    const createPayment = jest
+      .fn()
+      .mockResolvedValue(makePayment({ checkoutUrl: 'https://checkout.stripe.com/pay/cs_2' }));
+    const openCheckout = jest.fn().mockRejectedValue(new Error('no browser'));
     const client = clientWith({
       getServiceRequest: jest.fn().mockResolvedValue(request),
       getPayment: jest.fn().mockRejectedValue(new ApiError(404, 'no payment')),
@@ -132,7 +132,7 @@ describe('RequestDetailScreen payments', () => {
     });
 
     const { findByLabelText, findByText } = await render(
-      <RequestDetailScreen requestId={request.id} client={client} checkout={checkout} />,
+      <RequestDetailScreen requestId={request.id} client={client} openCheckout={openCheckout} />,
     );
 
     await fireEvent.changeText(await findByLabelText('Payment amount'), '1500');
@@ -140,7 +140,7 @@ describe('RequestDetailScreen payments', () => {
     await findByText('NT$1,500.00');
 
     await fireEvent.press(await findByLabelText('Pay now'));
-    await findByText('Card declined.');
+    await findByText('Could not open the payment page.');
   });
 
   it('prefills the payment amount from an accepted quote', async () => {
