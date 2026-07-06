@@ -391,7 +391,19 @@ testable v1.
   tests rewritten for the Session signature (URL + PI-id mapping, session-id
   fallback, URL-omitted, external-checkout flag, select fails-fast without URLs).
   `.env.example` + `deployment.md` updated. Keep `STRIPE_SECRET_KEY` unset in
-  production until 130d (app redirect) + 130e (webhook) land — _handed off_.
+  production until 130d (app redirect) + 130e (webhook) land — merged.
+- **130d** Stripe wiring — app redirect to hosted Checkout. The injected seam is now
+  `OpenCheckout = (url) => Promise<void>` (`app/src/features/payments/checkout.ts`,
+  replacing the `clientSecret`-based `PaymentCheckout`): when the created payment
+  carries a `checkoutUrl` and an opener is injected, "Pay now" redirects the customer
+  there and shows "Complete the payment in the page that opened, then return and
+  refresh" — nothing marks it paid (the 130e webhook settles it); otherwise it falls
+  back to the mock `/pay`. Real opener `deviceOpenCheckout`
+  (`app-expo/src/checkout.ts`): web → `window.location.assign`, native →
+  `Linking.openURL`; wired into `RequestDetailRoute` in `App.tsx`. RNTL tests updated
+  for the redirect (opener called with the URL, mock `/pay` not used, notice shown)
+  and the open-failure error path. Still keep `STRIPE_SECRET_KEY` unset until 130e —
+  _handed off_.
 
 - **131** admin payout/financial overview: `AdminStats` gains a **Payouts** section
   — money owed to workers (`pendingPayout{sCount,AmountCents}`) vs. already paid out
@@ -431,9 +443,8 @@ testable v1.
   Messages, Payments, Notifications, Register — _in review_.
 
 _All slices above are merged to `main` except **134** (auth audit), **135** (UI
-design system round 1), and **130c** (Stripe hosted-Checkout backend), which were
-handed off. The service is deployed and ACTIVE on Railway in mock mode (no Stripe
-key)._
+design system round 1), and **130d** (Stripe app redirect), which were handed off.
+The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);

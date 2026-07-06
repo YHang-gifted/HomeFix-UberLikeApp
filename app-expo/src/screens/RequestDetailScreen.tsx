@@ -19,7 +19,7 @@ import {
   formatCents,
 } from '../../../app/src/features/payments/paymentFormat';
 import { hasPlatformFee, paymentSplit } from '../../../app/src/features/payments/paymentSplit';
-import type { PaymentCheckout } from '../../../app/src/features/payments/checkout';
+import type { OpenCheckout } from '../../../app/src/features/payments/checkout';
 import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
 import type { AuditEvent, Payment, Quote, Review, ServiceRequest } from '../../../shared/schemas';
 import { apiClient } from '../api';
@@ -56,11 +56,11 @@ export interface RequestDetailScreenProps {
   /** Called when the user opens the request's message thread. */
   onViewMessages?: () => void;
   /**
-   * Runs the provider's checkout (Stripe) for a payment's client secret. When
-   * provided and the created payment carries a client secret, "Pay now" uses it
-   * instead of the mock `/pay`. Injected for tests/web; wired in App.tsx.
+   * Opens the provider's hosted checkout page (Stripe). When provided and the
+   * created payment carries a `checkoutUrl`, "Pay now" redirects the customer there
+   * instead of using the mock `/pay`. Injected for tests/web; wired in App.tsx.
    */
-  checkout?: PaymentCheckout;
+  openCheckout?: OpenCheckout;
 }
 
 export function RequestDetailScreen({
@@ -70,7 +70,7 @@ export function RequestDetailScreen({
   onReleased,
   onReset,
   onViewMessages,
-  checkout,
+  openCheckout,
 }: RequestDetailScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
   const principal = useMemo(() => activeClient.getPrincipal(), [activeClient]);
@@ -105,6 +105,7 @@ export function RequestDetailScreen({
   const [payment, setPayment] = useState<Payment | null>(null);
   const [amountText, setAmountText] = useState('');
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [paymentBusy, setPaymentBusy] = useState(false);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteAmountText, setQuoteAmountText] = useState('');
@@ -302,25 +303,23 @@ export function RequestDetailScreen({
 
   async function payNow(): Promise<void> {
     setPaymentError(null);
+    setPaymentNotice(null);
     setPaymentBusy(true);
     try {
-      const clientSecret = payment?.clientSecret;
-      if (clientSecret !== undefined && checkout !== undefined) {
-        // Real provider: complete the payment at the provider's checkout. The
-        // payment is then settled by the provider's verified webhook, so we refresh
-        // to reflect the latest status (it may still be pending until it lands).
-        const outcome = await checkout(clientSecret);
-        if (outcome.status === 'failed') {
-          setPaymentError(outcome.message ?? 'Payment failed. Please try again.');
-        } else if (outcome.status !== 'canceled') {
-          setPayment(await activeClient.getPayment(requestId));
-        }
+      const checkoutUrl = payment?.checkoutUrl;
+      if (checkoutUrl !== undefined && openCheckout !== undefined) {
+        // Real provider: send the customer to the hosted checkout page. Nothing here
+        // marks the payment paid — it is settled by the provider's verified webhook.
+        // On web the page navigates away; on native the browser opens and the
+        // customer returns to the app and refreshes to see the updated status.
+        await openCheckout(checkoutUrl);
+        setPaymentNotice('Complete the payment in the page that opened, then return and refresh.');
       } else {
         // Mock provider (dev/test): the server marks it paid directly.
         setPayment(await activeClient.payPayment(requestId));
       }
     } catch (payError) {
-      setPaymentError(isApiError(payError) ? payError.message : 'Could not complete the payment.');
+      setPaymentError(isApiError(payError) ? payError.message : 'Could not open the payment page.');
     } finally {
       setPaymentBusy(false);
     }
@@ -764,6 +763,7 @@ export function RequestDetailScreen({
             </Pressable>
           )}
 
+          {paymentNotice !== null && <Text style={styles.paymentNotice}>{paymentNotice}</Text>}
           {paymentError !== null && <Text style={styles.error}>{paymentError}</Text>}
         </View>
       )}
@@ -1058,6 +1058,7 @@ const styles = StyleSheet.create({
   },
   paymentAmount: { fontSize: 22, fontWeight: '800', color: colors.ink },
   paymentSplit: { fontSize: 13, color: colors.inkMuted, marginTop: 6 },
+  paymentNotice: { fontSize: 14, color: colors.inkMuted, marginTop: 10, textAlign: 'center' },
   paymentPending: { fontSize: 14, fontWeight: '600', color: '#d97706' },
   paymentPaid: { fontSize: 14, fontWeight: '600', color: '#16a34a' },
   paymentRefunded: { fontSize: 14, fontWeight: '600', color: '#64748b' },

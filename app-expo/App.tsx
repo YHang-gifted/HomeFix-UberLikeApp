@@ -10,6 +10,7 @@ import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { clearSession, persistSession, restoreSession } from '../app/src/auth/session';
 import { registerForPush } from '../app/src/features/notifications/pushRegistration';
 import { apiClient } from './src/api';
+import { deviceOpenCheckout } from './src/checkout';
 import { deviceImagePicker } from './src/imagePicker';
 import { deviceGeocoder, deviceLocationProvider } from './src/location';
 import { MapPickerHost, deviceMapPicker } from './src/mapPicker';
@@ -196,6 +197,7 @@ function RequestDetailRoute({
     <RequestDetailScreen
       client={apiClient}
       requestId={route.params.id}
+      openCheckout={deviceOpenCheckout}
       onCancelled={() => {
         navigation.goBack();
       }}
