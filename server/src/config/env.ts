@@ -120,6 +120,17 @@ const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.string().min(1).optional(),
     ),
+    // Where Stripe returns the customer after hosted checkout. Both are required
+    // when STRIPE_SECRET_KEY is set (point them at the app, e.g. its public URL
+    // with a `?payment=success`/`?payment=cancelled` marker). Empty = unset.
+    STRIPE_CHECKOUT_SUCCESS_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.url().optional(),
+    ),
+    STRIPE_CHECKOUT_CANCEL_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.url().optional(),
+    ),
     // Absolute path to the built web bundle (the Expo web export, `app-expo/dist`).
     // Set it to serve the web app same-origin with the API (static assets + an SPA
     // fallback); leave unset (dev/test) and only the API is served. Empty = unset.
