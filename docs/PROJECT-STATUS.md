@@ -469,11 +469,22 @@ signature) => { type, paymentId }` (real `stripeEventConstructor` verifies the
   devices", danger-token delete) with a `maxWidth 640` column, and `Register` gets
   the `Login` shell+card treatment (eyebrow, form card, brand role toggles). All
   hardcoded slate/blue hexes removed in favor of tokens. Visual QA (desktop +
-  narrow) is a reviewer step — _handed off_.
+  narrow) is a reviewer step — merged.
+- **137** Stripe hosted-checkout **E2E regression** (test-only + a small seam). New
+  `tests/stripe-checkout-e2e.test.mjs` drives the whole external-checkout branch over
+  the real HTTP API: a fake external provider is injected, so create returns a
+  `checkoutUrl` (and never a `clientSecret`), the mock `/pay` is blocked (409), and a
+  genuinely-signed `checkout.session.completed` delivered to the real
+  `/webhooks/stripe` is the only thing that settles the payment and schedules the
+  worker payout — idempotently — plus a bad-signature → 401 case. To make the
+  provider swappable without touching prod behavior, `paymentService` gained
+  `setPaymentProviderForTests` / `resetPaymentProviderForTests` (mirrors the existing
+  `resetX` test-support exports; `createPayment` / `payPayment` now read the active
+  provider). No product behavior change — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **136** (UI
-design system round 2), which were handed off. The service is deployed and ACTIVE on
-Railway in mock mode (no Stripe key)._
+_All slices above are merged to `main` except **134** (auth audit) and **137**
+(Stripe checkout E2E regression), which were handed off. The service is deployed and
+ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);

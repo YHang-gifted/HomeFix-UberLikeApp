@@ -19,6 +19,22 @@ import { createPayoutForPayment } from './payoutService.ts';
 import { paymentProvider } from './paymentProvider.ts';
 import type { PaymentProvider } from './paymentProvider.ts';
 
+/**
+ * The active payment provider. Defaults to the config-selected singleton; tests can
+ * swap in a fake (e.g. an external-checkout provider, to exercise the redirect +
+ * webhook path without contacting Stripe) via {@link setPaymentProviderForTests} and
+ * restore the default with {@link resetPaymentProviderForTests}. Not used in prod.
+ */
+let activePaymentProvider: PaymentProvider = paymentProvider;
+
+export function setPaymentProviderForTests(provider: PaymentProvider): void {
+  activePaymentProvider = provider;
+}
+
+export function resetPaymentProviderForTests(): void {
+  activePaymentProvider = paymentProvider;
+}
+
 async function loadRequest(requestId: string): Promise<ServiceRequest> {
   const request = await serviceRequestRepository.findById(requestId);
   if (!request) {
@@ -94,7 +110,7 @@ export async function createPayment(
   const id = randomUUID();
   // Open the charge with the provider (mock by default) and keep its reference so
   // the provider's webhook can later be mapped back to this payment.
-  const charge = await paymentProvider.createCharge({
+  const charge = await activePaymentProvider.createCharge({
     paymentId: id,
     requestId,
     amountCents: input.amountCents,
@@ -170,7 +186,7 @@ async function markPaid(payment: Payment): Promise<Payment> {
 export async function payPayment(requestId: string, principal: Principal): Promise<Payment> {
   // With a real provider, payments settle only via the verified webhook — the mock
   // direct-pay path is disabled so it can't be used to mark a payment paid for free.
-  assertDirectPayAllowed(paymentProvider);
+  assertDirectPayAllowed(activePaymentProvider);
   const request = await loadRequest(requestId);
   if (principal.role !== 'customer' || principal.id !== request.customerId) {
     throw new AppError('Only the owning customer may pay', 403);
