@@ -19,6 +19,37 @@ import { createPayoutForPayment } from './payoutService.ts';
 import { paymentProvider } from './paymentProvider.ts';
 import type { PaymentProvider } from './paymentProvider.ts';
 
+/**
+ * The active payment provider. Defaults to the config-selected singleton; tests can
+ * swap in a fake (e.g. an external-checkout provider, to exercise the redirect +
+ * webhook path without contacting Stripe) via {@link setPaymentProviderForTests} and
+ * restore the default with {@link resetPaymentProviderForTests}. Not used in prod.
+ *
+ * The override is anchored on `globalThis`, NOT a module-local `let`, on purpose:
+ * under tsx a `.ts` can load as two module instances, so a module-local variable set
+ * by a test would not be the one the controllers read. `globalThis` is shared across
+ * every instance in the process, so the override always reaches the request path.
+ */
+const PROVIDER_OVERRIDE_KEY = '__homefixPaymentProviderOverride__';
+
+function providerRegistry(): Record<string, PaymentProvider | undefined> {
+  return globalThis as unknown as Record<string, PaymentProvider | undefined>;
+}
+
+function activePaymentProvider(): PaymentProvider {
+  return providerRegistry()[PROVIDER_OVERRIDE_KEY] ?? paymentProvider;
+}
+
+export function setPaymentProviderForTests(provider: PaymentProvider): void {
+  providerRegistry()[PROVIDER_OVERRIDE_KEY] = provider;
+}
+
+export function resetPaymentProviderForTests(): void {
+  // Assign undefined rather than `delete` (the computed-key delete is lint-blocked);
+  // activePaymentProvider() treats undefined as "no override" via its `?? default`.
+  providerRegistry()[PROVIDER_OVERRIDE_KEY] = undefined;
+}
+
 async function loadRequest(requestId: string): Promise<ServiceRequest> {
   const request = await serviceRequestRepository.findById(requestId);
   if (!request) {
@@ -94,7 +125,7 @@ export async function createPayment(
   const id = randomUUID();
   // Open the charge with the provider (mock by default) and keep its reference so
   // the provider's webhook can later be mapped back to this payment.
-  const charge = await paymentProvider.createCharge({
+  const charge = await activePaymentProvider().createCharge({
     paymentId: id,
     requestId,
     amountCents: input.amountCents,
@@ -170,7 +201,7 @@ async function markPaid(payment: Payment): Promise<Payment> {
 export async function payPayment(requestId: string, principal: Principal): Promise<Payment> {
   // With a real provider, payments settle only via the verified webhook — the mock
   // direct-pay path is disabled so it can't be used to mark a payment paid for free.
-  assertDirectPayAllowed(paymentProvider);
+  assertDirectPayAllowed(activePaymentProvider());
   const request = await loadRequest(requestId);
   if (principal.role !== 'customer' || principal.id !== request.customerId) {
     throw new AppError('Only the owning customer may pay', 403);
