@@ -371,11 +371,27 @@ testable v1.
   checkout and refreshes (webhook settles); `failed` shows the message, `canceled`
   is a no-op; otherwise it falls back to the mock `/pay`. RNTL tests for the
   checkout success + failure paths — merged.
-  **⚠️ STILL not fully production-ready:** the real Stripe checkout PROVIDER isn't
-  wired yet (130c) — `App.tsx` passes no `checkout`, so in real mode "Pay now" hits
-  the mock `/pay` (which 409s). Remaining 130c: a native `@stripe/stripe-react-native`
-  PaymentSheet + web Stripe.js provider, wired in `App.tsx`, plus a publishable key
-  (`EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY`). Keep `STRIPE_SECRET_KEY` unset until 130c.
+  **⚠️ Approach change:** for go-live we chose Stripe **hosted Checkout (redirect)**
+  over an in-app PaymentSheet/Stripe.js — the backend opens a Checkout Session and
+  the app just redirects the browser to Stripe's page, so no publishable key or
+  card UI ships in the client. Split into 130c (backend Session), 130d (app
+  redirect), 130e (webhook). The `clientSecret` seam from 130a/b still stands but is
+  superseded by `checkoutUrl` from 130c onward.
+- **130c** Stripe wiring — backend hosted Checkout (redirect). `paymentProvider`'s
+  Stripe adapter now opens a **Checkout Session** instead of a PaymentIntent:
+  `createStripePaymentProvider(createSession)` returns `providerRef` (the session's
+  PaymentIntent id, falling back to the session id) + `checkoutUrl` (the hosted
+  page); `stripeCheckoutCreator` calls `stripe.checkout.sessions.create` (mode
+  `payment`, single line item, metadata + `payment_intent_data.metadata` carrying
+  our `paymentId`/`requestId`, idempotent on the payment id). New env
+  `STRIPE_CHECKOUT_SUCCESS_URL` / `STRIPE_CHECKOUT_CANCEL_URL` — **both required
+  when `STRIPE_SECRET_KEY` is set**; `stripeConfigFromEnv` throws (500, fail-fast)
+  otherwise. `PaymentChargeResult`/`paymentSchema` gain ephemeral `checkoutUrl`;
+  `createPayment` threads it out (like `clientSecret` — never persisted). Provider
+  tests rewritten for the Session signature (URL + PI-id mapping, session-id
+  fallback, URL-omitted, external-checkout flag, select fails-fast without URLs).
+  `.env.example` + `deployment.md` updated. Keep `STRIPE_SECRET_KEY` unset in
+  production until 130d (app redirect) + 130e (webhook) land — _handed off_.
 
 - **131** admin payout/financial overview: `AdminStats` gains a **Payouts** section
   — money owed to workers (`pendingPayout{sCount,AmountCents}`) vs. already paid out
@@ -403,8 +419,19 @@ testable v1.
   and `deviceTokenService.registerDeviceToken` record the events; AuditLogScreen
   labels added; audit tests cover both (+ assert the token isn't in the event) —
   _in review_.
+- **135** UI design system — round 1 (visual/layout only, no API/schema/behavior
+  change). New `app-expo/src/theme.ts` tokens (repair-green brand `#167A5A`,
+  graphite ink, coral accent, warm-gold + soft status tints; `radii`, `spacing`,
+  `shadow`); new reusable `StatusBadge` (status→tinted uppercase badge, + test);
+  restyled `SearchBox`/`StatusFilter`/`CategoryFilter`/`AlertsButton`; redesigned
+  `Login`, `ServiceRequests`, `WorkerJobs`, `AvailableJobs`, `AdminStats`,
+  `RequestDetail` (quote/payment/review as work sections); `App.tsx` navigation
+  theming + desktop max-width / mobile wrapping. Verified on desktop + 390×844 (no
+  overflow/overlap); root 650/650 + app-expo 137/137 green. Next round: Profile,
+  Messages, Payments, Notifications, Register — _in review_.
 
-_All slices above are merged to `main` except **134** (auth audit), which was
+_All slices above are merged to `main` except **134** (auth audit), **135** (UI
+design system round 1), and **130c** (Stripe hosted-Checkout backend), which were
 handed off. The service is deployed and ACTIVE on Railway in mock mode (no Stripe
 key)._
 

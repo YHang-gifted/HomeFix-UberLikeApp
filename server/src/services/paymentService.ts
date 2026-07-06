@@ -120,11 +120,13 @@ export async function createPayment(
     resourceId: payment.id,
     details: { requestId, amountCents: String(input.amountCents) },
   });
-  // Return the provider's client secret (if any) so the app can complete checkout.
-  // It is NOT persisted — it rides only on this create response, never a later GET.
+  // Return the provider's checkout handles (if any) so the app can complete
+  // checkout — a hosted `checkoutUrl` to redirect to, or a `clientSecret`. Neither
+  // is persisted; they ride only on this create response, never a later GET.
   return {
     ...payment,
     ...(charge.clientSecret !== undefined ? { clientSecret: charge.clientSecret } : {}),
+    ...(charge.checkoutUrl !== undefined ? { checkoutUrl: charge.checkoutUrl } : {}),
   };
 }
 

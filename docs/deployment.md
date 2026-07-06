@@ -30,10 +30,15 @@ startup by `server/src/config/env.ts` (see `.env.example`). The active variables
   API, `https://exp.host/--/api/v2/push/send`). Set it to actually send push;
   leave unset and the push channel only logs. The endpoint receives a JSON
   `{ to, title, body }` POST.
-- `STRIPE_SECRET_KEY` — set it to take real payments via Stripe (each payment opens
-  a PaymentIntent, idempotent on the payment id); leave unset and the inert mock
-  provider is used. Use a test-mode key (`sk_test_…`) outside production; pair it
-  with `PAYMENTS_WEBHOOK_SECRET` so Stripe's webhook can confirm the payment. Never
+- `STRIPE_SECRET_KEY` — set it to take real payments via Stripe hosted Checkout
+  (each payment opens a Checkout Session, idempotent on the payment id, and the app
+  redirects the customer to Stripe's page); leave unset and the inert mock provider
+  is used. When it is set, `STRIPE_CHECKOUT_SUCCESS_URL` and
+  `STRIPE_CHECKOUT_CANCEL_URL` are **required** — the server fails fast on boot
+  otherwise. Point them at the app's public URL with a marker, e.g.
+  `https://app.homefix.example/?payment=success` and `…/?payment=cancelled`. Use a
+  test-mode key (`sk_test_…`) outside production; pair it with
+  `PAYMENTS_WEBHOOK_SECRET` so Stripe's webhook can confirm the payment. Never
   commit a real key.
 - `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION` / `STORAGE_S3_ACCESS_KEY_ID` /
   `STORAGE_S3_SECRET_ACCESS_KEY` — object storage for uploaded images. Set all

@@ -399,6 +399,9 @@ export const paymentSchema = z.object({
   // PaymentIntent client secret). Ephemeral: returned ONLY on the create-payment
   // response so the app can start checkout; never persisted, never on a later GET.
   clientSecret: z.string().optional(),
+  // Hosted checkout URL to redirect the customer to (e.g. a Stripe Checkout page).
+  // Ephemeral like `clientSecret`: only on the create-payment response.
+  checkoutUrl: z.url().optional(),
 });
 export type Payment = z.infer<typeof paymentSchema>;
 
