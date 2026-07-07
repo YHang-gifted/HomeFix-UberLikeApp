@@ -12,6 +12,7 @@ import { createWebAppHandlers, isBuiltWebDir } from './middlewares/webApp.ts';
 import { adminRouter } from './routes/admin.ts';
 import { auditRouter } from './routes/audit.ts';
 import { authRouter } from './routes/auth.ts';
+import { certificationRouter } from './routes/certification.ts';
 import { deviceTokenRouter } from './routes/deviceToken.ts';
 import { favoriteRouter } from './routes/favorite.ts';
 import { healthRouter } from './routes/health.ts';
@@ -51,6 +52,7 @@ export function createApp(): Express {
   app.use(authRouter);
   app.use(profileRouter);
   app.use(deviceTokenRouter);
+  app.use(certificationRouter);
   app.use(serviceRequestRouter);
   app.use(userRouter);
   app.use(workerRouter);

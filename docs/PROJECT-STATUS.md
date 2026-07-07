@@ -546,12 +546,31 @@ signature) => { type, paymentId }` (real `stripeEventConstructor` verifies the
   the coordinates via `Linking.openURL`. New pure `app/src/features/location/
 mapsLink.ts` (`mapsUrl(coords)`). Tests: `maps-link` unit (URL shape, encoding),
   RequestDetail (address shown + Maps opened with the right URL), CreateRequest
-  (chosen address submitted). Coordinates remain the canonical stored value —
-  _handed off_.
+  (chosen address submitted). Coordinates remain the canonical stored value — merged.
 
-_All slices above are merged to `main` except **134** (auth audit) and **141b**
-(app address + Open in Maps), which were handed off. The service is deployed and
-ACTIVE on Railway in mock mode (no Stripe key)._
+### Worker certifications (credential-gated matching) — feature 142
+
+Goal: a worker's specialties are backed by admin-verified credentials, and only a
+**verified** certification for a category unlocks that category's jobs. Phased:
+142a (data + worker upload) → 142b (admin review) → 142c (matching gate) → 142d (app).
+
+- **142a** certification data model + worker upload/list (backend). New
+  `certificationSchema` (`{ id, workerId, category, title, documentUrl, status:
+pending|verified|rejected, createdAt, reviewedAt?, reviewerId?, rejectionReason? }`)
+  - `createCertificationInputSchema` + list; three new audit actions
+    (`certification.submitted|verified|rejected`, labeled in `AuditLogScreen`). New
+    `certificationRepository` (interface / InMemory / Postgres / factory) + migration
+    `0031_certifications` (FK worker/reviewer → users, status CHECK, indexes on
+    worker*id/status). `certificationService.addCertification` (worker-only, starts
+    `pending`, audited) + `listMyCertifications`; `POST` / `GET /certifications` wired.
+    The document is uploaded via the existing upload seam; the cert stores only its
+    URL. Tests: HTTP (submit→pending, list own, customer 403, invalid→422) + PGlite
+    round-trip (find by worker/status, review upsert, rejection reason). Not yet gating
+    anything — that's 142c — \_handed off*.
+
+_All slices above are merged to `main` except **134** (auth audit) and **142a**
+(worker certifications — data + upload), which were handed off. The service is
+deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);
