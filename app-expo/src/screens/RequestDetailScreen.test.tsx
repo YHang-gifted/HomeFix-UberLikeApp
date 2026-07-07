@@ -1,3 +1,4 @@
+import { Linking } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { ApiError, type ApiClient } from '../../../app/src/services/apiClient';
@@ -177,6 +178,30 @@ describe('RequestDetailScreen payments', () => {
     });
     await findByText('HF-20260622-1A2B3C4D');
     await findByText('Receipt');
+  });
+
+  it('shows the human address and opens the coordinates in Maps', async () => {
+    const openSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    const request = makeRequest({
+      address: 'No. 7, Sec. 5, Xinyi Rd, Taipei',
+      location: { latitude: 25.033, longitude: 121.5654 },
+    });
+    const client = clientWith({ getServiceRequest: jest.fn().mockResolvedValue(request) });
+
+    const { findByText, findByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    // The address is shown instead of raw coordinates.
+    await findByText('No. 7, Sec. 5, Xinyi Rd, Taipei');
+
+    await fireEvent.press(await findByLabelText('Open in Maps'));
+    await waitFor(() => {
+      expect(openSpy).toHaveBeenCalledWith(
+        'https://www.google.com/maps/search/?api=1&query=25.033%2C121.5654',
+      );
+    });
+    openSpy.mockRestore();
   });
 
   it('prefills the payment amount from an accepted quote', async () => {

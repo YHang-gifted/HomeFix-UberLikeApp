@@ -232,6 +232,37 @@ describe('CreateRequestScreen', () => {
     expect(geocoder.geocode).toHaveBeenCalledWith('Taipei 101');
   });
 
+  it('submits the chosen address alongside the coordinates', async () => {
+    const created = makeRequest();
+    const createServiceRequest = jest.fn().mockResolvedValue(created);
+    const getPrincipal = jest.fn().mockReturnValue({ id: CUSTOMER_ID, role: 'customer' });
+    const client = { createServiceRequest, getPrincipal } as unknown as ApiClient;
+    const geocoder = {
+      geocode: jest
+        .fn()
+        .mockResolvedValue([{ latitude: 25.033964, longitude: 121.564468, label: 'Taipei 101' }]),
+    };
+
+    const { getByLabelText, findByLabelText, findByText } = await render(
+      <CreateRequestScreen client={client} geocoder={geocoder} />,
+    );
+    await fireEvent.press(getByLabelText('Category plumbing'));
+    await fireEvent.changeText(getByLabelText('Description'), 'Leaking kitchen sink');
+    await fireEvent.changeText(getByLabelText('Address search'), 'Taipei 101');
+    await fireEvent.press(getByLabelText('Search address'));
+    await fireEvent.press(await findByLabelText('Use Taipei 101'));
+    await fireEvent.press(getByLabelText('Create request'));
+
+    await findByText('Request created');
+    expect(createServiceRequest).toHaveBeenCalledWith({
+      customerId: CUSTOMER_ID,
+      category: 'plumbing',
+      description: 'Leaking kitchen sink',
+      location: { latitude: 25.033964, longitude: 121.564468 },
+      address: 'Taipei 101',
+    });
+  });
+
   it('shows a message when the address search has no matches', async () => {
     const client = {
       createServiceRequest: jest.fn(),

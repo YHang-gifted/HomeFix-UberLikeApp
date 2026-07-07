@@ -536,10 +536,21 @@ signature) => { type, paymentId }` (real `stripeEventConstructor` verifies the
   change (it stores the whole object). Tests: PGlite round-trip (present + omitted)
   and an HTTP create/get (stored + returned, omitted when absent, empty → 422). Next:
   141b wires the app to capture the geocode label and display `address` + an
-  "Open in Maps" link instead of raw coordinates — _handed off_.
+  "Open in Maps" link instead of raw coordinates — merged.
+- **141b** app: show address + "Open in Maps" (no more raw coordinates on screen).
+  `CreateRequestScreen` captures the chosen address-search label into an `address`
+  state and sends it on create — cleared whenever coordinates are set another way
+  (manual edit, current location, map pin), which carry no label. `RequestDetail`
+  now shows `request.address` (falling back to formatted coordinates only when
+  absent) plus an **"Open in Maps"** link that opens a universal Google Maps URL for
+  the coordinates via `Linking.openURL`. New pure `app/src/features/location/
+mapsLink.ts` (`mapsUrl(coords)`). Tests: `maps-link` unit (URL shape, encoding),
+  RequestDetail (address shown + Maps opened with the right URL), CreateRequest
+  (chosen address submitted). Coordinates remain the canonical stored value —
+  _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **141a**
-(service-request address field), which were handed off. The service is deployed and
+_All slices above are merged to `main` except **134** (auth audit) and **141b**
+(app address + Open in Maps), which were handed off. The service is deployed and
 ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
