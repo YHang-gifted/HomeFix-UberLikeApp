@@ -561,16 +561,26 @@ pending|verified|rejected, createdAt, reviewedAt?, reviewerId?, rejectionReason?
     (`certification.submitted|verified|rejected`, labeled in `AuditLogScreen`). New
     `certificationRepository` (interface / InMemory / Postgres / factory) + migration
     `0031_certifications` (FK worker/reviewer → users, status CHECK, indexes on
-    worker*id/status). `certificationService.addCertification` (worker-only, starts
+    worker\*id/status). `certificationService.addCertification` (worker-only, starts
     `pending`, audited) + `listMyCertifications`; `POST` / `GET /certifications` wired.
     The document is uploaded via the existing upload seam; the cert stores only its
     URL. Tests: HTTP (submit→pending, list own, customer 403, invalid→422) + PGlite
     round-trip (find by worker/status, review upsert, rejection reason). Not yet gating
-    anything — that's 142c — \_handed off*.
+    anything — that's 142c — merged.
+- **142b** admin certification review. `reviewCertificationInputSchema`
+  (`decision: verify|reject`, `reason?`). `certificationService`:
+  `listCertificationsByStatus` (admin, defaults to the `pending` queue) and
+  `reviewCertification` — admin-only, only a `pending` cert is reviewable (**409**
+  otherwise), a rejection **requires a reason** (422 without), sets
+  `reviewedAt`/`reviewerId` (+ `rejectionReason`), notifies the worker, and audits
+  `certification.verified`/`rejected`. New `GET /admin/certifications?status=` and
+  `POST /certifications/:id/review`. Tests: pending queue (worker 403), verify +
+  409-on-re-review, reject-needs-reason, non-admin 403 / invalid decision 422, 404
+  unknown. Still no matching gate — that's 142c — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **142a**
-(worker certifications — data + upload), which were handed off. The service is
-deployed and ACTIVE on Railway in mock mode (no Stripe key)._
+_All slices above are merged to `main` except **134** (auth audit) and **142b**
+(admin certification review), which were handed off. The service is deployed and
+ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);
