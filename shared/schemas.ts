@@ -46,6 +46,10 @@ export const createServiceRequestInputSchema = z.object({
   category: serviceCategorySchema,
   description: z.string().min(1).max(2000),
   location: coordinatesSchema,
+  // Optional human-readable address for the location (e.g. from an address search),
+  // shown to users instead of raw coordinates. The coordinates remain the canonical
+  // value used for matching and maps.
+  address: z.string().min(1).max(300).optional(),
   photoUrls: z.array(z.url()).max(5).optional(),
   // Optional preferred time for the visit (ISO 8601).
   scheduledAt: z.iso.datetime().optional(),
@@ -59,6 +63,8 @@ export const serviceRequestSchema = z.object({
   category: serviceCategorySchema,
   description: z.string().min(1).max(2000),
   location: coordinatesSchema,
+  // Optional human-readable address for the location (see the input schema).
+  address: z.string().min(1).max(300).optional(),
   status: serviceRequestStatusSchema,
   createdAt: z.iso.datetime(),
   photoUrls: z.array(z.url()).max(5).optional(),

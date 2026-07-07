@@ -525,11 +525,22 @@ signature) => { type, paymentId }` (real `stripeEventConstructor` verifies the
   anchored on `globalThis` (the slice-137 lesson) so a tsx double-load can't split
   the middleware's writes from the route's reads. `.env.example` + `deployment.md`
   document it. Tests: counter/format/process-gauges present, counter increments with
-  traffic, and the token gate (401 without / 200 with / 401 wrong) — _handed off_.
+  traffic, and the token gate (401 without / 200 with / 401 wrong) — merged.
+- **141a** service-request address field (backend + migration). Requests can now carry
+  an optional human-readable `address` alongside the canonical coordinates — the
+  geocoder already produces a label (previously discarded), and coordinates stay the
+  value used for matching/maps. Added `address` (optional, 1–300 chars) to
+  `createServiceRequestInputSchema` + `serviceRequestSchema`; `createServiceRequest`
+  threads it; the Postgres repo persists it (new column in UPSERT/SELECT/row/mapRow,
+  nullable) via migration `0030_service_request_address`; the in-memory repo needs no
+  change (it stores the whole object). Tests: PGlite round-trip (present + omitted)
+  and an HTTP create/get (stored + returned, omitted when absent, empty → 422). Next:
+  141b wires the app to capture the geocode label and display `address` + an
+  "Open in Maps" link instead of raw coordinates — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **140**
-(Prometheus /metrics), which were handed off. The service is deployed and ACTIVE on
-Railway in mock mode (no Stripe key)._
+_All slices above are merged to `main` except **134** (auth audit) and **141a**
+(service-request address field), which were handed off. The service is deployed and
+ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);

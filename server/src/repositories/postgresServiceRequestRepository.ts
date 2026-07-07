@@ -5,8 +5,8 @@ import type { Queryable } from '../db/queryable.ts';
 
 const UPSERT = `
   INSERT INTO service_requests
-    (id, customer_id, worker_id, category, description, latitude, longitude, status, created_at, photo_urls, scheduled_at)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
+    (id, customer_id, worker_id, category, description, latitude, longitude, status, created_at, photo_urls, scheduled_at, address)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12)
   ON CONFLICT (id) DO UPDATE SET
     customer_id = EXCLUDED.customer_id,
     worker_id = EXCLUDED.worker_id,
@@ -17,7 +17,8 @@ const UPSERT = `
     status = EXCLUDED.status,
     created_at = EXCLUDED.created_at,
     photo_urls = EXCLUDED.photo_urls,
-    scheduled_at = EXCLUDED.scheduled_at
+    scheduled_at = EXCLUDED.scheduled_at,
+    address = EXCLUDED.address
 `;
 
 interface ServiceRequestRow {
@@ -32,6 +33,7 @@ interface ServiceRequestRow {
   created_at: string | Date;
   photo_urls: unknown;
   scheduled_at: string | Date | null;
+  address: string | null;
 }
 
 function mapRow(row: unknown): ServiceRequest {
@@ -43,6 +45,7 @@ function mapRow(row: unknown): ServiceRequest {
     category: r.category,
     description: r.description,
     location: { latitude: r.latitude, longitude: r.longitude },
+    ...(r.address !== null ? { address: r.address } : {}),
     status: r.status,
     createdAt: new Date(r.created_at).toISOString(),
     photoUrls: Array.isArray(r.photo_urls) ? r.photo_urls : [],
@@ -71,6 +74,7 @@ export class PostgresServiceRequestRepository implements ServiceRequestRepositor
       request.createdAt,
       JSON.stringify(request.photoUrls ?? []),
       request.scheduledAt ?? null,
+      request.address ?? null,
     ]);
   }
 
