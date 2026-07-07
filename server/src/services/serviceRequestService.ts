@@ -57,6 +57,7 @@ export async function createServiceRequest(
     category: input.category,
     description: input.description,
     location: input.location,
+    ...(input.address !== undefined ? { address: input.address } : {}),
     status: 'pending',
     createdAt: new Date().toISOString(),
     photoUrls: input.photoUrls ?? [],

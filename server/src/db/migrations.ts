@@ -402,4 +402,10 @@ export const migrations: Migration[] = [
         ON payments (provider_ref) WHERE provider_ref IS NOT NULL
     `,
   },
+  {
+    // Optional human-readable address for a request's location, shown instead of raw
+    // coordinates. Nullable — older rows and coordinate-only requests have none.
+    id: '0030_service_request_address',
+    sql: `ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS address text`,
+  },
 ];

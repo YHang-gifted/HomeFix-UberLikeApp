@@ -78,6 +78,17 @@ describe('PostgresServiceRequestRepository (PGlite)', () => {
     assert.equal(noSchedule?.scheduledAt, undefined);
   });
 
+  it('round-trips an optional address and omits it when absent', async () => {
+    await repo.save(makeRequest({ address: '123 Main St, Taipei' }));
+    const found = await repo.findById(REQUEST_ID);
+    assert.equal(found?.address, '123 Main St, Taipei');
+
+    const otherId = '423e4567-e89b-12d3-a456-426614174222';
+    await repo.save(makeRequest({ id: otherId }));
+    const noAddress = await repo.findById(otherId);
+    assert.equal(noAddress?.address, undefined);
+  });
+
   it('returns undefined for a missing id', async () => {
     assert.equal(await repo.findById('323e4567-e89b-12d3-a456-426614174000'), undefined);
   });
