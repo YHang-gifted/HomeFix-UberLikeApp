@@ -4,6 +4,8 @@ import type {
   AdminUserSummary,
   AuditEvent,
   AuditPage,
+  Certification,
+  CreateCertificationInput,
   CreateQuoteInput,
   CreateReviewInput,
   CreateServiceRequestInput,
@@ -38,6 +40,8 @@ import {
   adminStatsSchema,
   adminUserListSchema,
   auditPageSchema,
+  certificationListSchema,
+  certificationSchema,
   deviceTokenListSchema,
   messageListSchema,
   messageSchema,
@@ -259,6 +263,18 @@ export class ApiClient {
   public async listMyPayouts(): Promise<Payout[]> {
     const data = await this.send('GET', '/payouts', undefined, true);
     return payoutListSchema.parse(data).items;
+  }
+
+  /** The signed-in worker's certifications, most-recent-first. */
+  public async listMyCertifications(): Promise<Certification[]> {
+    const data = await this.send('GET', '/certifications', undefined, true);
+    return certificationListSchema.parse(data).items;
+  }
+
+  /** Submit a new certification for admin review. Returns the pending certification. */
+  public async submitCertification(input: CreateCertificationInput): Promise<Certification> {
+    const data = await this.send('POST', '/certifications', input, true);
+    return certificationSchema.parse(data);
   }
 
   public async createPayment(id: string, amountCents: number): Promise<Payment> {
