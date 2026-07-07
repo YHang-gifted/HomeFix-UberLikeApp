@@ -6,6 +6,7 @@ import type { Express, Request } from 'express';
 import { loadEnv } from './config/env.ts';
 import { createCorsMiddleware } from './middlewares/cors.ts';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.ts';
+import { createMetricsMiddleware } from './middlewares/metrics.ts';
 import { createRequestLogger } from './middlewares/requestLogger.ts';
 import { createWebAppHandlers, isBuiltWebDir } from './middlewares/webApp.ts';
 import { adminRouter } from './routes/admin.ts';
@@ -14,6 +15,7 @@ import { authRouter } from './routes/auth.ts';
 import { deviceTokenRouter } from './routes/deviceToken.ts';
 import { favoriteRouter } from './routes/favorite.ts';
 import { healthRouter } from './routes/health.ts';
+import { metricsRouter } from './routes/metrics.ts';
 import { notificationRouter } from './routes/notification.ts';
 import { paymentRouter } from './routes/payment.ts';
 import { payoutRouter } from './routes/payout.ts';
@@ -32,6 +34,8 @@ export function createApp(): Express {
   // sets NODE_ENV=test; `node --test` sets NODE_TEST_CONTEXT in its workers.
   const underTest = env.NODE_ENV === 'test' || process.env['NODE_TEST_CONTEXT'] !== undefined;
   app.use(createRequestLogger(underTest ? () => undefined : undefined));
+  // Record HTTP metrics for every request (before the routes, so all are timed).
+  app.use(createMetricsMiddleware());
   app.use(createCorsMiddleware(env.CORS_ALLOWED_ORIGINS));
   // Capture the raw JSON body so webhook handlers can verify a provider's HMAC
   // signature over the exact bytes (a real provider signs the raw payload).
@@ -43,6 +47,7 @@ export function createApp(): Express {
     }),
   );
   app.use(healthRouter);
+  app.use(metricsRouter);
   app.use(authRouter);
   app.use(profileRouter);
   app.use(deviceTokenRouter);

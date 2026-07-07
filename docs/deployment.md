@@ -207,3 +207,21 @@ To ship the logs somewhere queryable, point your platform's log drain at stdout:
 
 Set `LOG_FORMAT=pretty` in local development for a compact human-readable line
 (`[info] request {…}`); leave it unset (or `json`) everywhere the logs are shipped.
+
+## Metrics (Prometheus)
+
+`GET /metrics` exposes Prometheus text-format metrics for scraping:
+
+- `homefix_http_requests_total{method,status}` — request counter (labeled by method
+  and status only; never the path, so cardinality stays bounded).
+- `homefix_http_request_duration_seconds_sum` / `_count` — cumulative handling time
+  (divide for the average latency).
+- `homefix_http_requests_in_flight` — gauge of requests currently being handled.
+- `process_uptime_seconds`, `process_resident_memory_bytes` — basic process gauges.
+
+The body is aggregate counters only — no user data and no request paths. Set
+`METRICS_TOKEN` to require `Authorization: Bearer <token>` on the endpoint (401
+otherwise); leave it unset and `/metrics` is open (dev / trusted network). In
+production, set the token or restrict `/metrics` to your monitoring network at the
+proxy. Point Prometheus (or Grafana Agent / the platform's scraper) at
+`https://<your-host>/metrics` with the bearer token configured.
