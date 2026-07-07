@@ -143,6 +143,42 @@ describe('RequestDetailScreen payments', () => {
     await findByText('Could not open the payment page.');
   });
 
+  it('shows the receipt when a party views it for a paid payment', async () => {
+    const request = makeRequest({ status: 'completed', workerId: WORKER_ID });
+    const paidPayment = makePayment({ status: 'paid', paidAt: '2026-06-22T01:00:00.000Z' });
+    const getPaymentReceipt = jest.fn().mockResolvedValue({
+      receiptNumber: 'HF-20260622-1A2B3C4D',
+      paymentId: paidPayment.id,
+      requestId: request.id,
+      issuedAt: '2026-06-22T01:00:00.000Z',
+      currency: 'TWD',
+      amountCents: 150000,
+      platformFeeCents: 22500,
+      workerNetCents: 127500,
+      customerName: 'Casey Customer',
+      workerName: 'Wendy Worker',
+      category: 'plumbing',
+      description: 'Leaking kitchen sink',
+    });
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      getPayment: jest.fn().mockResolvedValue(paidPayment),
+      getPaymentReceipt,
+    });
+
+    const { findByLabelText, findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    await findByText('Paid');
+    await fireEvent.press(await findByLabelText('View receipt'));
+    await waitFor(() => {
+      expect(getPaymentReceipt).toHaveBeenCalledWith(request.id);
+    });
+    await findByText('HF-20260622-1A2B3C4D');
+    await findByText('Receipt');
+  });
+
   it('prefills the payment amount from an accepted quote', async () => {
     const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
     const createPayment = jest.fn().mockResolvedValue(makePayment({ amountCents: 250000 }));

@@ -21,7 +21,14 @@ import {
 import { hasPlatformFee, paymentSplit } from '../../../app/src/features/payments/paymentSplit';
 import type { OpenCheckout } from '../../../app/src/features/payments/checkout';
 import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
-import type { AuditEvent, Payment, Quote, Review, ServiceRequest } from '../../../shared/schemas';
+import type {
+  AuditEvent,
+  Payment,
+  Quote,
+  Receipt,
+  Review,
+  ServiceRequest,
+} from '../../../shared/schemas';
 import { apiClient } from '../api';
 import { StatusBadge } from '../components/StatusBadge';
 import { colors, radii, shadow, spacing } from '../theme';
@@ -107,6 +114,9 @@ export function RequestDetailScreen({
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [paymentBusy, setPaymentBusy] = useState(false);
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [receiptBusy, setReceiptBusy] = useState(false);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteAmountText, setQuoteAmountText] = useState('');
   const [quoteNote, setQuoteNote] = useState('');
@@ -337,6 +347,20 @@ export function RequestDetailScreen({
       );
     } finally {
       setPaymentBusy(false);
+    }
+  }
+
+  async function viewReceipt(): Promise<void> {
+    setReceiptError(null);
+    setReceiptBusy(true);
+    try {
+      setReceipt(await activeClient.getPaymentReceipt(requestId));
+    } catch (receiptFailure) {
+      setReceiptError(
+        isApiError(receiptFailure) ? receiptFailure.message : 'Could not load the receipt.',
+      );
+    } finally {
+      setReceiptBusy(false);
     }
   }
 
@@ -713,6 +737,57 @@ export function RequestDetailScreen({
                   )}
                 </Pressable>
               )}
+
+              {payment.status === 'paid' && receipt === null && (
+                <Pressable
+                  style={({ pressed }) => [styles.receiptButton, pressed && styles.receiptPressed]}
+                  onPress={() => {
+                    void viewReceipt();
+                  }}
+                  disabled={receiptBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel="View receipt"
+                >
+                  {receiptBusy ? (
+                    <ActivityIndicator color={colors.brand} />
+                  ) : (
+                    <Text style={styles.receiptButtonText}>View receipt</Text>
+                  )}
+                </Pressable>
+              )}
+
+              {receipt !== null && (
+                <View style={styles.receiptCard}>
+                  <View style={styles.receiptHeader}>
+                    <Text style={styles.receiptTitle}>Receipt</Text>
+                    <Text style={styles.receiptNumber}>{receipt.receiptNumber}</Text>
+                  </View>
+                  <Text style={styles.receiptMeta}>
+                    Issued {new Date(receipt.issuedAt).toLocaleString()}
+                  </Text>
+                  <View style={styles.receiptRow}>
+                    <Text style={styles.receiptRowLabel}>Amount paid</Text>
+                    <Text style={styles.receiptRowValue}>{formatCents(receipt.amountCents)}</Text>
+                  </View>
+                  <View style={styles.receiptRow}>
+                    <Text style={styles.receiptRowLabel}>Platform fee</Text>
+                    <Text style={styles.receiptRowValue}>
+                      {formatCents(receipt.platformFeeCents)}
+                    </Text>
+                  </View>
+                  <View style={styles.receiptRow}>
+                    <Text style={styles.receiptRowLabel}>Worker net</Text>
+                    <Text style={styles.receiptRowValue}>
+                      {formatCents(receipt.workerNetCents)}
+                    </Text>
+                  </View>
+                  <Text style={styles.receiptParties}>
+                    {`${receipt.customerName} → ${receipt.workerName} · ${receipt.category}`}
+                  </Text>
+                </View>
+              )}
+
+              {receiptError !== null && <Text style={styles.error}>{receiptError}</Text>}
             </>
           )}
 
@@ -1059,6 +1134,44 @@ const styles = StyleSheet.create({
   paymentAmount: { fontSize: 22, fontWeight: '800', color: colors.ink },
   paymentSplit: { fontSize: 13, color: colors.inkMuted, marginTop: 6 },
   paymentNotice: { fontSize: 14, color: colors.inkMuted, marginTop: 10, textAlign: 'center' },
+  receiptButton: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.brand,
+    borderRadius: radii.medium,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  receiptPressed: { backgroundColor: colors.brandSoft },
+  receiptButtonText: { color: colors.brand, fontSize: 15, fontWeight: '700' },
+  receiptCard: {
+    marginTop: 12,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    backgroundColor: colors.canvas,
+  },
+  receiptHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  receiptTitle: { fontSize: 15, fontWeight: '800', color: colors.ink },
+  receiptNumber: { fontSize: 12, fontWeight: '700', color: colors.inkMuted },
+  receiptMeta: { fontSize: 12, color: colors.inkMuted, marginBottom: 10 },
+  receiptRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
+  receiptRowLabel: { fontSize: 14, color: colors.inkMuted },
+  receiptRowValue: { fontSize: 14, fontWeight: '700', color: colors.ink },
+  receiptParties: {
+    fontSize: 12,
+    color: colors.inkMuted,
+    marginTop: 10,
+    textTransform: 'capitalize',
+  },
   paymentPending: { fontSize: 14, fontWeight: '600', color: '#d97706' },
   paymentPaid: { fontSize: 14, fontWeight: '600', color: '#16a34a' },
   paymentRefunded: { fontSize: 14, fontWeight: '600', color: '#64748b' },

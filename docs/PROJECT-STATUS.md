@@ -507,11 +507,17 @@ signature) => { type, paymentId }` (real `stripeEventConstructor` verifies the
   (`getServiceRequestPaymentReceipt`) + `apiClient.getPaymentReceipt`. Nothing new is
   persisted (built on the fly). Tests: server e2e (fields + breakdown, party/admin
   access, 409-before-paid, 403 non-party, 404 no-payment, deterministic number) and
-  an api-client e2e. Next: an app "View receipt" surface on RequestDetail (139b) —
-  _handed off_.
+  an api-client e2e. Followed by the app surface (139b) — merged.
+- **139b** app receipt view (RequestDetail). When a payment is **paid**, the payment
+  section shows a brand-outline **"View receipt"** button (visible to any party); it
+  calls `apiClient.getPaymentReceipt` and renders a receipt card — number, issued
+  date, amount-paid / platform-fee / worker-net rows, and a
+  `customer → worker · category` line. Errors surface inline; theme-tokened, no API
+  or schema change. RNTL test covers the paid → view → card-rendered flow — _handed
+  off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **139**
-(payment receipts), which were handed off. The service is deployed and ACTIVE on
+_All slices above are merged to `main` except **134** (auth audit) and **139b**
+(app receipt view), which were handed off. The service is deployed and ACTIVE on
 Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
