@@ -411,6 +411,32 @@ export const paymentListSchema = z.object({
 });
 export type PaymentList = z.infer<typeof paymentListSchema>;
 
+/**
+ * A receipt for a settled (paid) payment — a self-contained, human-presentable
+ * record of the transaction. Returned by GET /service-requests/:id/payment/receipt
+ * to any party of the request, only once the payment is paid. Derived from the
+ * payment + request + parties; nothing new is persisted.
+ */
+export const receiptSchema = z.object({
+  // Deterministic, stable identifier derived from the payment (e.g. HF-20260708-1A2B3C4D).
+  receiptNumber: z.string().min(1),
+  paymentId: z.uuid(),
+  requestId: z.uuid(),
+  // When the payment was settled (the payment's paidAt).
+  issuedAt: z.iso.datetime(),
+  currency: z.literal('TWD'),
+  amountCents: z.number().int().positive(),
+  platformFeeCents: z.number().int().nonnegative(),
+  workerNetCents: z.number().int().nonnegative(),
+  customerName: z.string().min(1),
+  workerName: z.string().min(1),
+  category: serviceCategorySchema,
+  description: z.string().min(1),
+  // The payment provider's charge reference, when one exists (real providers).
+  providerRef: z.string().optional(),
+});
+export type Receipt = z.infer<typeof receiptSchema>;
+
 // Minimum chargeable amount, NT$1.00. Guards against zero/near-zero quotes and
 // payments that are almost certainly mistakes.
 export const MIN_AMOUNT_CENTS = 100;

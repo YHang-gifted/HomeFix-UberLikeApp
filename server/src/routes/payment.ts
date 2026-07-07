@@ -3,6 +3,7 @@ import express from 'express';
 import {
   getMyPayments,
   getServiceRequestPayment,
+  getServiceRequestPaymentReceipt,
   postPaymentWebhook,
   postServiceRequestPayment,
   postServiceRequestPaymentPay,
@@ -15,6 +16,11 @@ export const paymentRouter = express.Router();
 
 paymentRouter.get('/payments', authenticate, getMyPayments);
 paymentRouter.get('/service-requests/:id/payment', authenticate, getServiceRequestPayment);
+paymentRouter.get(
+  '/service-requests/:id/payment/receipt',
+  authenticate,
+  getServiceRequestPaymentReceipt,
+);
 paymentRouter.post('/service-requests/:id/payment', authenticate, postServiceRequestPayment);
 paymentRouter.post('/service-requests/:id/payment/pay', authenticate, postServiceRequestPaymentPay);
 paymentRouter.post(
