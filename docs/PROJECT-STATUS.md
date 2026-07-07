@@ -480,11 +480,27 @@ signature) => { type, paymentId }` (real `stripeEventConstructor` verifies the
   provider swappable without touching prod behavior, `paymentService` gained
   `setPaymentProviderForTests` / `resetPaymentProviderForTests` (mirrors the existing
   `resetX` test-support exports; `createPayment` / `payPayment` now read the active
-  provider). No product behavior change — _handed off_.
+  provider). The override is anchored on `globalThis` (not a module-local `let`) so a
+  tsx double-loaded `paymentService` can't hide the injection from the request path —
+  a follow-up CI fix after the first form failed exactly that way. No product behavior
+  change — merged.
+- **138** ship-ready structured JSON logging (ops runbook). `utils/logger.ts` now
+  writes **one self-contained JSON object per line** (`{ level, time, msg, ...fields }`)
+  in the default `LOG_FORMAT=json`, so a log drain parses each line and indexes the
+  fields with no prefix to strip; `LOG_FORMAT=pretty` gives a compact human line for
+  local dev. `logger.info/error(message, fields?)` gained an optional structured
+  fields arg; the request-logger and error-handler default sinks now pass their
+  whitelisted fields (`type:"request"|"error"`, correlated by `requestId`) instead of
+  a pre-`JSON.stringify`-ed string. New `LOG_FORMAT` env (validated; logger reads the
+  raw var to stay dependency-free). `.env.example` + `deployment.md` document it and
+  add a **log-shipping** section (Railway Log Drain → Logtail/Datadog/Axiom); also
+  repaired `deployment.md`'s truncated tail. Tests: `logger.test.mjs` (json line is
+  pure parseable JSON with an ISO `time`, error→stderr not stdout, pretty format).
+  The whitelist (never body/headers/query) is unchanged — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **137**
-(Stripe checkout E2E regression), which were handed off. The service is deployed and
-ACTIVE on Railway in mock mode (no Stripe key)._
+_All slices above are merged to `main` except **134** (auth audit) and **138**
+(structured JSON logging), which were handed off. The service is deployed and ACTIVE
+on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);

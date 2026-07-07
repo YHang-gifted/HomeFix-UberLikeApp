@@ -37,7 +37,7 @@ function firstHeaderValue(value: string | string[] | undefined): string | undefi
  */
 export function createRequestLogger(
   sink: (entry: RequestLogEntry) => void = (entry) => {
-    logger.info(JSON.stringify(entry));
+    logger.info('request', { type: 'request', ...entry });
   },
   clock: () => number = () => performance.now(),
 ): RequestHandler {
