@@ -4,6 +4,7 @@ import type {
   CreatePaymentInput,
   Payment,
   Principal,
+  Receipt,
   ServiceRequest,
 } from '../../../shared/schemas.ts';
 import { splitPaymentAmount } from '../../../shared/schemas.ts';
@@ -13,6 +14,7 @@ import { paymentRepository } from '../repositories/paymentRepository.ts';
 import { quoteRepository } from '../repositories/quoteRepository.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { isRequestParty } from './serviceRequestService.ts';
+import { getPublicUserById } from './userService.ts';
 import { recordNotification } from './notificationService.ts';
 import { recordAuditEvent } from './auditService.ts';
 import { createPayoutForPayment } from './payoutService.ts';
@@ -69,6 +71,68 @@ export async function getPayment(requestId: string, principal: Principal): Promi
     throw new AppError('No payment for this request', 404);
   }
   return payment;
+}
+
+/** A user's display name, falling back to their id if the account is gone. */
+async function resolveDisplayName(id: string): Promise<string> {
+  try {
+    return (await getPublicUserById(id)).displayName;
+  } catch {
+    return id;
+  }
+}
+
+/**
+ * A stable, human-presentable receipt number derived from the payment: the settle
+ * date plus a short slice of the payment id (e.g. `HF-20260708-1A2B3C4D`).
+ * Deterministic, so the same payment always yields the same number.
+ */
+function receiptNumber(paymentId: string, issuedAt: string): string {
+  const datePart = issuedAt.slice(0, 10).replace(/-/g, '');
+  const idPart = paymentId.replace(/-/g, '').slice(0, 8).toUpperCase();
+  return `HF-${datePart}-${idPart}`;
+}
+
+/**
+ * Build a receipt for a request's payment. Visible to any party (same auth as
+ * {@link getPayment}); available only once the payment is paid (409 otherwise). The
+ * receipt is derived on the fly from the payment, its request, and the parties'
+ * names — nothing is persisted.
+ */
+export async function buildPaymentReceipt(
+  requestId: string,
+  principal: Principal,
+): Promise<Receipt> {
+  const payment = await getPayment(requestId, principal);
+  if (payment.status !== 'paid' || payment.paidAt === undefined) {
+    throw new AppError('A receipt is available only after the payment is paid', 409);
+  }
+  const request = await loadRequest(requestId);
+  const [customerName, workerName] = await Promise.all([
+    resolveDisplayName(payment.customerId),
+    resolveDisplayName(payment.workerId),
+  ]);
+  // Prefer the split stored on the payment (authoritative — the fee rate at the time
+  // it was created); recompute defensively only if a legacy payment lacks it.
+  const { platformFeeCents, workerNetCents } =
+    payment.platformFeeCents !== undefined && payment.workerNetCents !== undefined
+      ? { platformFeeCents: payment.platformFeeCents, workerNetCents: payment.workerNetCents }
+      : splitPaymentAmount(payment.amountCents, loadEnv().PLATFORM_FEE_BPS);
+  return {
+    receiptNumber: receiptNumber(payment.id, payment.paidAt),
+    paymentId: payment.id,
+    requestId,
+    issuedAt: payment.paidAt,
+    currency: 'TWD',
+    amountCents: payment.amountCents,
+    platformFeeCents,
+    workerNetCents,
+    customerName,
+    workerName,
+    category: request.category,
+    description: request.description,
+    ...(payment.providerRef !== undefined ? { providerRef: payment.providerRef } : {}),
+  };
 }
 
 /**
