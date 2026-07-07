@@ -576,10 +576,23 @@ pending|verified|rejected, createdAt, reviewedAt?, reviewerId?, rejectionReason?
   `certification.verified`/`rejected`. New `GET /admin/certifications?status=` and
   `POST /certifications/:id/review`. Tests: pending queue (worker 403), verify +
   409-on-re-review, reject-needs-reason, non-admin 403 / invalid decision 422, 404
-  unknown. Still no matching gate — that's 142c — _handed off_.
+  unknown. Still no matching gate — that's 142c — merged.
+- **142c** credential-gated matching (security-sensitive). A worker now only
+  **sees** (`listAvailableRequests`) and can **claim** (`claimRequest`) jobs in
+  categories they hold a **verified** certification for; `claimRequest` throws 403
+  before the atomic claim otherwise. Helpers `verifiedCategoriesForWorker` +
+  `assertWorkerCertifiedFor` in `serviceRequestService` (reads the cert repo).
+  **Admin assignment stays an ungated trusted override** (like reset/refund), so
+  existing admin-assign flows are unaffected. New shared test fixture
+  `certification-fixtures.mjs` (`seedVerifiedCertification` via the real submit +
+  admin-verify API); the self-serve tests (claim/available/release/reset/billing)
+  seed a verified plumbing cert for the worker(s) they use. New
+  `certification-gating.test.mjs`: no-cert → hidden + claim 403; pending/rejected
+  cert stays gated; verified → visible + claimable; a cert in one category doesn't
+  unlock another; admin can still assign an uncertified worker. — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **142b**
-(admin certification review), which were handed off. The service is deployed and
+_All slices above are merged to `main` except **134** (auth audit) and **142c**
+(credential-gated matching), which were handed off. The service is deployed and
 ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

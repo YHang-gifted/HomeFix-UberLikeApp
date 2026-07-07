@@ -6,6 +6,8 @@ import { signToken } from '../server/src/auth/jwt.ts';
 import { resetServiceRequests } from '../server/src/services/serviceRequestService.ts';
 import { resetAuditEvents } from '../server/src/services/auditService.ts';
 import { resetNotifications } from '../server/src/services/notificationService.ts';
+import { resetCertifications } from '../server/src/services/certificationService.ts';
+import { seedVerifiedCertification } from './certification-fixtures.mjs';
 
 const CUSTOMER_ID = '123e4567-e89b-12d3-a456-426614174000';
 const ADMIN_ID = '323e4567-e89b-12d3-a456-426614174000';
@@ -42,6 +44,10 @@ describe('PATCH /service-requests/:id/release', () => {
     await resetServiceRequests();
     await resetAuditEvents();
     await resetNotifications();
+    // The other worker browses the available pool after a release; that needs a
+    // verified plumbing certification under credential-gated matching.
+    await resetCertifications();
+    await seedVerifiedCertification(baseUrl, OTHER_WORKER, 'plumbing');
   });
 
   async function createAssigned() {

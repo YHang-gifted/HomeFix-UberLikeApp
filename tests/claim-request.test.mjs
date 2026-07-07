@@ -6,10 +6,13 @@ import { signToken } from '../server/src/auth/jwt.ts';
 import { resetServiceRequests } from '../server/src/services/serviceRequestService.ts';
 import { resetAuditEvents } from '../server/src/services/auditService.ts';
 import { resetNotifications } from '../server/src/services/notificationService.ts';
+import { resetCertifications } from '../server/src/services/certificationService.ts';
+import { seedVerifiedCertification } from './certification-fixtures.mjs';
 
 const CUSTOMER_ID = '123e4567-e89b-12d3-a456-426614174000';
 const ADMIN_ID = '323e4567-e89b-12d3-a456-426614174000';
 const WORKER_ID = '423e4567-e89b-12d3-a456-426614174000';
+const OTHER_WORKER = '523e4567-e89b-12d3-a456-426614174999';
 
 function headers(id, role) {
   return { 'content-type': 'application/json', Authorization: `Bearer ${signToken({ id, role })}` };
@@ -41,6 +44,11 @@ describe('PATCH /service-requests/:id/claim', () => {
     await resetServiceRequests();
     await resetAuditEvents();
     await resetNotifications();
+    // Credential-gated matching: both workers need a verified plumbing certification
+    // to claim the plumbing jobs these tests create.
+    await resetCertifications();
+    await seedVerifiedCertification(baseUrl, WORKER_ID, 'plumbing');
+    await seedVerifiedCertification(baseUrl, OTHER_WORKER, 'plumbing');
   });
 
   async function createRequest() {
@@ -112,14 +120,12 @@ describe('PATCH /service-requests/:id/claim', () => {
   it('rejects claiming a request that is already taken (422)', async () => {
     const created = await createRequest();
     await claim(created.id);
-    const OTHER_WORKER = '523e4567-e89b-12d3-a456-426614174999';
     const res = await claim(created.id, OTHER_WORKER);
     assert.equal(res.status, 422);
   });
 
   it('lets only one of two concurrent claims win (TOCTOU-safe)', async () => {
     const created = await createRequest();
-    const OTHER_WORKER = '523e4567-e89b-12d3-a456-426614174999';
     const [a, b] = await Promise.all([
       claim(created.id, WORKER_ID),
       claim(created.id, OTHER_WORKER),

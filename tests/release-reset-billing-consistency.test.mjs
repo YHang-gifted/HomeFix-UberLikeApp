@@ -8,6 +8,8 @@ import { resetAuditEvents } from '../server/src/services/auditService.ts';
 import { resetNotifications } from '../server/src/services/notificationService.ts';
 import { resetQuotes } from '../server/src/services/quoteService.ts';
 import { resetPayments } from '../server/src/services/paymentService.ts';
+import { resetCertifications } from '../server/src/services/certificationService.ts';
+import { seedVerifiedCertification } from './certification-fixtures.mjs';
 
 // Cross-domain regression for SEC-0005: returning a job to the pool (worker
 // release / admin reset) must not leave the previous worker's quote or payment
@@ -53,6 +55,11 @@ describe('release/reset billing consistency (SEC-0005)', () => {
     await resetNotifications();
     await resetQuotes();
     await resetPayments();
+    // Worker B claims the released plumbing job; that needs a verified plumbing
+    // certification under credential-gated matching.
+    await resetCertifications();
+    await seedVerifiedCertification(baseUrl, WORKER_A, 'plumbing');
+    await seedVerifiedCertification(baseUrl, WORKER_B, 'plumbing');
   });
 
   const api = (path, method, id, role, body) =>
