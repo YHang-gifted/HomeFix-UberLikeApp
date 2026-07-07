@@ -482,6 +482,14 @@ export type CreateCertificationInput = z.infer<typeof createCertificationInputSc
 export const certificationListSchema = z.object({ items: z.array(certificationSchema) });
 export type CertificationList = z.infer<typeof certificationListSchema>;
 
+// An admin's review decision for a pending certification. A rejection carries a
+// reason shown to the worker (required by the service when decision is 'reject').
+export const reviewCertificationInputSchema = z.object({
+  decision: z.enum(['verify', 'reject']),
+  reason: z.string().min(1).max(500).optional(),
+});
+export type ReviewCertificationInput = z.infer<typeof reviewCertificationInputSchema>;
+
 // Minimum chargeable amount, NT$1.00. Guards against zero/near-zero quotes and
 // payments that are almost certainly mistakes.
 export const MIN_AMOUNT_CENTS = 100;
