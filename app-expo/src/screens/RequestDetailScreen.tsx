@@ -2,6 +2,7 @@ import { type ReactElement, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,6 +21,7 @@ import {
 } from '../../../app/src/features/payments/paymentFormat';
 import { hasPlatformFee, paymentSplit } from '../../../app/src/features/payments/paymentSplit';
 import type { OpenCheckout } from '../../../app/src/features/payments/checkout';
+import { mapsUrl } from '../../../app/src/features/location/mapsLink';
 import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
 import type {
   AuditEvent,
@@ -528,8 +530,18 @@ export function RequestDetailScreen({
 
       <Text style={styles.label}>Location</Text>
       <Text style={styles.value}>
-        {`${request.location.latitude}, ${request.location.longitude}`}
+        {request.address ??
+          `${String(request.location.latitude)}, ${String(request.location.longitude)}`}
       </Text>
+      <Pressable
+        onPress={() => {
+          void Linking.openURL(mapsUrl(request.location));
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Open in Maps"
+      >
+        <Text style={styles.mapLink}>Open in Maps</Text>
+      </Pressable>
 
       <Text style={styles.label}>Requested</Text>
       <Text style={styles.value}>{new Date(request.createdAt).toLocaleString()}</Text>
@@ -1071,6 +1083,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   value: { fontSize: 15, lineHeight: 22, color: colors.ink },
+  mapLink: { fontSize: 14, fontWeight: '700', color: colors.brand, marginTop: 4 },
   workerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   favorite: { fontSize: 22, color: '#cbd5e1' },
   favoriteOn: { color: '#dc2626' },

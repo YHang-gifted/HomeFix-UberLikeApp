@@ -83,6 +83,10 @@ export function CreateRequestScreen({
   const [description, setDescription] = useState('');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
+  // The human-readable address for the chosen location (from an address search).
+  // Cleared whenever the coordinates are set some other way (manual edit, current
+  // location, map pin), since those carry no address label.
+  const [address, setAddress] = useState<string | null>(null);
   const [photoUrlsText, setPhotoUrlsText] = useState('');
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -121,6 +125,7 @@ export function CreateRequestScreen({
     setAddressResults([]);
     setAddressError(null);
     setAddressQuery(result.label);
+    setAddress(result.label);
   }
 
   async function fillCurrentLocation(): Promise<void> {
@@ -134,6 +139,7 @@ export function CreateRequestScreen({
     if (outcome.ok) {
       setLatitude(outcome.latitude);
       setLongitude(outcome.longitude);
+      setAddress(null);
       setErrors((current) => ({ ...current, latitude: undefined, longitude: undefined }));
     } else {
       setBanner(outcome.message);
@@ -171,6 +177,7 @@ export function CreateRequestScreen({
     const coords = toCoordinateStrings(picked);
     setLatitude(coords.latitude);
     setLongitude(coords.longitude);
+    setAddress(null);
     setErrors((current) => ({ ...current, latitude: undefined, longitude: undefined }));
   }
 
@@ -206,6 +213,7 @@ export function CreateRequestScreen({
         category: category as ServiceCategory,
         description: description.trim(),
         location: { latitude: Number(latitude), longitude: Number(longitude) },
+        ...(address !== null ? { address } : {}),
         ...(photoUrls.length > 0 ? { photoUrls } : {}),
         ...(schedule.iso !== undefined ? { scheduledAt: schedule.iso } : {}),
       });
@@ -343,7 +351,10 @@ export function CreateRequestScreen({
       <TextInput
         style={styles.input}
         value={latitude}
-        onChangeText={setLatitude}
+        onChangeText={(text) => {
+          setLatitude(text);
+          setAddress(null);
+        }}
         placeholder="25.03"
         keyboardType="numbers-and-punctuation"
         accessibilityLabel="Latitude"
@@ -355,7 +366,10 @@ export function CreateRequestScreen({
       <TextInput
         style={styles.input}
         value={longitude}
-        onChangeText={setLongitude}
+        onChangeText={(text) => {
+          setLongitude(text);
+          setAddress(null);
+        }}
         placeholder="121.56"
         keyboardType="numbers-and-punctuation"
         accessibilityLabel="Longitude"
