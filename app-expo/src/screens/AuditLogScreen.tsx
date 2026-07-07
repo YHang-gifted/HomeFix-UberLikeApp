@@ -21,6 +21,9 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   'quote.declined': 'Declined quote',
   'payment.created': 'Created payment',
   'payment.refunded': 'Refunded payment',
+  'certification.submitted': 'Submitted certification',
+  'certification.verified': 'Verified certification',
+  'certification.rejected': 'Rejected certification',
 };
 
 function detailsText(details: Record<string, string> | undefined): string | null {

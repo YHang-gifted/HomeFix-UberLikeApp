@@ -203,6 +203,9 @@ export const auditActionSchema = z.enum([
   'quote.declined',
   'payment.created',
   'payment.refunded',
+  'certification.submitted',
+  'certification.verified',
+  'certification.rejected',
 ]);
 export type AuditAction = z.infer<typeof auditActionSchema>;
 
@@ -442,6 +445,42 @@ export const receiptSchema = z.object({
   providerRef: z.string().optional(),
 });
 export type Receipt = z.infer<typeof receiptSchema>;
+
+// A worker's credential for a service category (e.g. an electrician's journeyman
+// license). Uploaded by the worker, then reviewed by an admin: only a `verified`
+// certification unlocks that category's jobs for the worker. `pending` awaits
+// review; `rejected` carries a reason.
+export const certificationStatusSchema = z.enum(['pending', 'verified', 'rejected']);
+export type CertificationStatus = z.infer<typeof certificationStatusSchema>;
+
+export const certificationSchema = z.object({
+  id: z.uuid(),
+  workerId: z.uuid(),
+  category: serviceCategorySchema,
+  // Human-readable credential name, e.g. "Journeyman Electrician License".
+  title: z.string().min(1).max(160),
+  // URL of the uploaded certificate document (scan/photo/PDF), obtained from the
+  // upload endpoint — the credential itself is not stored, only a reference.
+  documentUrl: z.url(),
+  status: certificationStatusSchema,
+  createdAt: z.iso.datetime(),
+  // Set when an admin reviews it (verified/rejected).
+  reviewedAt: z.iso.datetime().optional(),
+  reviewerId: z.uuid().optional(),
+  // Reason shown to the worker on a rejection.
+  rejectionReason: z.string().min(1).max(500).optional(),
+});
+export type Certification = z.infer<typeof certificationSchema>;
+
+export const createCertificationInputSchema = z.object({
+  category: serviceCategorySchema,
+  title: z.string().min(1).max(160),
+  documentUrl: z.url(),
+});
+export type CreateCertificationInput = z.infer<typeof createCertificationInputSchema>;
+
+export const certificationListSchema = z.object({ items: z.array(certificationSchema) });
+export type CertificationList = z.infer<typeof certificationListSchema>;
 
 // Minimum chargeable amount, NT$1.00. Guards against zero/near-zero quotes and
 // payments that are almost certainly mistakes.

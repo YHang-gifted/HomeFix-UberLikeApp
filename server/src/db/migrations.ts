@@ -408,4 +408,26 @@ export const migrations: Migration[] = [
     id: '0030_service_request_address',
     sql: `ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS address text`,
   },
+  {
+    // Worker certifications: a credential per service category, reviewed by an admin.
+    // Only a `verified` row unlocks that category's jobs for the worker (matching).
+    id: '0031_certifications',
+    sql: `
+      CREATE TABLE IF NOT EXISTS certifications (
+        id uuid PRIMARY KEY,
+        worker_id uuid NOT NULL REFERENCES users (id),
+        category text NOT NULL,
+        title text NOT NULL,
+        document_url text NOT NULL,
+        status text NOT NULL DEFAULT 'pending',
+        created_at timestamptz NOT NULL,
+        reviewed_at timestamptz,
+        reviewer_id uuid REFERENCES users (id),
+        rejection_reason text,
+        CONSTRAINT chk_certifications_status CHECK (status IN ('pending', 'verified', 'rejected'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_certifications_worker_id ON certifications (worker_id);
+      CREATE INDEX IF NOT EXISTS idx_certifications_status ON certifications (status)
+    `,
+  },
 ];
