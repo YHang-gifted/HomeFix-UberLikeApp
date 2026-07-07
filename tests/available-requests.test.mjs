@@ -4,6 +4,8 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import { createApp } from '../server/src/app.ts';
 import { signToken } from '../server/src/auth/jwt.ts';
 import { resetServiceRequests } from '../server/src/services/serviceRequestService.ts';
+import { resetCertifications } from '../server/src/services/certificationService.ts';
+import { seedVerifiedCertification } from './certification-fixtures.mjs';
 
 const CUSTOMER_ID = '123e4567-e89b-12d3-a456-426614174000';
 const ADMIN_ID = '323e4567-e89b-12d3-a456-426614174000';
@@ -37,6 +39,10 @@ describe('GET /service-requests/available', () => {
 
   beforeEach(async () => {
     await resetServiceRequests();
+    // Credential-gated matching: the worker sees plumbing jobs only with a verified
+    // plumbing certification (the jobs these tests browse are plumbing).
+    await resetCertifications();
+    await seedVerifiedCertification(baseUrl, WORKER_ID, 'plumbing');
   });
 
   async function createRequest(description, category = 'plumbing') {

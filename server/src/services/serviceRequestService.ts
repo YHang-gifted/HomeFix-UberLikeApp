@@ -9,6 +9,7 @@ import type {
   ServiceRequestStatus,
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
+import { certificationRepository } from '../repositories/certificationRepository.ts';
 import { paymentRepository } from '../repositories/paymentRepository.ts';
 import { quoteRepository } from '../repositories/quoteRepository.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
@@ -136,12 +137,16 @@ export async function listAvailableRequests(
   if (principal.role !== 'worker' && principal.role !== 'admin') {
     throw new AppError('Only workers can browse available requests', 403);
   }
-  // An "away" worker is off duty: they see no available jobs to claim.
+  // A worker only sees jobs in categories they hold a verified certification for
+  // (credential-gated matching). `null` means no gate — an admin browsing sees all.
+  let allowedCategories: Set<string> | null = null;
   if (principal.role === 'worker') {
     const worker = await userRepository.findById(principal.id);
+    // An "away" worker is off duty: they see no available jobs to claim.
     if (worker?.availability === 'away') {
       return { items: [], total: 0, limit, offset };
     }
+    allowedCategories = await verifiedCategoriesForWorker(principal.id);
   }
   const all = await serviceRequestRepository.findAll();
   const needle = category?.trim().toLowerCase();
@@ -149,11 +154,37 @@ export async function listAvailableRequests(
     (request) =>
       request.status === 'pending' &&
       request.workerId === undefined &&
-      (needle === undefined || needle === '' || request.category.toLowerCase() === needle),
+      (needle === undefined || needle === '' || request.category.toLowerCase() === needle) &&
+      (allowedCategories === null || allowedCategories.has(request.category)),
   );
   const sorted = [...available].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const items = sorted.slice(offset, offset + limit);
   return { items, total: sorted.length, limit, offset };
+}
+
+/** The set of categories a worker holds a `verified` certification for. */
+async function verifiedCategoriesForWorker(workerId: string): Promise<Set<string>> {
+  const certifications = await certificationRepository.findByWorker(workerId);
+  return new Set(
+    certifications
+      .filter((certification) => certification.status === 'verified')
+      .map((certification) => certification.category),
+  );
+}
+
+/**
+ * Credential gate for self-serve claiming: a worker may only claim a job in a
+ * category they hold a `verified` certification for. Throws 403 otherwise. Admin
+ * assignment is a separate, trusted override and is not gated here.
+ */
+async function assertWorkerCertifiedFor(workerId: string, category: string): Promise<void> {
+  const allowed = await verifiedCategoriesForWorker(workerId);
+  if (!allowed.has(category)) {
+    throw new AppError(
+      'You need a verified certification for this category to take this job.',
+      403,
+    );
+  }
 }
 
 export async function assignWorker(
@@ -212,6 +243,11 @@ export async function claimRequest(id: string, principal: Principal): Promise<Se
   if (!request) {
     throw new AppError('Service request not found', 404);
   }
+
+  // Credential gate: a worker may only claim a job in a category they hold a
+  // verified certification for. Checked before the atomic claim so an uncertified
+  // worker never takes the job.
+  await assertWorkerCertifiedFor(principal.id, request.category);
 
   // Atomic claim: two workers racing for the same request can never both win;
   // the loser gets undefined here and a 422.
