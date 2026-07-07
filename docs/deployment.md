@@ -167,4 +167,43 @@ app is same-origin, `CORS_ALLOWED_ORIGINS` can stay empty for this setup.
 - Demo users are seeded outside production only (see `SEED_DEMO_USERS`); a real
   production deploy creates no demo accounts by default.
 - Unexpected (5xx) errors are logged with structured context (request id, method,
-  route path, error name, mess
+  route path, error name, message, and stack), correlated by the `X-Request-Id` of
+  the request that produced them.
+
+## Logging & log shipping
+
+The server logs to stdout/stderr as **one self-contained JSON object per line**
+(the default `LOG_FORMAT=json`), for example:
+
+```json
+{
+  "level": "info",
+  "time": "2026-07-08T02:15:04.512Z",
+  "msg": "request",
+  "type": "request",
+  "requestId": "…",
+  "method": "GET",
+  "path": "/service-requests",
+  "status": 200,
+  "durationMs": 7
+}
+```
+
+Because each line is a complete JSON object (no prefix), a log drain can parse and
+index the fields directly. Access logs carry `type:"request"` (method, route path,
+status, `durationMs`); unexpected 5xx errors carry `type:"error"` (error name,
+message, stack) — both correlated by `requestId`. Only that whitelist is ever
+logged: never the request body, headers, or query string, so bearer tokens and
+other secrets can't leak into the logs.
+
+To ship the logs somewhere queryable, point your platform's log drain at stdout:
+
+- **Railway**: add a Log Drain (Project → Settings → Log Drains) targeting your
+  provider's HTTPS/syslog endpoint (Logtail/Better Stack, Datadog, Axiom, etc.).
+  Railway forwards the container's stdout lines; because they're already JSON, the
+  destination parses the fields with no extra config.
+- **Docker/other**: run behind a log driver or a sidecar (Vector, Fluent Bit) that
+  tails stdout and forwards to your store.
+
+Set `LOG_FORMAT=pretty` in local development for a compact human-readable line
+(`[info] request {…}`); leave it unset (or `json`) everywhere the logs are shipped.

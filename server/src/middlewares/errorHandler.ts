@@ -27,7 +27,8 @@ export interface ErrorLogEntry {
  */
 export function createErrorHandler(
   logError: (entry: ErrorLogEntry) => void = (entry) => {
-    logger.error(JSON.stringify(entry));
+    const { message, ...rest } = entry;
+    logger.error(message, { type: 'error', ...rest });
   },
 ): ErrorRequestHandler {
   return function errorHandler(

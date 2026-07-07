@@ -16,6 +16,14 @@ const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    // Log output format. `json` (the default) writes one self-contained JSON object
+    // per line so a log drain can index the fields; `pretty` writes a compact human
+    // line for local dev. Empty is treated as unset (→ json). Validated here so a
+    // bad value fails fast on boot; the logger reads the raw env var itself.
+    LOG_FORMAT: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.enum(['json', 'pretty']).default('json'),
+    ),
     JWT_SECRET: z.string().min(16).default(DEV_JWT_SECRET),
     JWT_EXPIRES_IN: z.coerce.number().int().positive().default(604800),
     // Comma-separated allowlist of web origins permitted to call the API from a
