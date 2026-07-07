@@ -496,11 +496,23 @@ signature) => { type, paymentId }` (real `stripeEventConstructor` verifies the
   add a **log-shipping** section (Railway Log Drain → Logtail/Datadog/Axiom); also
   repaired `deployment.md`'s truncated tail. Tests: `logger.test.mjs` (json line is
   pure parseable JSON with an ISO `time`, error→stderr not stdout, pretty format).
-  The whitelist (never body/headers/query) is unchanged — _handed off_.
+  The whitelist (never body/headers/query) is unchanged — merged.
+- **139** payment receipts (backend + client). New `receiptSchema` / `Receipt` and
+  `buildPaymentReceipt(requestId, principal)` in `paymentService`: derives a
+  self-contained receipt from a **paid** payment — amount breakdown (gross, platform
+  fee, worker net), currency, request category/description, both parties' display
+  names, provider ref, and a deterministic `receiptNumber` (`HF-<YYYYMMDD>-<id8>`).
+  Same authorization as `getPayment` (any request party), 409 before the payment is
+  paid, 404 when there's no payment. New `GET /service-requests/:id/payment/receipt`
+  (`getServiceRequestPaymentReceipt`) + `apiClient.getPaymentReceipt`. Nothing new is
+  persisted (built on the fly). Tests: server e2e (fields + breakdown, party/admin
+  access, 409-before-paid, 403 non-party, 404 no-payment, deterministic number) and
+  an api-client e2e. Next: an app "View receipt" surface on RequestDetail (139b) —
+  _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **138**
-(structured JSON logging), which were handed off. The service is deployed and ACTIVE
-on Railway in mock mode (no Stripe key)._
+_All slices above are merged to `main` except **134** (auth audit) and **139**
+(payment receipts), which were handed off. The service is deployed and ACTIVE on
+Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);

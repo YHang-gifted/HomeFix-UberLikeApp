@@ -8,6 +8,7 @@ import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
 import { parseUuidParam } from './parseUuidParam.ts';
 import {
+  buildPaymentReceipt,
   createPayment,
   getPayment,
   listMyPayments,
@@ -41,6 +42,28 @@ export async function getServiceRequestPayment(
 
   try {
     res.status(200).json(await getPayment(id, principal));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getServiceRequestPaymentReceipt(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  const id = parseId(req, next);
+  if (id === undefined) {
+    return;
+  }
+
+  try {
+    res.status(200).json(await buildPaymentReceipt(id, principal));
   } catch (error) {
     next(error);
   }

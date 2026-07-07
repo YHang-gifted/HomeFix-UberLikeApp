@@ -17,6 +17,7 @@ import type {
   Principal,
   PublicUser,
   Quote,
+  Receipt,
   RegisterInput,
   RequestContacts,
   Review,
@@ -49,6 +50,7 @@ import {
   publicUserListSchema,
   publicUserSchema,
   quoteSchema,
+  receiptSchema,
   requestContactsSchema,
   requestHistorySchema,
   reviewSchema,
@@ -240,6 +242,12 @@ export class ApiClient {
   public async getPayment(id: string): Promise<Payment> {
     const data = await this.send('GET', `/service-requests/${id}/payment`, undefined, true);
     return paymentSchema.parse(data);
+  }
+
+  /** The receipt for a request's paid payment. Available to any party of the request. */
+  public async getPaymentReceipt(id: string): Promise<Receipt> {
+    const data = await this.send('GET', `/service-requests/${id}/payment/receipt`, undefined, true);
+    return receiptSchema.parse(data);
   }
 
   public async listMyPayments(): Promise<Payment[]> {
