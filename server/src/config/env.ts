@@ -16,6 +16,14 @@ const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    // Bearer token guarding the Prometheus /metrics endpoint. Set it and scrapers
+    // must send `Authorization: Bearer <token>`; leave it unset and /metrics is open
+    // (dev / trusted network only — set it, or restrict at the proxy, in production).
+    // Empty is treated as unset.
+    METRICS_TOKEN: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
     // Log output format. `json` (the default) writes one self-contained JSON object
     // per line so a log drain can index the fields; `pretty` writes a compact human
     // line for local dev. Empty is treated as unset (→ json). Validated here so a

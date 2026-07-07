@@ -513,11 +513,22 @@ signature) => { type, paymentId }` (real `stripeEventConstructor` verifies the
   calls `apiClient.getPaymentReceipt` and renders a receipt card — number, issued
   date, amount-paid / platform-fee / worker-net rows, and a
   `customer → worker · category` line. Errors surface inline; theme-tokened, no API
-  or schema change. RNTL test covers the paid → view → card-rendered flow — _handed
-  off_.
+  or schema change. RNTL test covers the paid → view → card-rendered flow — merged.
+- **140** Prometheus `/metrics` endpoint + collection (monitoring). New dependency-
+  free `metrics/registry.ts` (a `MetricsRegistry` rendering Prometheus text) +
+  `createMetricsMiddleware` that records every request on finish/close:
+  `homefix_http_requests_total{method,status}` (labeled by method + status **only** —
+  never the path, so cardinality stays bounded), request-duration sum/count, an
+  in-flight gauge, and `process_uptime_seconds` / `process_resident_memory_bytes`.
+  `GET /metrics` serves it; new optional `METRICS_TOKEN` gates it (Bearer required
+  when set, open when unset — dev/trusted network). The registry singleton is
+  anchored on `globalThis` (the slice-137 lesson) so a tsx double-load can't split
+  the middleware's writes from the route's reads. `.env.example` + `deployment.md`
+  document it. Tests: counter/format/process-gauges present, counter increments with
+  traffic, and the token gate (401 without / 200 with / 401 wrong) — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **139b**
-(app receipt view), which were handed off. The service is deployed and ACTIVE on
+_All slices above are merged to `main` except **134** (auth audit) and **140**
+(Prometheus /metrics), which were handed off. The service is deployed and ACTIVE on
 Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
