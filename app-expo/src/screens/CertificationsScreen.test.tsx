@@ -28,18 +28,16 @@ function makeCert(overrides = {}) {
 describe('CertificationsScreen', () => {
   it('lists the worker certifications with their statuses and a rejection reason', async () => {
     const client = clientWith({
-      listMyCertifications: jest
-        .fn()
-        .mockResolvedValue([
-          makeCert({ status: 'verified', title: 'Verified plumbing' }),
-          makeCert({ id: 'p2', status: 'pending', title: 'Pending HVAC' }),
-          makeCert({
-            id: 'r3',
-            status: 'rejected',
-            title: 'Bad scan',
-            rejectionReason: 'Illegible.',
-          }),
-        ]),
+      listMyCertifications: jest.fn().mockResolvedValue([
+        makeCert({ status: 'verified', title: 'Verified plumbing' }),
+        makeCert({ id: 'p2', status: 'pending', title: 'Pending HVAC' }),
+        makeCert({
+          id: 'r3',
+          status: 'rejected',
+          title: 'Bad scan',
+          rejectionReason: 'Illegible.',
+        }),
+      ]),
     });
 
     const { findByText } = await render(<CertificationsScreen client={client} />);
