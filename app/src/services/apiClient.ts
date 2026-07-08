@@ -5,6 +5,7 @@ import type {
   AuditEvent,
   AuditPage,
   Certification,
+  CertificationStatus,
   CreateCertificationInput,
   CreateQuoteInput,
   CreateReviewInput,
@@ -274,6 +275,30 @@ export class ApiClient {
   /** Submit a new certification for admin review. Returns the pending certification. */
   public async submitCertification(input: CreateCertificationInput): Promise<Certification> {
     const data = await this.send('POST', '/certifications', input, true);
+    return certificationSchema.parse(data);
+  }
+
+  /** Admin-only: certifications with a given status (defaults to the pending queue). */
+  public async listAdminCertifications(
+    status: CertificationStatus = 'pending',
+  ): Promise<Certification[]> {
+    const data = await this.send(
+      'GET',
+      `/admin/certifications?status=${encodeURIComponent(status)}`,
+      undefined,
+      true,
+    );
+    return certificationListSchema.parse(data).items;
+  }
+
+  /** Admin-only: verify or reject a pending certification. A rejection needs a reason. */
+  public async reviewCertification(
+    id: string,
+    decision: 'verify' | 'reject',
+    reason?: string,
+  ): Promise<Certification> {
+    const body = reason === undefined ? { decision } : { decision, reason };
+    const data = await this.send('POST', `/certifications/${id}/review`, body, true);
     return certificationSchema.parse(data);
   }
 
