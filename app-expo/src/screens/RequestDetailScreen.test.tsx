@@ -204,6 +204,44 @@ describe('RequestDetailScreen payments', () => {
     openSpy.mockRestore();
   });
 
+  it('shows a tappable map preview when a static-map URL is configured', async () => {
+    const openSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    const request = makeRequest({ location: { latitude: 25.033, longitude: 121.5654 } });
+    const client = clientWith({ getServiceRequest: jest.fn().mockResolvedValue(request) });
+
+    const { findByLabelText } = await render(
+      <RequestDetailScreen
+        requestId={request.id}
+        client={client}
+        mapPreviewUrl={() =>
+          'https://maps.googleapis.com/maps/api/staticmap?center=25.033,121.5654'
+        }
+      />,
+    );
+
+    await findByLabelText('Map preview');
+    await fireEvent.press(await findByLabelText('Open map'));
+    await waitFor(() => {
+      expect(openSpy).toHaveBeenCalledWith(
+        'https://www.google.com/maps/search/?api=1&query=25.033%2C121.5654',
+      );
+    });
+    openSpy.mockRestore();
+  });
+
+  it('shows no map preview when none is configured', async () => {
+    const request = makeRequest();
+    const client = clientWith({ getServiceRequest: jest.fn().mockResolvedValue(request) });
+
+    const { findByLabelText, queryByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} mapPreviewUrl={() => null} />,
+    );
+
+    // The "Open in Maps" link remains, but there is no image preview.
+    await findByLabelText('Open in Maps');
+    expect(queryByLabelText('Map preview')).toBeNull();
+  });
+
   it('prefills the payment amount from an accepted quote', async () => {
     const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
     const createPayment = jest.fn().mockResolvedValue(makePayment({ amountCents: 250000 }));
