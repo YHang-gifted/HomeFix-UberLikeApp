@@ -34,6 +34,7 @@ Use exactly one of: `authentication`, `authorization`, `input-validation`, `inje
 | SEC-0003 | 2026-06-26 | rate-limiting     | No rate limiting on the unauthenticated auth endpoints               | fixed     |
 | SEC-0004 | 2026-06-26 | authentication    | Default JWT signing secret could reach production                    | fixed     |
 | SEC-0005 | 2026-06-28 | payment-integrity | Release/reset left the prior worker's quote & payment on the request | fixed     |
+| SEC-0006 | 2026-07-11 | payment-integrity | A paid service request could still be cancelled (orphaned payment)   | fixed     |
 
 ## Entry template
 
@@ -121,4 +122,17 @@ Copy this block for every new fix.
 - **Canonical fix:** Returning a job to the pool must reconcile its dependent billing. (1) **Fail closed on settled money:** `assertNotPaid(requestId)` throws `AppError(…, 422)` if a `paid` payment exists, so a paid job can never be released or reset (there is no refund flow — that is a separate future capability). (2) **Clear stale, unsettled billing:** on a successful release/reset, `clearBillingForRelease(requestId)` calls `quoteRepository.deleteByRequest` and `paymentRepository.deleteByRequest`, removing the old quote and any _unpaid_ payment so the next worker starts clean. Apply this same "guard settled state, then clear dependent unsettled records" pattern to any future action that re-pools or reassigns a request (e.g. cancellation refunds, dispute resets). Added `deleteByRequest` to both `QuoteRepository` and `PaymentRepository` (in-memory + Postgres).
 - **Regression test:** `tests/release-reset-billing-consistency.test.mjs` (worker release clears the old quote + unpaid payment so a new worker can re-quote; a paid job is blocked from release AND reset with its payment preserved; admin reset clears the old quote + unpaid payment). Repo-level `deleteByRequest` covered in `tests/postgres-quote-repository.test.mjs` and `tests/postgres-payment-repository.test.mjs`.
 - **Prevention:** This ledger entry as the pattern of record; any new request-lifecycle action that re-pools a request must consider quotes/payments and add a cross-domain test. Mandatory tests for matching/payments/order-state per `CLAUDE.md`.
-- **Related:** none
+- **Related:** SEC-0006
+
+### SEC-0006 — A paid service request could still be cancelled (orphaned payment)
+
+- **Date:** 2026-07-11
+- **Category:** payment-integrity
+- **Severity:** high
+- **Affected area:** `server/src/services/serviceRequestService.ts` (`updateServiceRequestStatus`, the `→ cancelled` transition)
+- **Vulnerability:** Paying a request only flips `payment.status` to `paid`; it does not change the service-request status. The cancel authorization only checked whether the status was terminal (`completed`/`cancelled`) and never consulted the payment. So a paid-but-not-yet-`completed` request (`matched`/`accepted`/`in_progress`) could still be cancelled by the owning customer (or an admin), leaving a settled payment attached to a cancelled job with **no refund flow** — the customer's money is taken but the job is voided. Same class as SEC-0005, which had already blocked _release_ (worker) and _reset_ (admin) on a paid job, but the _cancel_ transition was missed. Found in manual QA of the order→assign→pay flow.
+- **Root cause:** The request state machine and the billing lifecycle are separate domains; the SEC-0005 fix guarded the two re-pool actions (release/reset) but not the customer/admin cancel transition, which is a different code path in `updateServiceRequestStatus`. No test exercised cancel-after-paid.
+- **Canonical fix:** Reuse the SEC-0005 guard. `updateServiceRequestStatus` now calls the shared `assertNotPaid(requestId)` before applying a `→ cancelled` transition, so a paid job cannot be cancelled by any actor (customer or admin) — it throws `AppError(…, 422)`. The guard's message was generalized to "cancelled, released, or reset". The app hides the cancel control when the payment is `paid` (`RequestDetailScreen`), but the server check is authoritative. Refund-then-cancel (an admin capability) remains a separate future feature, exactly like refund-then-release under SEC-0005.
+- **Regression test:** `tests/cancel-paid-guard.test.mjs` (a paid request cannot be cancelled — 422, payment preserved; an unpaid request can still be cancelled — 200).
+- **Prevention:** This ledger entry + SEC-0005 as the pattern of record: any request-lifecycle transition that voids or re-pools a request must call `assertNotPaid` and add a cross-domain test. Mandatory tests for matching/payments/order-state per `CLAUDE.md`.
+- **Related:** SEC-0005

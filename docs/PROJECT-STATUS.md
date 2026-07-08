@@ -217,6 +217,11 @@ testable v1.
 
 ## 5. Recommended next slices (in order)
 
+0. ~~**[BUG — billing consistency] A paid request can still be cancelled.**~~ **Fixed
+   in slice 144 (SEC-0006)** — `updateServiceRequestStatus` now calls `assertNotPaid`
+   before a `→ cancelled` transition (422 on a paid payment), mirroring the SEC-0005
+   release/reset guard; the app hides the cancel control when paid. Admin
+   "cancel + refund" remains a separate future capability.
 1. **Host the frontend web app** — deploy the merged `app-expo/dist`, set
    `CORS_ALLOWED_ORIGINS` to the frontend origin, and verify the login loop on
    web (guard native-only push/location/map calls behind `Platform.OS`).
@@ -620,10 +625,20 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   config wrapper) so it's testable without the build-time env. Config-gated: no key →
   no thumbnail, just the text + link (no broken image). `app-expo/.env.example`
   documents the key. Tests: `googleStaticMapUrl` URL shape; RequestDetail
-  preview-shown-and-tappable + preview-absent — _handed off_.
+  preview-shown-and-tappable + preview-absent — merged.
+- **144** fix cancel-after-paid (**SEC-0006**, payment-integrity). A paid request
+  could still be cancelled, orphaning the settled payment (no refund flow) — the
+  cancel path never checked payment status. Same class as SEC-0005: reused the
+  existing `assertNotPaid` guard — `updateServiceRequestStatus` now calls it before a
+  `→ cancelled` transition (422 on a `paid` payment, for customer or admin), and the
+  guard message was generalized to "cancelled, released, or reset". The app hides the
+  cancel control when the payment is paid (`RequestDetailScreen`); the server check is
+  authoritative. New `tests/cancel-paid-guard.test.mjs` (paid → 422 + payment
+  preserved; unpaid → cancels). Ledger entry SEC-0006 (related SEC-0005). Refund-then-
+  cancel stays a separate future capability — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **143**
-(Location static map thumbnail), which were handed off. The service is deployed and
+_All slices above are merged to `main` except **134** (auth audit) and **144**
+(SEC-0006 cancel-after-paid fix), which were handed off. The service is deployed and
 ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
