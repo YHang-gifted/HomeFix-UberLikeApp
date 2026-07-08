@@ -599,10 +599,19 @@ pending|verified|rejected, createdAt, reviewedAt?, reviewerId?, rejectionReason?
     the worker stack (`App.tsx`) with a "Certifications" entry on `WorkerJobs`. A worker
     who just registered lands here to add credentials before any jobs open up. RNTL
     tests: list + statuses/reason, validation (category+title+document required),
-    upload→submit happy path. Next: 142e admin review screen — _handed off_.
+    upload→submit happy path. Next: 142e admin review screen — merged.
+- **142e** admin certification review screen (completes feature 142). `apiClient`
+  gained `listAdminCertifications(status='pending')` + `reviewCertification(id,
+decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each card
+  with the title/category, a "View document" link (`Linking.openURL`), a reason field,
+  and Verify / Reject actions (reject requires a reason; a reviewed card drops out of
+  the queue). Wired into the admin stack with a "Certifications" entry on
+  `AdminRequests`. RNTL tests: verify-removes, reject-needs-reason, reject-with-reason.
+  **Feature 142 (credential-gated matching) is now end-to-end**: worker uploads →
+  admin verifies → only verified categories unlock self-serve jobs — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **142d**
-(worker certifications screen), which were handed off. The service is deployed and
+_All slices above are merged to `main` except **134** (auth audit) and **142e**
+(admin certification review screen), which were handed off. The service is deployed and
 ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
