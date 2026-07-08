@@ -282,7 +282,10 @@ export async function claimRequest(id: string, principal: Principal): Promise<Se
 async function assertNotPaid(requestId: string): Promise<void> {
   const payment = await paymentRepository.findByRequest(requestId);
   if (payment?.status === 'paid') {
-    throw new AppError('This job has been paid and can no longer be released or reset', 422);
+    throw new AppError(
+      'This job has been paid and can no longer be cancelled, released, or reset',
+      422,
+    );
   }
 }
 
@@ -414,6 +417,13 @@ export async function updateServiceRequestStatus(
   }
   if (!permitted.includes(nextStatus)) {
     throw new AppError(`Cannot transition from ${request.status} to ${nextStatus}`, 422);
+  }
+
+  // A paid job can't be cancelled — the money is settled and there is no refund flow,
+  // so cancelling would orphan the payment. Mirrors the release/reset guard (SEC-0005,
+  // extended by SEC-0006). Applies to both a customer and an admin cancel.
+  if (nextStatus === 'cancelled') {
+    await assertNotPaid(id);
   }
 
   const updated: ServiceRequest = { ...request, status: nextStatus };

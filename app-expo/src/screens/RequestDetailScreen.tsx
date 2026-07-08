@@ -893,7 +893,7 @@ export function RequestDetailScreen({
         </>
       )}
 
-      {isOwner && customerCanCancel(request.status) && (
+      {isOwner && customerCanCancel(request.status) && payment?.status !== 'paid' && (
         <>
           <Text style={styles.label}>Cancellation reason</Text>
           <TextInput
