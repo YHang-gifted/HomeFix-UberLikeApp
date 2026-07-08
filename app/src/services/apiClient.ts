@@ -465,6 +465,16 @@ export class ApiClient {
     return serviceRequestSchema.parse(data);
   }
 
+  /**
+   * Admin-only: cancel a request, refunding a paid payment and reversing the
+   * worker's pending payout first. The counterpart to the paid-cancel guard.
+   */
+  public async adminCancelWithRefund(id: string, reason?: string): Promise<ServiceRequest> {
+    const body = reason !== undefined ? { reason } : undefined;
+    const data = await this.send('POST', `/service-requests/${id}/cancel`, body, true);
+    return serviceRequestSchema.parse(data);
+  }
+
   public async createReview(requestId: string, input: CreateReviewInput): Promise<Review> {
     const data = await this.send('POST', `/service-requests/${requestId}/review`, input, true);
     return reviewSchema.parse(data);

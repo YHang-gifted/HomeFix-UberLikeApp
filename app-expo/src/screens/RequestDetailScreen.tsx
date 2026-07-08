@@ -101,6 +101,9 @@ export function RequestDetailScreen({
   const [releaseError, setReleaseError] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+  const [adminCancelling, setAdminCancelling] = useState(false);
+  const [adminCancelReason, setAdminCancelReason] = useState('');
+  const [adminCancelError, setAdminCancelError] = useState<string | null>(null);
 
   const [rating, setRating] = useState<number | null>(null);
   const [comment, setComment] = useState('');
@@ -276,6 +279,26 @@ export function RequestDetailScreen({
           : 'Could not reset the request. Please try again.',
       );
       setResetting(false);
+    }
+  }
+
+  async function adminCancelAndRefund(): Promise<void> {
+    setAdminCancelling(true);
+    setAdminCancelError(null);
+    const trimmedReason = adminCancelReason.trim();
+    try {
+      await activeClient.adminCancelWithRefund(
+        requestId,
+        trimmedReason.length > 0 ? trimmedReason : undefined,
+      );
+      onCancelled?.();
+    } catch (adminCancelFailure) {
+      setAdminCancelError(
+        isApiError(adminCancelFailure)
+          ? adminCancelFailure.message
+          : 'Could not cancel and refund. Please try again.',
+      );
+      setAdminCancelling(false);
     }
   }
 
@@ -974,6 +997,46 @@ export function RequestDetailScreen({
         </>
       )}
 
+      {isAdmin &&
+        payment?.status === 'paid' &&
+        request.status !== 'completed' &&
+        request.status !== 'cancelled' && (
+          <View style={styles.adminCancelBox}>
+            <Text style={styles.label}>Cancel &amp; refund</Text>
+            <Text style={styles.adminCancelHint}>
+              Refunds the customer, reverses the worker&apos;s pending payout, and cancels the job.
+            </Text>
+            <TextInput
+              style={styles.reasonInput}
+              value={adminCancelReason}
+              onChangeText={setAdminCancelReason}
+              placeholder="Reason (optional)"
+              accessibilityLabel="Admin cancellation reason"
+              editable={!adminCancelling}
+              multiline
+            />
+            <Pressable
+              style={({ pressed }) => [
+                styles.cancel,
+                (pressed || adminCancelling) && styles.cancelPressed,
+              ]}
+              onPress={() => {
+                void adminCancelAndRefund();
+              }}
+              disabled={adminCancelling}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel job and refund"
+            >
+              {adminCancelling ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.cancelText}>Cancel job &amp; refund</Text>
+              )}
+            </Pressable>
+            {adminCancelError !== null && <Text style={styles.error}>{adminCancelError}</Text>}
+          </View>
+        )}
+
       {isOwner && request.status === 'completed' && (
         <View style={styles.reviewBox}>
           <Text style={styles.reviewHeading}>Rate the worker</Text>
@@ -1277,6 +1340,8 @@ const styles = StyleSheet.create({
   },
   cancelPressed: { backgroundColor: '#b91c1c' },
   cancelText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  adminCancelBox: { marginTop: 16 },
+  adminCancelHint: { fontSize: 13, lineHeight: 18, color: '#64748b', marginTop: 4 },
   reviewBox: {
     marginTop: 24,
     borderWidth: 1,
