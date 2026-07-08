@@ -608,10 +608,22 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   the queue). Wired into the admin stack with a "Certifications" entry on
   `AdminRequests`. RNTL tests: verify-removes, reject-needs-reason, reject-with-reason.
   **Feature 142 (credential-gated matching) is now end-to-end**: worker uploads →
-  admin verifies → only verified categories unlock self-serve jobs — _handed off_.
+  admin verifies → only verified categories unlock self-serve jobs — merged.
+- **143** Location static map thumbnail (Google). Industry-standard pattern: a
+  lightweight static-map preview that opens the full interactive map on tap. New pure
+  `googleStaticMapUrl(location, apiKey)` (app/) builds a Google Static Maps URL
+  (centered, brand-colored marker); `app-expo/src/staticMap.ts`
+  `staticMapPreviewUrl(location)` reads `EXPO_PUBLIC_GOOGLE_MAPS_STATIC_KEY` and
+  returns null when unset. `RequestDetail` Location now renders a tappable `<Image>`
+  thumbnail (tap → interactive Google Maps via `mapsUrl` + `Linking`) above the
+  existing "Open in Maps" link — via an injected `mapPreviewUrl` prop (default = the
+  config wrapper) so it's testable without the build-time env. Config-gated: no key →
+  no thumbnail, just the text + link (no broken image). `app-expo/.env.example`
+  documents the key. Tests: `googleStaticMapUrl` URL shape; RequestDetail
+  preview-shown-and-tappable + preview-absent — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **142e**
-(admin certification review screen), which were handed off. The service is deployed and
+_All slices above are merged to `main` except **134** (auth audit) and **143**
+(Location static map thumbnail), which were handed off. The service is deployed and
 ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

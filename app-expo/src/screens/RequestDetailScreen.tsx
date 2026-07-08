@@ -22,9 +22,11 @@ import {
 import { hasPlatformFee, paymentSplit } from '../../../app/src/features/payments/paymentSplit';
 import type { OpenCheckout } from '../../../app/src/features/payments/checkout';
 import { mapsUrl } from '../../../app/src/features/location/mapsLink';
+import { staticMapPreviewUrl } from '../staticMap';
 import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
 import type {
   AuditEvent,
+  Coordinates,
   Payment,
   Quote,
   Receipt,
@@ -70,6 +72,12 @@ export interface RequestDetailScreenProps {
    * instead of using the mock `/pay`. Injected for tests/web; wired in App.tsx.
    */
   openCheckout?: OpenCheckout;
+  /**
+   * Builds a static map thumbnail URL for the location, or null when none is
+   * configured (no API key). Injected for tests; defaults to the real Google Static
+   * Maps preview from config.
+   */
+  mapPreviewUrl?: (location: Coordinates) => string | null;
 }
 
 export function RequestDetailScreen({
@@ -80,6 +88,7 @@ export function RequestDetailScreen({
   onReset,
   onViewMessages,
   openCheckout,
+  mapPreviewUrl = staticMapPreviewUrl,
 }: RequestDetailScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
   const principal = useMemo(() => activeClient.getPrincipal(), [activeClient]);
@@ -487,6 +496,7 @@ export function RequestDetailScreen({
       request.status === 'in_progress');
 
   const quoteView = deriveQuoteView({ principal, request, quote });
+  const locationPreview = mapPreviewUrl(request.location);
   const paymentAmountValue =
     amountText !== ''
       ? amountText
@@ -533,6 +543,22 @@ export function RequestDetailScreen({
         {request.address ??
           `${String(request.location.latitude)}, ${String(request.location.longitude)}`}
       </Text>
+      {locationPreview !== null && (
+        <Pressable
+          onPress={() => {
+            void Linking.openURL(mapsUrl(request.location));
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Open map"
+        >
+          <Image
+            source={{ uri: locationPreview }}
+            style={styles.mapPreview}
+            resizeMode="cover"
+            accessibilityLabel="Map preview"
+          />
+        </Pressable>
+      )}
       <Pressable
         onPress={() => {
           void Linking.openURL(mapsUrl(request.location));
@@ -1083,6 +1109,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   value: { fontSize: 15, lineHeight: 22, color: colors.ink },
+  mapPreview: {
+    width: '100%',
+    height: 160,
+    borderRadius: radii.medium,
+    marginTop: spacing.sm,
+    backgroundColor: colors.surfaceMuted,
+  },
   mapLink: { fontSize: 14, fontWeight: '700', color: colors.brand, marginTop: 4 },
   workerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   favorite: { fontSize: 22, color: '#cbd5e1' },
