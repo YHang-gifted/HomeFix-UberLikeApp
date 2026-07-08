@@ -220,8 +220,11 @@ testable v1.
 0. ~~**[BUG — billing consistency] A paid request can still be cancelled.**~~ **Fixed
    in slice 144 (SEC-0006)** — `updateServiceRequestStatus` now calls `assertNotPaid`
    before a `→ cancelled` transition (422 on a paid payment), mirroring the SEC-0005
-   release/reset guard; the app hides the cancel control when paid. Admin
-   "cancel + refund" remains a separate future capability.
+   release/reset guard; the app hides the cancel control when paid. ~~Admin
+   "cancel + refund" remains a separate future capability.~~ **Built in slice 145** —
+   admin `POST /service-requests/:id/cancel` refunds the paid payment, reverses the
+   worker's pending payout, then cancels (409 if the worker was already paid out —
+   manual clawback).
 1. **Host the frontend web app** — deploy the merged `app-expo/dist`, set
    `CORS_ALLOWED_ORIGINS` to the frontend origin, and verify the login loop on
    web (guard native-only push/location/map calls behind `Platform.OS`).
@@ -635,10 +638,21 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   cancel control when the payment is paid (`RequestDetailScreen`); the server check is
   authoritative. New `tests/cancel-paid-guard.test.mjs` (paid → 422 + payment
   preserved; unpaid → cancels). Ledger entry SEC-0006 (related SEC-0005). Refund-then-
-  cancel stays a separate future capability — _handed off_.
+  cancel stays a separate future capability — merged.
+- **145** admin "cancel + refund" (the deliberate counterpart to SEC-0006). New
+  `POST /service-requests/:id/cancel` (admin-only): if the request has a `paid`
+  payment it reverses the worker's still-pending payout and refunds the payment
+  (`paid → refunded`, audited), then cancels — so the SEC-0006 guard no longer blocks
+  it and no money is orphaned. A payout that was already settled to the worker returns
+  **409** (manual clawback). Unpaid requests just cancel. New standalone
+  `adminCancelService` orchestrates payment + payout + request without adding an import
+  cycle; `payoutService.reversePendingPayout` + `payoutRepository.deleteByPayment`
+  (in-memory + Postgres). Tests `tests/admin-cancel-refund.test.mjs` (refund + payout
+  reversed + cancelled; non-admin 403; unpaid cancels; already-paid-out 409) — _handed
+  off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **144**
-(SEC-0006 cancel-after-paid fix), which were handed off. The service is deployed and
+_All slices above are merged to `main` except **134** (auth audit) and **145**
+(admin cancel + refund), which were handed off. The service is deployed and
 ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

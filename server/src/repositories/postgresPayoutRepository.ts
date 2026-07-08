@@ -75,6 +75,10 @@ export class PostgresPayoutRepository implements PayoutRepository {
     return result.rows.map(mapRow);
   }
 
+  public async deleteByPayment(paymentId: string): Promise<void> {
+    await this.db.query('DELETE FROM payouts WHERE payment_id = $1', [paymentId]);
+  }
+
   public async outstandingTotals(): Promise<PayoutTotals> {
     const result = await this.db.query(
       `SELECT
