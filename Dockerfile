@@ -40,6 +40,15 @@ RUN test -n "$EXPO_PUBLIC_API_BASE_URL" || ( \
   echo "ERROR: build-arg EXPO_PUBLIC_API_BASE_URL is required (the absolute API origin the web app calls)." >&2; \
   exit 1 )
 
+# OPTIONAL: a Google Static Maps API key, inlined at build time so the Location
+# section can render a small map thumbnail. Leave it unset and the UI falls back to
+# the address/coordinates text + "Open in Maps" link (no broken image). This key is
+# baked into the public web bundle, so it MUST be HTTP-referrer restricted to the
+# web origin and limited to the Static Maps API in Google Cloud. Build with:
+#   docker build --build-arg EXPO_PUBLIC_GOOGLE_MAPS_STATIC_KEY=your-key .
+ARG EXPO_PUBLIC_GOOGLE_MAPS_STATIC_KEY
+ENV EXPO_PUBLIC_GOOGLE_MAPS_STATIC_KEY=${EXPO_PUBLIC_GOOGLE_MAPS_STATIC_KEY}
+
 # Install app-expo dependencies first so this layer caches unless the lockfile
 # changes. (node_modules is excluded by .dockerignore, so the later source copy
 # never clobbers it.)

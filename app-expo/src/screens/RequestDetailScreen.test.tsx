@@ -837,3 +837,108 @@ describe('RequestDetailScreen quotes', () => {
     expect(queryByLabelText('Send quote')).toBeNull();
   });
 });
+
+describe('RequestDetailScreen admin cancel + refund', () => {
+  const ADMIN: Principal = { id: ADMIN_ID, role: 'admin' };
+
+  function paidAdminClient(extra: Record<string, unknown>, principal: Principal = ADMIN) {
+    const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
+    return clientWith(
+      {
+        getServiceRequest: jest.fn().mockResolvedValue(request),
+        getPayment: jest.fn().mockResolvedValue(makePayment({ status: 'paid' })),
+        ...extra,
+      },
+      principal,
+    );
+  }
+
+  it('lets an admin cancel a paid request with a refund and calls onCancelled', async () => {
+    const adminCancelWithRefund = jest
+      .fn()
+      .mockResolvedValue(makeRequest({ status: 'cancelled', workerId: WORKER_ID }));
+    const onCancelled = jest.fn();
+    const client = paidAdminClient({ adminCancelWithRefund });
+
+    const { findByLabelText } = await render(
+      <RequestDetailScreen
+        requestId="523e4567-e89b-12d3-a456-426614174000"
+        client={client}
+        onCancelled={onCancelled}
+        mapPreviewUrl={() => null}
+      />,
+    );
+
+    await fireEvent.press(await findByLabelText('Cancel job and refund'));
+
+    await waitFor(() => {
+      expect(adminCancelWithRefund).toHaveBeenCalledWith(
+        '523e4567-e89b-12d3-a456-426614174000',
+        undefined,
+      );
+    });
+    await waitFor(() => {
+      expect(onCancelled).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('passes the entered reason to the admin cancel', async () => {
+    const adminCancelWithRefund = jest
+      .fn()
+      .mockResolvedValue(makeRequest({ status: 'cancelled', workerId: WORKER_ID }));
+    const client = paidAdminClient({ adminCancelWithRefund });
+
+    const { findByLabelText } = await render(
+      <RequestDetailScreen
+        requestId="523e4567-e89b-12d3-a456-426614174000"
+        client={client}
+        mapPreviewUrl={() => null}
+      />,
+    );
+
+    await fireEvent.changeText(
+      await findByLabelText('Admin cancellation reason'),
+      '  Customer double-booked  ',
+    );
+    await fireEvent.press(await findByLabelText('Cancel job and refund'));
+
+    await waitFor(() => {
+      expect(adminCancelWithRefund).toHaveBeenCalledWith(
+        '523e4567-e89b-12d3-a456-426614174000',
+        'Customer double-booked',
+      );
+    });
+  });
+
+  it('hides the control when the payment is not paid', async () => {
+    const client = paidAdminClient({
+      getPayment: jest.fn().mockResolvedValue(makePayment({ status: 'pending' })),
+    });
+
+    const { findByText, queryByLabelText } = await render(
+      <RequestDetailScreen
+        requestId="523e4567-e89b-12d3-a456-426614174000"
+        client={client}
+        mapPreviewUrl={() => null}
+      />,
+    );
+
+    await findByText('Leaking kitchen sink');
+    expect(queryByLabelText('Cancel job and refund')).toBeNull();
+  });
+
+  it('hides the control from a non-admin even when the request is paid', async () => {
+    const client = paidAdminClient({}, OWNER);
+
+    const { findByText, queryByLabelText } = await render(
+      <RequestDetailScreen
+        requestId="523e4567-e89b-12d3-a456-426614174000"
+        client={client}
+        mapPreviewUrl={() => null}
+      />,
+    );
+
+    await findByText('Leaking kitchen sink');
+    expect(queryByLabelText('Cancel job and refund')).toBeNull();
+  });
+});

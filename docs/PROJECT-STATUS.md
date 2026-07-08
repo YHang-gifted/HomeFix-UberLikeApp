@@ -647,13 +647,17 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   **409** (manual clawback). Unpaid requests just cancel. New standalone
   `adminCancelService` orchestrates payment + payout + request without adding an import
   cycle; `payoutService.reversePendingPayout` + `payoutRepository.deleteByPayment`
-  (in-memory + Postgres). Tests `tests/admin-cancel-refund.test.mjs` (refund + payout
-  reversed + cancelled; non-admin 403; unpaid cancels; already-paid-out 409) — _handed
-  off_.
+  (in-memory + Postgres). **App**: RequestDetail shows an admin-only "Cancel job &
+  refund" control (reason optional) when the payment is `paid` and the request is not
+  terminal; `apiClient.adminCancelWithRefund`. Tests: server
+  `tests/admin-cancel-refund.test.mjs` (refund + payout reversed + cancelled; non-admin
+  403; unpaid cancels; already-paid-out 409) and app
+  `RequestDetailScreen.test.tsx` (admin sees + cancels with/without reason; hidden when
+  unpaid; hidden from non-admin) — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit) and **145**
-(admin cancel + refund), which were handed off. The service is deployed and
-ACTIVE on Railway in mock mode (no Stripe key)._
+(admin cancel + refund, backend + app), which were handed off. The service is deployed
+and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);
