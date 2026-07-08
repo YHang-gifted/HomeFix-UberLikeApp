@@ -57,6 +57,26 @@ export async function confirmPayoutPaid(payoutId: string): Promise<Payout> {
   return updated;
 }
 
+/**
+ * Reverse the worker's payout for a payment that is being refunded. A still-pending
+ * payout is removed (the job was cancelled before it settled). A payout that has
+ * already been paid out to the worker cannot be auto-reversed — that needs a manual
+ * clawback — so this throws 409. A no-op when the payment has no payout.
+ */
+export async function reversePendingPayout(paymentId: string): Promise<void> {
+  const payout = await payoutRepository.findByPayment(paymentId);
+  if (!payout) {
+    return;
+  }
+  if (payout.status === 'paid') {
+    throw new AppError(
+      'The worker has already been paid out; cancelling with a refund needs a manual clawback',
+      409,
+    );
+  }
+  await payoutRepository.deleteByPayment(paymentId);
+}
+
 /** A worker's own payouts, most-recent-first. Only workers have payouts. */
 export async function listMyPayouts(principal: Principal): Promise<Payout[]> {
   if (principal.role !== 'worker') {

@@ -13,6 +13,7 @@ import {
   patchServiceRequestReset,
   patchServiceRequestStatus,
   postServiceRequest,
+  postServiceRequestCancel,
   postServiceRequestMessage,
 } from '../controllers/serviceRequestController.ts';
 import { authenticate } from '../middlewares/auth.ts';
@@ -44,3 +45,4 @@ serviceRequestRouter.patch(
 );
 serviceRequestRouter.patch('/service-requests/:id/reset', authenticate, patchServiceRequestReset);
 serviceRequestRouter.patch('/service-requests/:id/status', authenticate, patchServiceRequestStatus);
+serviceRequestRouter.post('/service-requests/:id/cancel', authenticate, postServiceRequestCancel);

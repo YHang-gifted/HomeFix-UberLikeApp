@@ -15,6 +15,8 @@ export interface PayoutRepository {
   findByPayment(paymentId: string): Promise<Payout | undefined>;
   /** A worker's payouts, most-recent-first. */
   findByWorker(workerId: string): Promise<Payout[]>;
+  /** Remove the payout for a payment (used to reverse a pending payout on refund). */
+  deleteByPayment(paymentId: string): Promise<void>;
   /** Count + summed amount of payouts still owed (pending) and already paid. */
   outstandingTotals(): Promise<PayoutTotals>;
   clear(): Promise<void>;
@@ -52,6 +54,15 @@ export class InMemoryPayoutRepository implements PayoutRepository {
         .filter((payout) => payout.workerId === workerId)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     );
+  }
+
+  public deleteByPayment(paymentId: string): Promise<void> {
+    for (const [id, payout] of this.payouts) {
+      if (payout.paymentId === paymentId) {
+        this.payouts.delete(id);
+      }
+    }
+    return Promise.resolve();
   }
 
   public outstandingTotals(): Promise<PayoutTotals> {

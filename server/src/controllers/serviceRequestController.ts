@@ -12,6 +12,7 @@ import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
 import { parseUuidParam } from './parseUuidParam.ts';
 import { listMessages, postMessage } from '../services/messageService.ts';
+import { adminCancelRequestWithRefund } from '../services/adminCancelService.ts';
 import {
   assignWorker,
   claimRequest,
@@ -34,6 +35,9 @@ const statusBodySchema = z.object({
   reason: z.string().trim().min(1).max(500).optional(),
 });
 const assignBodySchema = z.object({ workerId: z.uuid() });
+const cancelBodySchema = z.object({
+  reason: z.string().trim().min(1).max(500).optional(),
+});
 const listQuerySchema = paginationQuerySchema.extend({
   status: serviceRequestStatusSchema.optional(),
   q: z.string().trim().max(100).optional(),
@@ -372,6 +376,36 @@ export async function patchServiceRequestStatus(
       principal,
       parsed.data.reason,
     );
+    res.status(200).json(updated);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function postServiceRequestCancel(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  const id = parseId(req, next);
+  if (id === undefined) {
+    return;
+  }
+
+  const body: unknown = req.body ?? {};
+  const parsed = cancelBodySchema.safeParse(body);
+  if (!parsed.success) {
+    next(new AppError('Invalid cancel payload', 422));
+    return;
+  }
+
+  try {
+    const updated = await adminCancelRequestWithRefund(id, principal, parsed.data.reason);
     res.status(200).json(updated);
   } catch (error) {
     next(error);
