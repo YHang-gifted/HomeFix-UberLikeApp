@@ -24,6 +24,7 @@ import { AdminStatsScreen } from './src/screens/AdminStatsScreen';
 import { AdminUsersScreen } from './src/screens/AdminUsersScreen';
 import { AuditLogScreen } from './src/screens/AuditLogScreen';
 import { AvailableJobsScreen } from './src/screens/AvailableJobsScreen';
+import { CertificationsScreen } from './src/screens/CertificationsScreen';
 import { CreateRequestScreen } from './src/screens/CreateRequestScreen';
 import { FavoritesScreen } from './src/screens/FavoritesScreen';
 import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
@@ -47,6 +48,7 @@ export type RootStackParamList = {
   RequestDetail: { id: string };
   WorkerJobs: undefined;
   AvailableJobs: undefined;
+  Certifications: undefined;
   AdminRequests: undefined;
   AdminStats: undefined;
   AdminUsers: undefined;
@@ -248,6 +250,9 @@ function WorkerJobsRoute({
       onViewAvailable={() => {
         navigation.navigate('AvailableJobs');
       }}
+      onViewCertifications={() => {
+        navigation.navigate('Certifications');
+      }}
       onViewPayments={() => {
         navigation.navigate('Payments');
       }}
@@ -279,6 +284,18 @@ function AvailableJobsRoute({
       onClaimed={(id) => {
         navigation.navigate('RequestDetail', { id });
       }}
+    />
+  );
+}
+
+function CertificationsRoute(): ReactElement {
+  const refreshToken = useFocusRefreshToken();
+
+  return (
+    <CertificationsScreen
+      client={apiClient}
+      imagePicker={deviceImagePicker}
+      refreshToken={refreshToken}
     />
   );
 }
@@ -494,6 +511,11 @@ export default function App(): ReactElement {
                 name="AvailableJobs"
                 component={AvailableJobsRoute}
                 options={{ title: 'Available jobs' }}
+              />
+              <Stack.Screen
+                name="Certifications"
+                component={CertificationsRoute}
+                options={{ title: 'Certifications' }}
               />
               <Stack.Screen
                 name="RequestDetail"

@@ -29,6 +29,8 @@ export interface WorkerJobsScreenProps {
   onViewNotifications?: () => void;
   /** Called when the user taps "Find work". */
   onViewAvailable?: () => void;
+  /** Called when the user taps "Certifications". */
+  onViewCertifications?: () => void;
   /** Called when the user taps "Payments". */
   onViewPayments?: () => void;
   /** Called when the user taps "Payouts". */
@@ -52,6 +54,7 @@ export function WorkerJobsScreen({
   onViewProfile,
   onViewNotifications,
   onViewAvailable,
+  onViewCertifications,
   onViewPayments,
   onViewPayouts,
   onSelectRequest,
@@ -150,6 +153,15 @@ export function WorkerJobsScreen({
             accessibilityLabel="Find work"
           >
             <Text style={styles.profileText}>Find work</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              onViewCertifications?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Certifications"
+          >
+            <Text style={styles.profileText}>Certifications</Text>
           </Pressable>
           <Pressable
             onPress={() => {

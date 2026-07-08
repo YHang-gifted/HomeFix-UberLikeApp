@@ -589,10 +589,20 @@ pending|verified|rejected, createdAt, reviewedAt?, reviewerId?, rejectionReason?
   seed a verified plumbing cert for the worker(s) they use. New
   `certification-gating.test.mjs`: no-cert → hidden + claim 403; pending/rejected
   cert stays gated; verified → visible + claimable; a cert in one category doesn't
-  unlock another; admin can still assign an uncertified worker. — _handed off_.
+  unlock another; admin can still assign an uncertified worker. — merged.
+- **142d** worker certifications app screen. `apiClient` gained `listMyCertifications`
+  - `submitCertification`. New `CertificationsScreen`: lists the worker's own
+    certifications with status pills (pending=gold, verified=brand, rejected=danger,
+    with the reason) and an add form — category chips, title, and a document upload
+    (reuses the injected `imagePicker` + `uploadPickedImage`, so the certificate is
+    stored via the existing upload seam and the cert holds only its URL). Wired into
+    the worker stack (`App.tsx`) with a "Certifications" entry on `WorkerJobs`. A worker
+    who just registered lands here to add credentials before any jobs open up. RNTL
+    tests: list + statuses/reason, validation (category+title+document required),
+    upload→submit happy path. Next: 142e admin review screen — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **142c**
-(credential-gated matching), which were handed off. The service is deployed and
+_All slices above are merged to `main` except **134** (auth audit) and **142d**
+(worker certifications screen), which were handed off. The service is deployed and
 ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
