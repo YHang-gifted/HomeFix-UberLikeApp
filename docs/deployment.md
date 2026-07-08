@@ -97,6 +97,32 @@ Because the web app is served same-origin, `CORS_ALLOWED_ORIGINS` can stay unset
 Building the web bundle runs Metro and needs more memory/time than the server
 build alone.
 
+### Optional: Google Static Maps thumbnail
+
+To render the small map thumbnail in the request Location section, pass a Google
+Static Maps API key as the **optional** build arg
+`EXPO_PUBLIC_GOOGLE_MAPS_STATIC_KEY`. Leave it unset and the UI falls back to the
+address/coordinates text and the "Open in Maps" link (no broken image).
+
+```bash
+docker build -t homefix-api \
+  --build-arg EXPO_PUBLIC_API_BASE_URL=https://app.homefix.example \
+  --build-arg EXPO_PUBLIC_GOOGLE_MAPS_STATIC_KEY=your-static-maps-key .
+```
+
+This key is inlined into the **public** web bundle, so it is not a secret in the
+usual sense — but it MUST be locked down in Google Cloud so it can't be abused:
+
+- **Application restriction → HTTP referrers**: allow only the web origin(s), e.g.
+  `https://app.homefix.example/*` (add each origin you serve from).
+- **API restriction**: restrict the key to the **Maps Static API** only.
+- Optionally set a usage quota/budget alert as a backstop.
+
+On Railway, add `EXPO_PUBLIC_GOOGLE_MAPS_STATIC_KEY` as a service variable; the
+Dockerfile declares the matching `ARG`, so it is supplied to the build and inlined.
+Because Expo inlines `EXPO_PUBLIC_*` at build time, changing the key requires a
+rebuild/redeploy, not just a restart.
+
 ## Deploying on Railway
 
 Railway auto-detects the `Dockerfile` and builds the image. Provision a Postgres
