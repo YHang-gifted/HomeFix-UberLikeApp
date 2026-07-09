@@ -238,8 +238,13 @@ testable v1.
    is an operator step: set `STRIPE_SECRET_KEY`, `STRIPE_CHECKOUT_SUCCESS_URL`,
    `STRIPE_CHECKOUT_CANCEL_URL`, and `STRIPE_WEBHOOK_SECRET`, point Stripe's
    dashboard webhook at `/webhooks/stripe`, and test end-to-end with a `sk_test_…`
-   key before switching to live keys.
-5. **WebSocket true-push chat** — optional upgrade over the current polling.
+   key before switching to live keys. The full sequenced procedure (test-mode dry run →
+   live switch → rollback) is now written up in **`docs/stripe-go-live.md`** (152).
+5. ~~**WebSocket true-push chat** — optional upgrade over the current polling.~~ **Done**
+   (122a–d + 125): `server.ts` attaches the message WebSocket, `messageService` publishes
+   to the hub, and `MessagesScreen` consumes the live `connectStream` wired in `App.tsx`
+   on both platforms (with reconnect/backoff); polling remains only as the fallback when
+   no stream is injected (e.g. tests).
 6. **Further audit coverage** — ~~password change, profile edits, sessions-revoked,
    account delete/suspend/reinstate, login and registration, failed logins~~ **all
    audited** (login/registration in 149; failed logins in 151 via a nullable-actor
@@ -710,11 +715,18 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   (`unknown_account` / `invalid_password` / `suspended` / `inactive`) is stored — never
   the attempted email or password. App audit log labels it "Failed sign-in" and renders
   an absent actor as "anonymous". Tests in `tests/audit.test.mjs` (known → attributed
-  with reason; unknown → actor-less, no email). Completes auth-audit coverage —
-  _handed off_.
+  with reason; unknown → actor-less, no email). Completes auth-audit coverage — merged.
+- **152** Stripe go-live runbook (`docs/stripe-go-live.md`). No code — the hosted-Checkout
+  flow (129/130c–e) is already go-live ready; this is the sequenced **operator**
+  procedure grounded in the code: how the keys switch the provider on (mock `/pay`
+  disabled → settlement only via the signed `checkout.session.completed` webhook), the
+  required env, creating the dashboard webhook, a **test-mode dry run** with a test card
+  (verify settlement + payout + cancel + the 409 on direct pay), the **live** switch, and
+  a **rollback** (unset `STRIPE_SECRET_KEY` → reverts to mock). Linked from
+  `deployment.md`. Keys and real payments are the operator's to run — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **151**
-(failed-login audit), which were handed off. The service is deployed and ACTIVE on
+_All slices above are merged to `main` except **134** (auth audit) and **152**
+(Stripe go-live runbook), which were handed off. The service is deployed and ACTIVE on
 Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

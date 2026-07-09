@@ -46,6 +46,8 @@ startup by `server/src/config/env.ts` (see `.env.example`). The active variables
   this until go-live so no real payment can be confirmed by accident. Point Stripe's
   dashboard webhook at `https://<your-host>/webhooks/stripe`. (The separate
   `PAYMENTS_WEBHOOK_SECRET` guards the mock `POST /webhooks/payments` HMAC endpoint.)
+  For the full step-by-step switch-on (test-mode dry run → live), see
+  **`docs/stripe-go-live.md`**.
 - `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION` / `STORAGE_S3_ACCESS_KEY_ID` /
   `STORAGE_S3_SECRET_ACCESS_KEY` — object storage for uploaded images. Set all
   four to store images in real S3 (the API returns a presigned PUT URL the client
