@@ -156,6 +156,34 @@ const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.string().min(1).optional(),
     ),
+    // PayPal REST credentials. Set BOTH to offer PayPal (and Venmo) as a checkout
+    // method alongside Stripe; leave unset and PayPal is simply unavailable (the mock
+    // provider still handles the `card` method). Operator-supplied — never committed.
+    PAYPAL_CLIENT_ID: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
+    PAYPAL_CLIENT_SECRET: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
+    // Where PayPal returns the customer after they approve / cancel the order (point
+    // them at the app, like the Stripe return URLs). Required when PAYPAL_CLIENT_ID is
+    // set. Empty = unset.
+    PAYPAL_RETURN_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.url().optional(),
+    ),
+    PAYPAL_CANCEL_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.url().optional(),
+    ),
+    // Which PayPal environment the credentials belong to. `sandbox` (default) targets
+    // api-m.sandbox.paypal.com; `live` targets api-m.paypal.com.
+    PAYPAL_ENV: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.enum(['sandbox', 'live']).default('sandbox'),
+    ),
     // Absolute path to the built web bundle (the Expo web export, `app-expo/dist`).
     // Set it to serve the web app same-origin with the API (static assets + an SPA
     // fallback); leave unset (dev/test) and only the API is served. Empty = unset.

@@ -734,10 +734,24 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   until the adapter is wired** (slice B), so it never silently charges elsewhere. The
   globalThis test-override still wins, so existing provider tests are untouched. Tests:
   `tests/payment-method.test.mjs` (mock recorded; card→mock; paypal→400 + no payment) +
-  `selectPaymentProviderForMethod` unit cases. Backend/shared only — _handed off_.
+  `selectPaymentProviderForMethod` unit cases. Backend/shared only — merged.
+- **154** PayPal Orders adapter (**slice B**). `createPaypalPaymentProvider(createOrder)`
+  behind the same seam as Stripe (`id: 'paypal'`, `usesExternalCheckout`): `createCharge`
+  opens an order and returns the buyer-approval URL + order id (our `providerRef`), with
+  our `paymentId` on the order as `custom_id` so the capture webhook can map back. The
+  real `paypalOrderCreator(config)` (OAuth2 client-credentials → `POST /v2/checkout/orders`
+  intent CAPTURE) is injected like Stripe's session creator, so it's testable via a fake
+  (no network in tests). Config-gated: env `PAYPAL_CLIENT_ID/SECRET/RETURN_URL/CANCEL_URL/ENV`
+  (sandbox|live) → `paypalConfigFromEnv`; `selectPaymentProviderForMethod('paypal')` now
+  returns the real provider when configured, else 400. Tests: `createPaypalPaymentProvider`
+  (approval URL mapped; omitted when absent; ids in metadata). **Not functional yet** — the
+  **capture + `/webhooks/paypal` settlement is slice C**; until then an approved order
+  never settles (payment stays pending; no money moves without capture), and the app won't
+  offer PayPal until the method picker (slice D). Do NOT set `PAYPAL_*` in prod until C.
+  Backend/shared only — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **153** (provider coexistence core), which were handed off.
+(Stripe go-live runbook), and **154** (PayPal Orders adapter), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
