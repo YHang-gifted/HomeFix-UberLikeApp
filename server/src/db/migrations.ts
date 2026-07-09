@@ -430,4 +430,16 @@ export const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_certifications_status ON certifications (status)
     `,
   },
+  {
+    // Nullable actor/resource on audit events: a system/anonymous event (a failed
+    // login for an unknown email) has no user to attribute and no resource to point
+    // at. Existing rows are unaffected (all carry both). The actor FK
+    // (fk_audit_events_actor) still holds — a NULL actor_id satisfies it trivially.
+    id: '0032_audit_nullable_actor',
+    sql: `
+      ALTER TABLE audit_events ALTER COLUMN actor_id DROP NOT NULL;
+      ALTER TABLE audit_events ALTER COLUMN actor_role DROP NOT NULL;
+      ALTER TABLE audit_events ALTER COLUMN resource_id DROP NOT NULL
+    `,
+  },
 ];

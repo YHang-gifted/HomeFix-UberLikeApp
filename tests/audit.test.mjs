@@ -193,6 +193,43 @@ describe('audit log', () => {
     assert.ok(!serialized.includes('a-brand-new-pass'));
   });
 
+  it('records a failed login for a known account, attributed to that user', async () => {
+    const res = await fetch(`${baseUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'customer@homefix.test', password: 'wrong-password' }),
+    });
+    assert.equal(res.status, 401);
+
+    const page = await audit();
+    const event = page.items.find((e) => e.action === 'account.login_failed');
+    assert.ok(event);
+    assert.equal(event.actorId, CUSTOMER_ID);
+    assert.equal(event.actorRole, 'customer');
+    assert.equal(event.resourceId, CUSTOMER_ID);
+    assert.equal(event.details.reason, 'invalid_password');
+  });
+
+  it('records an actor-less failed login for an unknown email, without the address', async () => {
+    const res = await fetch(`${baseUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'ghost@homefix.test', password: 'whatever-123' }),
+    });
+    assert.equal(res.status, 401);
+
+    const page = await audit();
+    const event = page.items.find((e) => e.action === 'account.login_failed');
+    assert.ok(event);
+    // No user to attribute: the actor and resource are absent.
+    assert.equal(event.actorId, undefined);
+    assert.equal(event.actorRole, undefined);
+    assert.equal(event.resourceId, undefined);
+    assert.equal(event.details.reason, 'unknown_account');
+    // The attempted email is never stored.
+    assert.ok(!JSON.stringify(event).includes('ghost@homefix.test'));
+  });
+
   // These two mutate the acting user (a password change bumps the token version,
   // invalidating that user's token), so they run last — after the auth-gate tests
   // above that reuse the customer/worker tokens.

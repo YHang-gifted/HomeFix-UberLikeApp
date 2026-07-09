@@ -11,20 +11,25 @@ export interface AuditPage {
   offset: number;
 }
 
-/** Append an audit record for a sensitive operation. Never throws to the caller. */
+/**
+ * Append an audit record for a sensitive operation. Never throws to the caller.
+ * `actor` and `resourceId` are optional: a system/anonymous event (e.g. a failed
+ * login for an unknown email) has no user to attribute and no resource to reference.
+ */
 export async function recordAuditEvent(params: {
-  actor: Principal;
+  actor?: Principal;
   action: AuditAction;
-  resourceId: string;
+  resourceId?: string;
   details?: Record<string, string>;
 }): Promise<void> {
   const event: AuditEvent = {
     id: randomUUID(),
     occurredAt: new Date().toISOString(),
-    actorId: params.actor.id,
-    actorRole: params.actor.role,
     action: params.action,
-    resourceId: params.resourceId,
+    ...(params.actor !== undefined
+      ? { actorId: params.actor.id, actorRole: params.actor.role }
+      : {}),
+    ...(params.resourceId !== undefined ? { resourceId: params.resourceId } : {}),
     ...(params.details !== undefined ? { details: params.details } : {}),
   };
   await auditRepository.append(event);

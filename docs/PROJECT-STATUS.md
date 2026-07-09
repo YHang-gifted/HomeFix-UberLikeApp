@@ -240,10 +240,10 @@ testable v1.
    dashboard webhook at `/webhooks/stripe`, and test end-to-end with a `sk_test_…`
    key before switching to live keys.
 5. **WebSocket true-push chat** — optional upgrade over the current polling.
-6. **Further audit coverage** — password change, profile edits, sessions-revoked,
-   account delete/suspend/reinstate, **login and registration (149)** are all audited
-   now. Remaining gap: **failed** logins (needs a nullable-actor audit schema, since a
-   bad email has no user to attribute).
+6. **Further audit coverage** — ~~password change, profile edits, sessions-revoked,
+   account delete/suspend/reinstate, login and registration, failed logins~~ **all
+   audited** (login/registration in 149; failed logins in 151 via a nullable-actor
+   schema). Audit coverage of auth/account actions is complete.
 
 ## 6. Slice ledger since the last snapshot (110c–117)
 
@@ -700,10 +700,21 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   review → verified-only claim, plus the admin trusted-override), the **paid-cancel
   guard** (SEC-0006) and admin **cancel + refund** (§11), the **receipt** view and list
   **map thumbnails** (customer §2), `/metrics` (§14), login/registration audit events
-  (§4), and the migration range (`0001`–`0031`). Docs only — _handed off_.
+  (§4), and the migration range (`0001`–`0031`). Docs only — merged.
+- **151** audit **failed logins** (nullable-actor audit). Made `actorId` / `actorRole` /
+  `resourceId` optional on `auditEventSchema` + `recordAuditEvent` + the Postgres repo,
+  with migration `0032` dropping their `NOT NULL` (the actor FK still holds — a NULL
+  satisfies it). `authService.login` now records `account.login_failed` in every failure
+  branch: a known account is attributed (actor + resource = that user, so repeated
+  failures correlate); an unknown email is actor-less. A `details.reason` code
+  (`unknown_account` / `invalid_password` / `suspended` / `inactive`) is stored — never
+  the attempted email or password. App audit log labels it "Failed sign-in" and renders
+  an absent actor as "anonymous". Tests in `tests/audit.test.mjs` (known → attributed
+  with reason; unknown → actor-less, no email). Completes auth-audit coverage —
+  _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **150**
-(QA checklist refresh), which were handed off. The service is deployed and ACTIVE on
+_All slices above are merged to `main` except **134** (auth audit) and **151**
+(failed-login audit), which were handed off. The service is deployed and ACTIVE on
 Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
