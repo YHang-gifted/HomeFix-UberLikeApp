@@ -240,8 +240,10 @@ testable v1.
    dashboard webhook at `/webhooks/stripe`, and test end-to-end with a `sk_test_…`
    key before switching to live keys.
 5. **WebSocket true-push chat** — optional upgrade over the current polling.
-6. **Further audit coverage** — auth/profile actions (password change, profile
-   edits) not yet audited.
+6. **Further audit coverage** — password change, profile edits, sessions-revoked,
+   account delete/suspend/reinstate, **login and registration (149)** are all audited
+   now. Remaining gap: **failed** logins (needs a nullable-actor audit schema, since a
+   bad email has no user to attribute).
 
 ## 6. Slice ledger since the last snapshot (110c–117)
 
@@ -683,11 +685,19 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   (`docs/deployment.md`, `app-expo/.env.example`). The picker is browser-SDK glue
   (mirrors the untested native host); the tested logic — `initialMapRegion` and
   `CreateRequestScreen`'s `pickOnMap` via an injected fake — is unchanged and still
-  covered. Verify on the deployed web build once the JS key is set — _handed off_.
+  covered. Verify on the deployed web build once the JS key is set — merged.
+- **149** audit **login** and **registration** (closing the last auth-audit gaps; the
+  rest — password change, sessions revoked, profile update, account
+  delete/suspend/reinstate — were already covered). Added `account.logged_in` (on a
+  successful `login`) and `account.registered` (on `registerUser`) to `auditActionSchema`
+  and `authService`; actor = the signing-in / new user, resource = their id, no
+  credentials in the event. Tests in `tests/audit.test.mjs` (login → event with the
+  user as actor/resource; register → self-actor event with no email/password). Failed
+  logins remain unaudited (would need a nullable-actor schema) — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **148**
-(web "Pick on map"), which were handed off. The service is deployed and ACTIVE on
-Railway in mock mode (no Stripe key)._
+_All slices above are merged to `main` except **134** (auth audit) and **149**
+(login + registration audit), which were handed off. The service is deployed and ACTIVE
+on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);
