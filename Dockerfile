@@ -49,6 +49,15 @@ RUN test -n "$EXPO_PUBLIC_API_BASE_URL" || ( \
 ARG EXPO_PUBLIC_GOOGLE_MAPS_STATIC_KEY
 ENV EXPO_PUBLIC_GOOGLE_MAPS_STATIC_KEY=${EXPO_PUBLIC_GOOGLE_MAPS_STATIC_KEY}
 
+# OPTIONAL: a Google Maps JavaScript API key, inlined at build time so the web
+# "Pick on map" flow (drag a pin to set the exact location) works. Leave it unset
+# and the button is simply hidden on web (native uses react-native-maps regardless).
+# Same lockdown as the static key (HTTP-referrer restricted to the web origin); the
+# key must have the "Maps JavaScript API" enabled. Build with:
+#   docker build --build-arg EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY=your-key .
+ARG EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY
+ENV EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY=${EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY}
+
 # Install app-expo dependencies first so this layer caches unless the lockfile
 # changes. (node_modules is excluded by .dockerignore, so the later source copy
 # never clobbers it.)

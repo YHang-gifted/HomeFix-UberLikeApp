@@ -13,7 +13,7 @@ import { apiClient } from './src/api';
 import { deviceOpenCheckout } from './src/checkout';
 import { deviceImagePicker } from './src/imagePicker';
 import { deviceGeocoder, deviceLocationProvider } from './src/location';
-import { MapPickerHost, deviceMapPicker } from './src/mapPicker';
+import { MapPickerHost, deviceMapPicker, mapPickerAvailable } from './src/mapPicker';
 import { deviceConnectMessageStream } from './src/messageStream';
 import { devicePushTokenProvider } from './src/push';
 import { tokenStore } from './src/tokenStore';
@@ -185,7 +185,9 @@ function CreateRequestRoute({
       // geolocation) and manual entry remain.
       geocoder={Platform.OS === 'web' ? undefined : deviceGeocoder}
       imagePicker={deviceImagePicker}
-      mapPicker={Platform.OS === 'web' ? undefined : deviceMapPicker}
+      // Native always has react-native-maps; web has a Google Maps JS picker only
+      // when a Maps JavaScript key is configured (`mapPickerAvailable`).
+      mapPicker={mapPickerAvailable ? deviceMapPicker : undefined}
       onCreated={() => {
         navigation.goBack();
       }}

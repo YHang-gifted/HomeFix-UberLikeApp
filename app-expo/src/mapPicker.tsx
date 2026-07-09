@@ -20,6 +20,13 @@ export const deviceMapPicker: MapPicker = (initial) => {
   return openHost === null ? Promise.resolve(null) : openHost(initial);
 };
 
+/**
+ * Native always has a working map picker (react-native-maps). Mirrors the web
+ * module's flag so App.tsx can gate the "Pick on map" button uniformly across
+ * platforms (on web it is true only when a Maps JavaScript key is configured).
+ */
+export const mapPickerAvailable: boolean = true;
+
 /** Mount once at the app root so {@link deviceMapPicker} has a modal to drive. */
 export function MapPickerHost(): ReactElement {
   const [region, setRegion] = useState<MapRegion | null>(null);
