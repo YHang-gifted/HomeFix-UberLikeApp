@@ -9,6 +9,7 @@ import { requirePrincipal } from '../middlewares/auth.ts';
 import { parseUuidParam } from './parseUuidParam.ts';
 import {
   buildPaymentReceipt,
+  capturePaypalPayment,
   createPayment,
   getPayment,
   listMyPayments,
@@ -131,6 +132,28 @@ export async function postServiceRequestPaymentPay(
 
   try {
     res.status(200).json(await payPayment(id, principal));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function postServiceRequestPaypalCapture(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  const id = parseId(req, next);
+  if (id === undefined) {
+    return;
+  }
+
+  try {
+    res.status(200).json(await capturePaypalPayment(id, principal));
   } catch (error) {
     next(error);
   }

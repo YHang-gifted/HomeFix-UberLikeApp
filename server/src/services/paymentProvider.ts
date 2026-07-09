@@ -264,6 +264,44 @@ async function paypalAccessToken(config: PaypalConfig): Promise<string> {
   return body.access_token;
 }
 
+/** The result of capturing a PayPal order: its status and our `custom_id` (paymentId). */
+export interface PaypalCaptureResult {
+  status: string;
+  paymentId: string | null;
+}
+
+/**
+ * Captures an approved PayPal order (charges the buyer). Injected so the settlement
+ * flow is unit-testable without a network call; the real one is
+ * {@link paypalOrderCapturer}.
+ */
+export type CapturePaypalOrder = (orderId: string) => Promise<PaypalCaptureResult>;
+
+interface PaypalCaptureResponse {
+  status?: string;
+  purchase_units?: { payments?: { captures?: { status?: string; custom_id?: string }[] } }[];
+}
+
+/** The real capturer: authenticates, then captures the order (charges the buyer). */
+export function paypalOrderCapturer(config: PaypalConfig): CapturePaypalOrder {
+  return async (orderId) => {
+    const token = await paypalAccessToken(config);
+    const res = await fetch(`${config.baseUrl}/v2/checkout/orders/${orderId}/capture`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    });
+    if (!res.ok) {
+      throw new AppError('Could not capture the PayPal order', 502);
+    }
+    const body = (await res.json()) as PaypalCaptureResponse;
+    const capture = body.purchase_units?.[0]?.payments?.captures?.[0];
+    return {
+      status: body.status ?? capture?.status ?? 'UNKNOWN',
+      paymentId: capture?.custom_id ?? null,
+    };
+  };
+}
+
 /** The real order creator: authenticates, then opens a CAPTURE-intent order. */
 export function paypalOrderCreator(config: PaypalConfig): CreatePaypalOrder {
   return async ({ amountCents, currency, metadata }) => {
@@ -320,6 +358,12 @@ function paypalConfigFromEnv(env: Env): PaypalConfig | undefined {
   const baseUrl =
     env.PAYPAL_ENV === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
   return { clientId, clientSecret, baseUrl, returnUrl, cancelUrl };
+}
+
+/** The configured PayPal order capturer, or undefined when PayPal is not configured. */
+export function selectPaypalCapturer(env: Env = loadEnv()): CapturePaypalOrder | undefined {
+  const config = paypalConfigFromEnv(env);
+  return config === undefined ? undefined : paypalOrderCapturer(config);
 }
 
 /**

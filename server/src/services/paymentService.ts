@@ -18,8 +18,12 @@ import { getPublicUserById } from './userService.ts';
 import { recordNotification } from './notificationService.ts';
 import { recordAuditEvent } from './auditService.ts';
 import { createPayoutForPayment } from './payoutService.ts';
-import { paymentProvider, selectPaymentProviderForMethod } from './paymentProvider.ts';
-import type { PaymentProvider } from './paymentProvider.ts';
+import {
+  paymentProvider,
+  selectPaymentProviderForMethod,
+  selectPaypalCapturer,
+} from './paymentProvider.ts';
+import type { CapturePaypalOrder, PaymentProvider } from './paymentProvider.ts';
 import type { PaymentMethod } from '../../../shared/schemas.ts';
 
 /**
@@ -57,6 +61,26 @@ export function resetPaymentProviderForTests(): void {
   // Assign undefined rather than `delete` (the computed-key delete is lint-blocked);
   // activePaymentProvider() treats undefined as "no override" via its `?? default`.
   providerRegistry()[PROVIDER_OVERRIDE_KEY] = undefined;
+}
+
+// The PayPal capturer has the same globalThis-anchored test override (a fake capturer
+// avoids a network call while still exercising the settlement path). See the note above.
+const CAPTURER_OVERRIDE_KEY = '__homefixPaypalCapturerOverride__';
+
+function capturerRegistry(): Record<string, CapturePaypalOrder | undefined> {
+  return globalThis as unknown as Record<string, CapturePaypalOrder | undefined>;
+}
+
+function activePaypalCapturer(): CapturePaypalOrder | undefined {
+  return capturerRegistry()[CAPTURER_OVERRIDE_KEY] ?? selectPaypalCapturer();
+}
+
+export function setPaypalCapturerForTests(capturer: CapturePaypalOrder): void {
+  capturerRegistry()[CAPTURER_OVERRIDE_KEY] = capturer;
+}
+
+export function resetPaypalCapturerForTests(): void {
+  capturerRegistry()[CAPTURER_OVERRIDE_KEY] = undefined;
 }
 
 async function loadRequest(requestId: string): Promise<ServiceRequest> {
@@ -283,10 +307,59 @@ export async function payPayment(requestId: string, principal: Principal): Promi
   if (!payment) {
     throw new AppError('No payment for this request', 404);
   }
+  // Defence in depth: block the mock `/pay` for a payment that a real external provider
+  // took, even if the globally-active provider is the mock (e.g. PayPal configured but
+  // Stripe not). Such a payment settles only at its provider's checkout/webhook.
+  if (payment.provider === 'stripe' || payment.provider === 'paypal') {
+    throw new AppError(
+      'This payment is completed at checkout and confirmed automatically once paid.',
+      409,
+    );
+  }
   if (payment.status === 'paid') {
     throw new AppError('This payment has already been paid', 409);
   }
   return markPaid(payment);
+}
+
+/**
+ * Capture an approved PayPal order and settle the payment. The owning customer calls
+ * this when PayPal redirects them back after approval. Idempotent (an already-paid
+ * payment is returned unchanged), and it settles only on a COMPLETED capture — so a
+ * payment can never be marked paid without PayPal actually charging the buyer.
+ */
+export async function capturePaypalPayment(
+  requestId: string,
+  principal: Principal,
+): Promise<Payment> {
+  const payment = await paymentRepository.findByRequest(requestId);
+  if (!payment) {
+    throw new AppError('No payment for this request', 404);
+  }
+  if (principal.role !== 'customer' || principal.id !== payment.customerId) {
+    throw new AppError('Only the owning customer may complete this payment', 403);
+  }
+  if (payment.provider !== 'paypal') {
+    throw new AppError('This payment is not a PayPal payment', 409);
+  }
+  if (payment.status === 'paid') {
+    return payment;
+  }
+  if (payment.status !== 'pending') {
+    throw new AppError('This payment can no longer be captured', 409);
+  }
+  if (payment.providerRef === undefined) {
+    throw new AppError('This payment has no PayPal order to capture', 409);
+  }
+  const capturer = activePaypalCapturer();
+  if (capturer === undefined) {
+    throw new AppError('PayPal is not available', 400);
+  }
+  const result = await capturer(payment.providerRef);
+  if (result.status !== 'COMPLETED') {
+    throw new AppError('The PayPal payment was not completed', 402);
+  }
+  return confirmPaymentPaid(payment.id);
 }
 
 /**

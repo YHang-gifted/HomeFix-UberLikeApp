@@ -748,10 +748,25 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   **capture + `/webhooks/paypal` settlement is slice C**; until then an approved order
   never settles (payment stays pending; no money moves without capture), and the app won't
   offer PayPal until the method picker (slice D). Do NOT set `PAYPAL_*` in prod until C.
-  Backend/shared only — _handed off_.
+  Backend/shared only — merged.
+- **155** PayPal capture settlement (**slice C**) — PayPal can now actually charge.
+  `paypalOrderCapturer(config)` (OAuth → `POST /v2/checkout/orders/{id}/capture`) +
+  `selectPaypalCapturer`; `paymentService.capturePaypalPayment(requestId, principal)`
+  loads the payment, checks the owning customer + `provider === 'paypal'`, captures the
+  stored order (`providerRef`), and settles via `confirmPaymentPaid` **only on a COMPLETED
+  capture** (idempotent; 402 otherwise) — so a payment is never marked paid without PayPal
+  charging the buyer. New `POST /service-requests/:id/payment/paypal/capture` (owning
+  customer). **Payment-integrity hardening**: the mock `/pay` now also 409s for any payment
+  whose stored `provider` is external (`stripe`/`paypal`), closing a free-pay gap when
+  PayPal is configured but Stripe is not (the old guard only checked the globally-active
+  provider). Capturer has a globalThis test-override like the provider one. Tests
+  `tests/paypal-capture.test.mjs` (capture → paid + payout; non-owner 403; non-PayPal 409;
+  non-COMPLETED 402 + still pending; `/pay` on a PayPal payment 409). **Remaining: `/webhooks/paypal`
+  as a robustness backup for interrupted returns (C2), then the app method picker + return
+  handling (D).** Backend only — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **154** (PayPal Orders adapter), which were handed off.
+(Stripe go-live runbook), and **155** (PayPal capture settlement), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
