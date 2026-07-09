@@ -442,4 +442,15 @@ export const migrations: Migration[] = [
       ALTER TABLE audit_events ALTER COLUMN resource_id DROP NOT NULL
     `,
   },
+  {
+    // Which backend took a payment (mock/stripe/paypal), so its webhook and any refund
+    // route to the right provider once multiple providers coexist. Nullable: legacy
+    // rows predate the column. The CHECK is DROP IF EXISTS + ADD for idempotency.
+    id: '0033_payment_provider',
+    sql: `
+      ALTER TABLE payments ADD COLUMN IF NOT EXISTS provider text;
+      ALTER TABLE payments DROP CONSTRAINT IF EXISTS chk_payments_provider;
+      ALTER TABLE payments ADD CONSTRAINT chk_payments_provider CHECK (provider IS NULL OR provider IN ('mock', 'stripe', 'paypal'))
+    `,
+  },
 ];

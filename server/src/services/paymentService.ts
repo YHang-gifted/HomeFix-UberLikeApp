@@ -18,8 +18,9 @@ import { getPublicUserById } from './userService.ts';
 import { recordNotification } from './notificationService.ts';
 import { recordAuditEvent } from './auditService.ts';
 import { createPayoutForPayment } from './payoutService.ts';
-import { paymentProvider } from './paymentProvider.ts';
+import { paymentProvider, selectPaymentProviderForMethod } from './paymentProvider.ts';
 import type { PaymentProvider } from './paymentProvider.ts';
+import type { PaymentMethod } from '../../../shared/schemas.ts';
 
 /**
  * The active payment provider. Defaults to the config-selected singleton; tests can
@@ -38,8 +39,14 @@ function providerRegistry(): Record<string, PaymentProvider | undefined> {
   return globalThis as unknown as Record<string, PaymentProvider | undefined>;
 }
 
-function activePaymentProvider(): PaymentProvider {
-  return providerRegistry()[PROVIDER_OVERRIDE_KEY] ?? paymentProvider;
+function activePaymentProvider(method?: PaymentMethod): PaymentProvider {
+  const override = providerRegistry()[PROVIDER_OVERRIDE_KEY];
+  if (override !== undefined) {
+    return override;
+  }
+  // No method (or the default `card`) keeps the existing singleton; a specific method
+  // is resolved so an unavailable provider (e.g. PayPal before it is wired) fails fast.
+  return method === undefined ? paymentProvider : selectPaymentProviderForMethod(method);
 }
 
 export function setPaymentProviderForTests(provider: PaymentProvider): void {
@@ -189,7 +196,8 @@ export async function createPayment(
   const id = randomUUID();
   // Open the charge with the provider (mock by default) and keep its reference so
   // the provider's webhook can later be mapped back to this payment.
-  const charge = await activePaymentProvider().createCharge({
+  const provider = activePaymentProvider(input.method);
+  const charge = await provider.createCharge({
     paymentId: id,
     requestId,
     amountCents: input.amountCents,
@@ -207,6 +215,7 @@ export async function createPayment(
     platformFeeCents,
     workerNetCents,
     providerRef: charge.providerRef,
+    provider: provider.id,
   };
   await paymentRepository.save(payment);
   await recordAuditEvent({

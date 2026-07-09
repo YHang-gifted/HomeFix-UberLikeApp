@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import Stripe from 'stripe';
 
+import type { PaymentMethod, PaymentProviderId } from '../../../shared/schemas.ts';
 import { loadEnv } from '../config/env.ts';
 import type { Env } from '../config/env.ts';
 import { AppError } from '../errors/appError.ts';
@@ -33,6 +34,8 @@ export interface PaymentChargeResult {
  * later confirms the payment by that reference.
  */
 export interface PaymentProvider {
+  /** Which backend this is (recorded on the payment so webhooks/refunds route back). */
+  readonly id: PaymentProviderId;
   /**
    * True when the customer completes the payment at the provider's checkout (e.g.
    * Stripe), so the payment is settled only by the provider's verified webhook —
@@ -49,6 +52,7 @@ export interface PaymentProvider {
  * {@link selectPaymentProvider} without touching callers.
  */
 export const mockPaymentProvider: PaymentProvider = {
+  id: 'mock',
   usesExternalCheckout: false,
   createCharge(_input: PaymentChargeInput): Promise<PaymentChargeResult> {
     return Promise.resolve({ providerRef: `mock_${randomUUID()}` });
@@ -86,6 +90,7 @@ export function createStripePaymentProvider(
   createSession: CreateStripeCheckoutSession,
 ): PaymentProvider {
   return {
+    id: 'stripe',
     usesExternalCheckout: true,
     async createCharge(input: PaymentChargeInput): Promise<PaymentChargeResult> {
       const session = await createSession(
@@ -177,6 +182,23 @@ export function selectPaymentProvider(env: Env = loadEnv()): PaymentProvider {
   return config !== undefined
     ? createStripePaymentProvider(stripeCheckoutCreator(config))
     : mockPaymentProvider;
+}
+
+/**
+ * Resolve the provider for the customer's chosen method, so multiple providers can
+ * coexist. `card` (or an unspecified method, for back-compat) uses the configured card
+ * provider — Stripe when set, otherwise the mock. `paypal` will use the PayPal adapter
+ * once it is wired; until then it is unavailable (400) rather than silently charging via
+ * another provider.
+ */
+export function selectPaymentProviderForMethod(
+  method: PaymentMethod | undefined,
+  env: Env = loadEnv(),
+): PaymentProvider {
+  if (method === 'paypal') {
+    throw new AppError('PayPal is not available yet — please choose card.', 400);
+  }
+  return selectPaymentProvider(env);
 }
 
 export const paymentProvider: PaymentProvider = selectPaymentProvider();

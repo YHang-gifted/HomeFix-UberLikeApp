@@ -5,7 +5,22 @@ import {
   createStripePaymentProvider,
   mockPaymentProvider,
   selectPaymentProvider,
+  selectPaymentProviderForMethod,
 } from '../server/src/services/paymentProvider.ts';
+
+describe('selectPaymentProviderForMethod', () => {
+  it('gives the mock provider for card / unspecified when no real provider is set', () => {
+    assert.equal(selectPaymentProviderForMethod(undefined).id, 'mock');
+    assert.equal(selectPaymentProviderForMethod('card').id, 'mock');
+  });
+
+  it('rejects paypal with 400 until the adapter is wired', () => {
+    assert.throws(
+      () => selectPaymentProviderForMethod('paypal'),
+      (error) => error.statusCode === 400,
+    );
+  });
+});
 
 describe('mockPaymentProvider', () => {
   it('assigns a mock provider reference and contacts nothing external', async () => {

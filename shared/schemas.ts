@@ -390,6 +390,17 @@ export type UpdateNotificationPreferencesInput = z.infer<
 export const paymentStatusSchema = z.enum(['pending', 'paid', 'refunded']);
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
 
+// Which backend settled a payment: `mock` (dev/test), `stripe`, or `paypal`. Stored on
+// the payment so a webhook and an admin refund route to the provider that took it. This
+// lets multiple real providers coexist (the customer chooses at checkout).
+export const paymentProviderIdSchema = z.enum(['mock', 'stripe', 'paypal']);
+export type PaymentProviderId = z.infer<typeof paymentProviderIdSchema>;
+
+// What the customer chooses at checkout: `card` → Stripe hosted Checkout; `paypal` →
+// PayPal (which also offers Venmo as a funding option). Resolved to a provider server-side.
+export const paymentMethodSchema = z.enum(['card', 'paypal']);
+export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
+
 export const paymentSchema = z.object({
   id: z.uuid(),
   requestId: z.uuid(),
@@ -409,6 +420,9 @@ export const paymentSchema = z.object({
   // PaymentIntent id). Optional: the mock provider assigns one, and it is how a
   // real provider's webhooks map back to our payment. Legacy rows may lack it.
   providerRef: z.string().optional(),
+  // Which backend took this payment (mock/stripe/paypal), so its webhook and any
+  // refund route to the right provider. Optional: legacy rows predate the column.
+  provider: paymentProviderIdSchema.optional(),
   // The provider's client secret for completing the payment (e.g. a Stripe
   // PaymentIntent client secret). Ephemeral: returned ONLY on the create-payment
   // response so the app can start checkout; never persisted, never on a later GET.
@@ -519,6 +533,10 @@ export function splitPaymentAmount(
 
 export const createPaymentInputSchema = z.object({
   amountCents: z.number().int().min(MIN_AMOUNT_CENTS).max(100_000_000),
+  // Which method the customer chose. Optional for back-compat (the app may not send
+  // it yet); the server resolves it to a provider, defaulting to the configured card
+  // provider when absent.
+  method: paymentMethodSchema.optional(),
 });
 export type CreatePaymentInput = z.infer<typeof createPaymentInputSchema>;
 
