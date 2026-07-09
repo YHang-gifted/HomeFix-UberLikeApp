@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import type { ServiceCategory, ServiceRequest } from '../../../shared/schemas';
 import { CategoryFilter } from '../components/CategoryFilter';
+import { RequestLocationThumbnail } from '../components/RequestLocationThumbnail';
 import { StatusBadge } from '../components/StatusBadge';
 import { useCustomerNames } from '../hooks/useCustomerNames';
 import { apiClient } from '../api';
@@ -161,6 +162,7 @@ export function AvailableJobsScreen({
                 <Text style={styles.customer}>Customer: {customerNames[item.customerId]}</Text>
               )}
               <Text style={styles.description}>{item.description}</Text>
+              <RequestLocationThumbnail location={item.location} />
               <Pressable
                 style={({ pressed }) => [styles.claim, pressed && styles.claimPressed]}
                 onPress={() => {

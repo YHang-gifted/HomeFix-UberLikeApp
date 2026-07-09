@@ -11,6 +11,7 @@ import type {
 } from '../../../shared/schemas';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { LoadMoreFooter } from '../components/LoadMoreFooter';
+import { RequestLocationThumbnail } from '../components/RequestLocationThumbnail';
 import { SearchBox } from '../components/SearchBox';
 import { StatusFilter } from '../components/StatusFilter';
 import { useCustomerNames } from '../hooks/useCustomerNames';
@@ -263,6 +264,7 @@ export function AdminRequestsScreen({
                 <Text style={styles.customer}>Customer: {customerNames[item.customerId]}</Text>
               )}
               <Text style={styles.description}>{item.description}</Text>
+              <RequestLocationThumbnail location={item.location} />
 
               {item.status === 'pending' && (
                 <View style={styles.assignRow}>
