@@ -8,13 +8,15 @@ real devices, native modules, and full user journeys._
 
 _The happy-path server loop (customer -> worker -> admin: post, assign, quote,
 accept, pay with commission split, payout, message, complete, review, audit) is
-also covered automatically by `tests/e2e-smoke.test.mjs` in `npm test`. This
-checklist adds the device- and native-module coverage that can't._
+also covered automatically by `tests/e2e-smoke.test.mjs` in `npm test`; other server
+rules — credential-gated matching (§16), the paid-cancel guard, and admin cancel +
+refund (§11) — have their own automated tests too. This checklist adds the device- and
+native-module coverage that automation can't._
 
 ## 0. Prerequisites & environment
 
 - [ ] Backend running with a real Postgres (`DATABASE_URL` set); all migrations
-      (`0001`–`0029`) applied on boot.
+      (`0001`–`0031`) applied on boot.
 - [ ] `JWT_SECRET` set to a strong, non-default value (the server refuses to boot
       in production otherwise).
 - [ ] `CORS_ALLOWED_ORIGINS` set to the app/web origin(s) if testing from a
@@ -52,11 +54,17 @@ checklist adds the device- and native-module coverage that can't._
 - [ ] Open the request detail: category, description, photos, location, created
       time, and the activity timeline are correct.
 - [ ] Pull-to-refresh and "Load more" pagination work on the list.
+- [ ] With a Static Maps key set, each list card shows a small **map thumbnail** for
+      the request location; with no key the card shows no thumbnail (no broken image).
 - [ ] Search and the status-filter chips narrow the list correctly.
 - [ ] After a worker is assigned and sends a quote: the **Quote** section shows
       the amount/note; **Accept** and **Decline** work; status label updates.
 - [ ] After accepting a quote: the **Payment** amount is **prefilled** from the
       quote; "Set up payment" then "Pay now" mark it paid (mock — no real charge).
+- [ ] On a **paid** request, **View receipt** shows the receipt number, the amount
+      breakdown (gross, worker net, platform fee), and both parties' names.
+- [ ] A **paid** request can no longer be cancelled — the cancel control is hidden,
+      and the server rejects a cancel with **422** (SEC-0006).
 - [ ] Favorite/unfavorite the assigned worker; it appears in the Favorites list.
 - [ ] Open Messages for the request; send a message; it appears in the thread.
 - [ ] Cancel a still-cancellable request with a reason; the reason shows in the
@@ -69,7 +77,12 @@ checklist adds the device- and native-module coverage that can't._
 ## 3. Worker — end-to-end
 
 - [ ] Register/log in as a worker.
-- [ ] "Find work" / Available jobs lists pending, unassigned requests.
+- [ ] **Certifications:** upload a certificate for a category (title + document); it
+      lists as **pending**. A rejected one shows the reason; a verified one unlocks
+      that category. (See §16 for the full credential-gating flow.)
+- [ ] "Find work" / Available jobs lists pending, unassigned requests **only in the
+      worker's verified categories** — a worker with no verified certification sees an
+      empty list.
 - [ ] **Category chips** filter the available list; the empty state is
       category-specific.
 - [ ] Claim a job; it disappears from the available list and appears under the
@@ -89,7 +102,14 @@ checklist adds the device- and native-module coverage that can't._
 - [ ] Assign a worker to a pending request; the worker list is ordered by rating;
       the assignment is recorded with the worker's name in the timeline.
 - [ ] Admin can view any request's detail and history.
-- [ ] Audit log screen lists events with correct actor/action and paginates.
+- [ ] Audit log screen lists events with correct actor/action and paginates (includes
+      `account.logged_in` / `account.registered` on sign-in / sign-up).
+- [ ] **Certification review:** the review queue lists pending certifications; **Verify**
+      unlocks the worker's category, **Reject** requires a reason. (See §16.)
+- [ ] **Cancel & refund:** on a **paid** request, the admin-only "Cancel job & refund"
+      refunds the payment, reverses the worker's pending payout, and cancels the request.
+      If the worker was already paid out it is blocked (**409**, manual clawback). A
+      non-admin never sees this control.
 
 ## 5. Matching & concurrency
 
@@ -133,11 +153,11 @@ checklist adds the device- and native-module coverage that can't._
 - [ ] **Known limitation:** forward-geocoding availability/accuracy depends on the
       platform/provider configuration; an unconfigured environment may return no
       results — the manual coordinate entry is the fallback.
-- [ ] **Web:** the app degrades gracefully. The **map picker** and **address
-      search** are hidden (both native-only via react-native-maps / expo-location
+- [ ] **Web:** the app degrades gracefully. **Address search** is hidden (native-only
       forward geocoding); **current location** uses the browser's geolocation; and
-      manual lat/long entry always works. Nothing crashes when these native
-      features are unavailable.
+      manual lat/long entry always works. The **map picker** now works on web too when
+      `EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY` is set (Google Maps JS) — with no key the "Pick on
+      map" button is hidden. Nothing crashes when these features are unavailable.
 
 ## 9. Resilience & UX spot-checks
 
@@ -168,6 +188,11 @@ checklist adds the device- and native-module coverage that can't._
       both parties are notified. A worker/customer has no refund action.
 - [ ] A refunded request can be re-pooled (released/reset) — the refund remains in
       the audit log.
+- [ ] A **paid** request cannot be cancelled, released, or reset (**422**) — the money
+      is settled with no orphaning (SEC-0005 / SEC-0006).
+- [ ] The admin **"Cancel job & refund"** on a paid request refunds it, reverses the
+      worker's **pending** payout, and cancels — but is blocked (**409**) once the
+      worker's payout has already settled (manual clawback).
 
 ## 12. Notification preferences
 
@@ -181,8 +206,9 @@ checklist adds the device- and native-module coverage that can't._
 ## 13. Map picker & image upload (native)
 
 - [ ] Create request → **"Pick on map"** opens the map; dropping/dragging the pin
-      and confirming fills the latitude/longitude fields. (Native only — the
-      button is hidden on web.)
+      and confirming fills the latitude/longitude fields. (Native uses
+      react-native-maps; **web** uses Google Maps JS when
+      `EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY` is set — otherwise the button is hidden.)
 - [ ] Create request → **"Add photo"** picks an image, uploads it, and the photo
       appears on the submitted request. Denying photo permission fails gracefully.
 
@@ -193,6 +219,8 @@ checklist adds the device- and native-module coverage that can't._
       sees a generic 500 — no internal detail leaks.
 - [ ] `npm run backup:db` produces a timestamped dump from `DATABASE_URL`; a
       restore into a scratch database boots and serves (see `docs/backups.md`).
+- [ ] `GET /metrics` returns Prometheus text (request counters + process gauges); when
+      `METRICS_TOKEN` is set it requires that bearer token (401 otherwise).
 
 ## 15. Known limitations to confirm (not bugs)
 
@@ -203,3 +231,18 @@ checklist adds the device- and native-module coverage that can't._
       are set (see §7); otherwise the sender logs only.
 - [ ] Uploaded images use the in-memory mock store by default (dev/test); set the
       `STORAGE_S3_*` env vars to store them in real S3 (presigned direct upload).
+
+## 16. Certifications — credential-gated matching
+
+- [ ] **Worker upload:** a worker submits a certificate for a category (title +
+      document URL); it appears in their list as **pending**.
+- [ ] **Gating (pending/rejected):** while a category's certificate is pending or
+      rejected, the worker does **not** see or get pushed jobs in that category, and a
+      direct claim is **403**.
+- [ ] **Admin review:** the admin review queue lists pending certificates; **Verify**
+      unlocks the category; **Reject** requires a reason, which the worker then sees.
+- [ ] **Gating (verified):** once verified, the category's jobs appear in the worker's
+      Available list and can be claimed; a certificate in one category does **not**
+      unlock another.
+- [ ] **Admin override:** an admin can still **assign** an uncertified worker directly
+      (a trusted override); only self-serve claim/visibility is gated.

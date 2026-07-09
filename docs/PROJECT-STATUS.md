@@ -693,11 +693,18 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   and `authService`; actor = the signing-in / new user, resource = their id, no
   credentials in the event. Tests in `tests/audit.test.mjs` (login → event with the
   user as actor/resource; register → self-actor event with no email/password). Failed
-  logins remain unaudited (would need a nullable-actor schema) — _handed off_.
+  logins remain unaudited (would need a nullable-actor schema) — merged.
+- **150** refresh `docs/qa-checklist.md` to match the current app (it had drifted). Fixed
+  the stale "map picker hidden on web" claim (148 added a web Google Maps JS picker),
+  added the **certifications** credential-gating flow (new §16: worker upload → admin
+  review → verified-only claim, plus the admin trusted-override), the **paid-cancel
+  guard** (SEC-0006) and admin **cancel + refund** (§11), the **receipt** view and list
+  **map thumbnails** (customer §2), `/metrics` (§14), login/registration audit events
+  (§4), and the migration range (`0001`–`0031`). Docs only — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **149**
-(login + registration audit), which were handed off. The service is deployed and ACTIVE
-on Railway in mock mode (no Stripe key)._
+_All slices above are merged to `main` except **134** (auth audit) and **150**
+(QA checklist refresh), which were handed off. The service is deployed and ACTIVE on
+Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);
