@@ -5,6 +5,7 @@ import type { ApiClient } from '../../../app/src/services/apiClient';
 import type { ServiceRequestStatus } from '../../../shared/schemas';
 import { AlertsButton } from '../components/AlertsButton';
 import { LoadMoreFooter } from '../components/LoadMoreFooter';
+import { RequestLocationThumbnail } from '../components/RequestLocationThumbnail';
 import { SearchBox } from '../components/SearchBox';
 import { StatusBadge } from '../components/StatusBadge';
 import { StatusFilter } from '../components/StatusFilter';
@@ -181,6 +182,7 @@ export function ServiceRequestsScreen({
                 <StatusBadge status={item.status} />
               </View>
               <Text style={styles.description}>{item.description}</Text>
+              <RequestLocationThumbnail location={item.location} />
               <Text style={styles.cardMeta}>{new Date(item.createdAt).toLocaleDateString()}</Text>
             </Pressable>
           )}

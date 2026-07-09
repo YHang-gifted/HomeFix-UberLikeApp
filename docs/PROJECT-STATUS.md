@@ -653,11 +653,27 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   `tests/admin-cancel-refund.test.mjs` (refund + payout reversed + cancelled; non-admin
   403; unpaid cancels; already-paid-out 409) and app
   `RequestDetailScreen.test.tsx` (admin sees + cancels with/without reason; hidden when
-  unpaid; hidden from non-admin) — _handed off_.
+  unpaid; hidden from non-admin) — merged.
+- **146** wire the Google Static Maps key into the web build. The 143 thumbnail code
+  reads `EXPO_PUBLIC_GOOGLE_MAPS_STATIC_KEY`, but the Docker web build never passed it,
+  so the deployed bundle could never show a real thumbnail (Expo inlines
+  `EXPO_PUBLIC_*` at build time). Added an **optional** `ARG`/`ENV` in the web build
+  stage (no fail-fast gate, unlike the required API URL) + documented the Google Cloud
+  lockdown (HTTP-referrer restriction + Maps Static API only) in `docs/deployment.md`.
+  No app/server code — merged.
+- **147** static-map thumbnails on the request lists. New reusable
+  `components/RequestLocationThumbnail` (injectable `mapPreviewUrl` seam, defaults to
+  `staticMapPreviewUrl`) renders a small map image on each list card, and **nothing**
+  when no key is configured (no broken image), so lists stay clean until the key is
+  set. Wired into the customer list (`ServiceRequestsScreen`), the worker available-jobs
+  list (`AvailableJobsScreen`), and the admin list (`AdminRequestsScreen`); the card's
+  own tap still opens the detail screen with the interactive map. Test
+  `RequestLocationThumbnail.test.tsx` (renders the image with the URL; renders nothing
+  when null; passes the location to the builder) — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **145**
-(admin cancel + refund, backend + app), which were handed off. The service is deployed
-and ACTIVE on Railway in mock mode (no Stripe key)._
+_All slices above are merged to `main` except **134** (auth audit) and **147**
+(list-card map thumbnails), which were handed off. The service is deployed and ACTIVE on
+Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);
