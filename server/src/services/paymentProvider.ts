@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
 
 import Stripe from 'stripe';
@@ -172,6 +173,155 @@ function stripeConfigFromEnv(env: Env): StripeConfig | undefined {
   return { secretKey, successUrl, cancelUrl };
 }
 
+// --- PayPal Orders v2 (a second hosted-checkout provider) ------------------------
+
+/** Resolved PayPal REST config. Base URL differs by environment (sandbox/live). */
+export interface PaypalConfig {
+  clientId: string;
+  clientSecret: string;
+  baseUrl: string;
+  returnUrl: string;
+  cancelUrl: string;
+}
+
+/** The bits of a created PayPal order we depend on: its id + the buyer-approval URL. */
+export interface PaypalOrderResult {
+  id: string;
+  approveUrl: string | null;
+}
+
+/**
+ * Opens a PayPal order. Injected so the adapter is unit-testable without a network
+ * call; the real one is {@link paypalOrderCreator}. `metadata.paymentId` is carried on
+ * the order (as `custom_id`) so the capture webhook can map it back to our payment.
+ */
+export type CreatePaypalOrder = (params: {
+  amountCents: number;
+  currency: string;
+  metadata: { paymentId: string; requestId: string };
+}) => Promise<PaypalOrderResult>;
+
+/**
+ * A payment provider backed by PayPal hosted checkout. `createCharge` opens an order
+ * and returns the buyer-approval URL the app redirects to, plus the order id (stored as
+ * our `providerRef`). Like Stripe, it settles only via a verified webhook — but PayPal's
+ * flow additionally needs a capture step after approval (wired in a later slice).
+ */
+export function createPaypalPaymentProvider(createOrder: CreatePaypalOrder): PaymentProvider {
+  return {
+    id: 'paypal',
+    usesExternalCheckout: true,
+    async createCharge(input: PaymentChargeInput): Promise<PaymentChargeResult> {
+      const order = await createOrder({
+        amountCents: input.amountCents,
+        currency: input.currency,
+        metadata: { paymentId: input.paymentId, requestId: input.requestId },
+      });
+      return {
+        providerRef: order.id,
+        ...(order.approveUrl !== null ? { checkoutUrl: order.approveUrl } : {}),
+      };
+    },
+  };
+}
+
+interface PaypalTokenResponse {
+  access_token: string;
+}
+interface PaypalOrderResponse {
+  id: string;
+  links?: { rel: string; href: string }[];
+}
+
+/**
+ * PayPal wants the amount as a decimal string. Most currencies use 2 decimals
+ * (cents/100); a few are zero-decimal and must be whole numbers. Our amounts are stored
+ * in minor units (`amountCents`). Verify the full zero-decimal set for your live
+ * currencies before go-live.
+ */
+function paypalAmountValue(amountCents: number, currency: string): string {
+  const zeroDecimal = new Set(['JPY', 'TWD', 'HUF', 'KRW']);
+  return zeroDecimal.has(currency.toUpperCase())
+    ? String(Math.round(amountCents / 100))
+    : (amountCents / 100).toFixed(2);
+}
+
+/** OAuth2 client-credentials token for the PayPal REST API. */
+async function paypalAccessToken(config: PaypalConfig): Promise<string> {
+  const basic = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64');
+  const res = await fetch(`${config.baseUrl}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      authorization: `Basic ${basic}`,
+      'content-type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials',
+  });
+  if (!res.ok) {
+    throw new AppError('Could not authenticate with PayPal', 502);
+  }
+  const body = (await res.json()) as PaypalTokenResponse;
+  return body.access_token;
+}
+
+/** The real order creator: authenticates, then opens a CAPTURE-intent order. */
+export function paypalOrderCreator(config: PaypalConfig): CreatePaypalOrder {
+  return async ({ amountCents, currency, metadata }) => {
+    const token = await paypalAccessToken(config);
+    const res = await fetch(`${config.baseUrl}/v2/checkout/orders`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        intent: 'CAPTURE',
+        purchase_units: [
+          {
+            custom_id: metadata.paymentId,
+            amount: {
+              currency_code: currency.toUpperCase(),
+              value: paypalAmountValue(amountCents, currency),
+            },
+          },
+        ],
+        application_context: {
+          return_url: config.returnUrl,
+          cancel_url: config.cancelUrl,
+          user_action: 'PAY_NOW',
+        },
+      }),
+    });
+    if (!res.ok) {
+      throw new AppError('Could not create the PayPal order', 502);
+    }
+    const body = (await res.json()) as PaypalOrderResponse;
+    const approveUrl = body.links?.find((link) => link.rel === 'approve')?.href ?? null;
+    return { id: body.id, approveUrl };
+  };
+}
+
+/**
+ * Resolve PayPal config from the environment. Returns undefined (→ PayPal unavailable)
+ * when no client id/secret is set; throws when they are set but the return URLs are
+ * missing, so a half-configured provider fails fast rather than silently.
+ */
+function paypalConfigFromEnv(env: Env): PaypalConfig | undefined {
+  const clientId = env.PAYPAL_CLIENT_ID;
+  const clientSecret = env.PAYPAL_CLIENT_SECRET;
+  if (clientId === undefined || clientSecret === undefined) {
+    return undefined;
+  }
+  const returnUrl = env.PAYPAL_RETURN_URL;
+  const cancelUrl = env.PAYPAL_CANCEL_URL;
+  if (returnUrl === undefined || cancelUrl === undefined) {
+    throw new AppError(
+      'PAYPAL_CLIENT_ID is set but PAYPAL_RETURN_URL and PAYPAL_CANCEL_URL are required for PayPal checkout.',
+      500,
+    );
+  }
+  const baseUrl =
+    env.PAYPAL_ENV === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+  return { clientId, clientSecret, baseUrl, returnUrl, cancelUrl };
+}
+
 /**
  * Choose the payment provider from configuration: real Stripe hosted checkout when
  * `STRIPE_SECRET_KEY` (+ return URLs) is set, otherwise the inert mock. Credentials
@@ -196,7 +346,11 @@ export function selectPaymentProviderForMethod(
   env: Env = loadEnv(),
 ): PaymentProvider {
   if (method === 'paypal') {
-    throw new AppError('PayPal is not available yet — please choose card.', 400);
+    const config = paypalConfigFromEnv(env);
+    if (config === undefined) {
+      throw new AppError('PayPal is not available — it is not configured.', 400);
+    }
+    return createPaypalPaymentProvider(paypalOrderCreator(config));
   }
   return selectPaymentProvider(env);
 }

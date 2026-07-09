@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  createPaypalPaymentProvider,
   createStripePaymentProvider,
   mockPaymentProvider,
   selectPaymentProvider,
@@ -141,5 +142,45 @@ describe('createStripePaymentProvider', () => {
       Promise.resolve({ id: 'cs_1', url: null, paymentIntentId: 'pi_1' }),
     );
     assert.equal(provider.usesExternalCheckout, true);
+  });
+});
+
+describe('createPaypalPaymentProvider', () => {
+  const input = {
+    paymentId: '623e4567-e89b-12d3-a456-426614174000',
+    requestId: '523e4567-e89b-12d3-a456-426614174000',
+    amountCents: 150000,
+    currency: 'TWD',
+  };
+
+  it('opens an order and returns its approval URL + id (no network)', async () => {
+    const calls = [];
+    const provider = createPaypalPaymentProvider((params) => {
+      calls.push(params);
+      return Promise.resolve({
+        id: 'ORDER-1',
+        approveUrl: 'https://www.paypal.com/checkoutnow?token=ORDER-1',
+      });
+    });
+
+    assert.equal(provider.id, 'paypal');
+    assert.equal(provider.usesExternalCheckout, true);
+
+    const result = await provider.createCharge(input);
+    assert.equal(result.providerRef, 'ORDER-1');
+    assert.equal(result.checkoutUrl, 'https://www.paypal.com/checkoutnow?token=ORDER-1');
+    // Our ids ride on the order so the capture webhook can map back.
+    assert.equal(calls[0].amountCents, 150000);
+    assert.equal(calls[0].metadata.paymentId, input.paymentId);
+    assert.equal(calls[0].metadata.requestId, input.requestId);
+  });
+
+  it('omits checkoutUrl when the order has no approval link', async () => {
+    const provider = createPaypalPaymentProvider(() =>
+      Promise.resolve({ id: 'ORDER-2', approveUrl: null }),
+    );
+    const result = await provider.createCharge(input);
+    assert.equal(result.providerRef, 'ORDER-2');
+    assert.equal(result.checkoutUrl, undefined);
   });
 });
