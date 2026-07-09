@@ -19,20 +19,41 @@ export interface LoginResult {
   principal: Principal;
 }
 
+/**
+ * Record a failed sign-in. For a known account the event is attributed to that user
+ * (actor + resource), so repeated failures on one account are correlatable; an unknown
+ * email has no user, so the event is actor-less. The `reason` is an internal code — the
+ * attempted email/password are never stored (no PII, no credentials in the audit log).
+ */
+async function recordLoginFailure(actor: Principal | undefined, reason: string): Promise<void> {
+  await recordAuditEvent({
+    action: 'account.login_failed',
+    ...(actor !== undefined ? { actor, resourceId: actor.id } : {}),
+    details: { reason },
+  });
+}
+
 export async function login(input: LoginInput): Promise<LoginResult> {
   const user = await userRepository.findByEmail(input.email);
-  if (!user || !verifyPassword(input.password, user.passwordHash)) {
+  if (!user) {
+    await recordLoginFailure(undefined, 'unknown_account');
+    throw new AppError('Invalid email or password', 401);
+  }
+  const principal: Principal = { id: user.id, role: user.role };
+  if (!verifyPassword(input.password, user.passwordHash)) {
+    await recordLoginFailure(principal, 'invalid_password');
     throw new AppError('Invalid email or password', 401);
   }
   if (user.status === 'suspended') {
+    await recordLoginFailure(principal, 'suspended');
     throw new AppError('This account has been suspended. Please contact support.', 403);
   }
   if (user.status !== 'active') {
     // A deleted (soft-deleted) account must not be distinguishable from a wrong
     // password, so it gets the same generic 401 as bad credentials.
+    await recordLoginFailure(principal, 'inactive');
     throw new AppError('Invalid email or password', 401);
   }
-  const principal: Principal = { id: user.id, role: user.role };
   await recordAuditEvent({
     actor: principal,
     action: 'account.logged_in',

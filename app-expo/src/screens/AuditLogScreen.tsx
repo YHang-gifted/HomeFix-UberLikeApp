@@ -11,6 +11,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   'service_request.status_changed': 'Status changed',
   'account.registered': 'Registered account',
   'account.logged_in': 'Signed in',
+  'account.login_failed': 'Failed sign-in',
   'account.suspended': 'Suspended account',
   'account.reinstated': 'Reinstated account',
   'account.deleted': 'Deleted account',
@@ -109,7 +110,7 @@ export function AuditLogScreen({ client, refreshToken }: AuditLogScreenProps): R
         return (
           <View style={styles.row}>
             <Text style={styles.action}>{ACTION_LABELS[item.action]}</Text>
-            <Text style={styles.meta}>by {item.actorRole}</Text>
+            <Text style={styles.meta}>by {item.actorRole ?? 'anonymous'}</Text>
             {details !== null && <Text style={styles.details}>{details}</Text>}
             <Text style={styles.time}>{new Date(item.occurredAt).toLocaleString()}</Text>
           </View>

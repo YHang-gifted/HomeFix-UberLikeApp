@@ -193,6 +193,7 @@ export const auditActionSchema = z.enum([
   'service_request.status_changed',
   'account.registered',
   'account.logged_in',
+  'account.login_failed',
   'account.suspended',
   'account.reinstated',
   'account.deleted',
@@ -214,10 +215,12 @@ export type AuditAction = z.infer<typeof auditActionSchema>;
 export const auditEventSchema = z.object({
   id: z.uuid(),
   occurredAt: z.iso.datetime(),
-  actorId: z.uuid(),
-  actorRole: roleSchema,
+  // Actor and resource are optional: a system/anonymous event (e.g. a failed login
+  // for an unknown email) has no user to attribute and no resource to point at.
+  actorId: z.uuid().optional(),
+  actorRole: roleSchema.optional(),
   action: auditActionSchema,
-  resourceId: z.uuid(),
+  resourceId: z.uuid().optional(),
   details: z.record(z.string(), z.string()).optional(),
 });
 export type AuditEvent = z.infer<typeof auditEventSchema>;

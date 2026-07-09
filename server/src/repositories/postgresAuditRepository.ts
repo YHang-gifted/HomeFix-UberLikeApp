@@ -12,10 +12,10 @@ const INSERT = `
 interface AuditRow {
   id: string;
   occurred_at: string | Date;
-  actor_id: string;
-  actor_role: string;
+  actor_id: string | null;
+  actor_role: string | null;
   action: string;
-  resource_id: string;
+  resource_id: string | null;
   details: Record<string, string> | null;
 }
 
@@ -24,10 +24,10 @@ function mapRow(row: unknown): AuditEvent {
   const candidate = {
     id: r.id,
     occurredAt: new Date(r.occurred_at).toISOString(),
-    actorId: r.actor_id,
-    actorRole: r.actor_role,
     action: r.action,
-    resourceId: r.resource_id,
+    ...(r.actor_id !== null ? { actorId: r.actor_id } : {}),
+    ...(r.actor_role !== null ? { actorRole: r.actor_role } : {}),
+    ...(r.resource_id !== null ? { resourceId: r.resource_id } : {}),
     ...(r.details !== null ? { details: r.details } : {}),
   };
   return auditEventSchema.parse(candidate);
@@ -44,10 +44,10 @@ export class PostgresAuditRepository implements AuditRepository {
     await this.db.query(INSERT, [
       event.id,
       event.occurredAt,
-      event.actorId,
-      event.actorRole,
+      event.actorId ?? null,
+      event.actorRole ?? null,
       event.action,
-      event.resourceId,
+      event.resourceId ?? null,
       event.details !== undefined ? JSON.stringify(event.details) : null,
     ]);
   }
