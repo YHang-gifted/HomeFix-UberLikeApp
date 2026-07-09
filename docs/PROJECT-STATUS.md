@@ -724,10 +724,21 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   (verify settlement + payout + cancel + the 409 on direct pay), the **live** switch, and
   a **rollback** (unset `STRIPE_SECRET_KEY` → reverts to mock). Linked from
   `deployment.md`. Keys and real payments are the operator's to run — _handed off_.
+- **153** payment-provider coexistence core (PayPal groundwork, **slice A** of the
+  add-PayPal plan). A payment now records **which** provider took it: new
+  `paymentProviderIdSchema` (mock/stripe/paypal) + `payment.provider` (optional) +
+  migration `0033` (nullable column + CHECK); the `PaymentProvider` interface gains an
+  `id`. The customer's `method` (`card`/`paypal`, new `paymentMethodSchema`, optional on
+  `createPaymentInputSchema`) selects the provider via `selectPaymentProviderForMethod` —
+  `card`/unspecified → the configured card provider (Stripe or mock), `paypal` → **400
+  until the adapter is wired** (slice B), so it never silently charges elsewhere. The
+  globalThis test-override still wins, so existing provider tests are untouched. Tests:
+  `tests/payment-method.test.mjs` (mock recorded; card→mock; paypal→400 + no payment) +
+  `selectPaymentProviderForMethod` unit cases. Backend/shared only — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **152**
-(Stripe go-live runbook), which were handed off. The service is deployed and ACTIVE on
-Railway in mock mode (no Stripe key)._
+_All slices above are merged to `main` except **134** (auth audit), **152**
+(Stripe go-live runbook), and **153** (provider coexistence core), which were handed off.
+The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);

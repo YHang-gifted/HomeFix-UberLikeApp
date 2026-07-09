@@ -5,8 +5,8 @@ import type { Queryable } from '../db/queryable.ts';
 
 const UPSERT = `
   INSERT INTO payments
-    (id, request_id, customer_id, worker_id, amount_cents, currency, status, created_at, paid_at, platform_fee_cents, provider_ref)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    (id, request_id, customer_id, worker_id, amount_cents, currency, status, created_at, paid_at, platform_fee_cents, provider_ref, provider)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
   ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, paid_at = EXCLUDED.paid_at
 `;
 
@@ -22,6 +22,7 @@ interface PaymentRow {
   paid_at: string | Date | null;
   platform_fee_cents: number;
   provider_ref: string | null;
+  provider: string | null;
 }
 
 function mapRow(row: unknown): Payment {
@@ -40,6 +41,7 @@ function mapRow(row: unknown): Payment {
     workerNetCents: r.amount_cents - platformFeeCents,
     ...(r.paid_at !== null ? { paidAt: new Date(r.paid_at).toISOString() } : {}),
     ...(r.provider_ref !== null ? { providerRef: r.provider_ref } : {}),
+    ...(r.provider !== null ? { provider: r.provider } : {}),
   });
 }
 
@@ -63,6 +65,7 @@ export class PostgresPaymentRepository implements PaymentRepository {
       payment.paidAt ?? null,
       payment.platformFeeCents ?? 0,
       payment.providerRef ?? null,
+      payment.provider ?? null,
     ]);
   }
 
