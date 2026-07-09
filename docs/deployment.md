@@ -123,6 +123,26 @@ Dockerfile declares the matching `ARG`, so it is supplied to the build and inlin
 Because Expo inlines `EXPO_PUBLIC_*` at build time, changing the key requires a
 rebuild/redeploy, not just a restart.
 
+### Optional: interactive "Pick on map" (web)
+
+The New Request form can let the customer drag a pin on an interactive map to set the
+exact location. On native this uses `react-native-maps`; on **web** it uses the Google
+Maps JavaScript SDK, gated by the optional build arg `EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY`.
+Leave it unset and the "Pick on map" button is simply hidden on web (address search and
+manual entry remain).
+
+```bash
+docker build -t homefix-api \
+  --build-arg EXPO_PUBLIC_API_BASE_URL=https://app.homefix.example \
+  --build-arg EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY=your-maps-js-key .
+```
+
+Same lockdown as the static key (HTTP-referrer restricted to the web origin), but the
+key must have the **Maps JavaScript API** enabled. You may reuse the static-map key if
+you enable **both** the Maps Static API and the Maps JavaScript API on it. On Railway,
+add `EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY` as a service variable (the Dockerfile declares the
+matching `ARG`); changing it needs a rebuild, not just a restart.
+
 ## Deploying on Railway
 
 Railway auto-detects the `Dockerfile` and builds the image. Provision a Postgres

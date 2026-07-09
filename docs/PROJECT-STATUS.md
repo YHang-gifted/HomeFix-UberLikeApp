@@ -669,10 +669,24 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   list (`AvailableJobsScreen`), and the admin list (`AdminRequestsScreen`); the card's
   own tap still opens the detail screen with the interactive map. Test
   `RequestLocationThumbnail.test.tsx` (renders the image with the URL; renders nothing
-  when null; passes the location to the builder) — _handed off_.
+  when null; passes the location to the builder) — merged.
+- **148** interactive "Pick on map" on **web** (drag a pin to set the exact location).
+  The draggable-pin picker already existed on native (`mapPicker.tsx`, react-native-maps
+  Marker `draggable` + tap-to-place); web was a stub and App hid the button. Implemented
+  `mapPicker.web.tsx` with the Google Maps JavaScript SDK (loaded once from a `<script>`,
+  minimal local typings — no `@types/google.maps` dep): a modal host with a draggable
+  marker + tap-to-move, Cancel / "Use this location", resolving through the existing
+  `MapPicker` seam. Gated by the optional `EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY`; both picker
+  modules now export `mapPickerAvailable` (native = always, web = key present) and
+  App.tsx shows the button via that flag instead of a `Platform.OS` check. Wired the key
+  as an optional Docker build `ARG` + documented the Google Cloud setup
+  (`docs/deployment.md`, `app-expo/.env.example`). The picker is browser-SDK glue
+  (mirrors the untested native host); the tested logic — `initialMapRegion` and
+  `CreateRequestScreen`'s `pickOnMap` via an injected fake — is unchanged and still
+  covered. Verify on the deployed web build once the JS key is set — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit) and **147**
-(list-card map thumbnails), which were handed off. The service is deployed and ACTIVE on
+_All slices above are merged to `main` except **134** (auth audit) and **148**
+(web "Pick on map"), which were handed off. The service is deployed and ACTIVE on
 Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
