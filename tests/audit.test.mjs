@@ -152,6 +152,47 @@ describe('audit log', () => {
     assert.equal(res.status, 401);
   });
 
+  it('records a successful login with the signing-in user as actor and resource', async () => {
+    const res = await fetch(`${baseUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'customer@homefix.test', password: 'customer-pass' }),
+    });
+    assert.equal(res.status, 200);
+
+    const page = await audit();
+    const event = page.items.find((e) => e.action === 'account.logged_in');
+    assert.ok(event);
+    assert.equal(event.actorId, CUSTOMER_ID);
+    assert.equal(event.actorRole, 'customer');
+    assert.equal(event.resourceId, CUSTOMER_ID);
+  });
+
+  it('records a new registration as a self-actor event without the credentials', async () => {
+    const res = await fetch(`${baseUrl}/auth/register`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        email: 'audit-new-user@homefix.test',
+        password: 'a-brand-new-pass',
+        displayName: 'New Person',
+        role: 'worker',
+      }),
+    });
+    assert.equal(res.status, 201);
+
+    const page = await audit();
+    const event = page.items.find((e) => e.action === 'account.registered');
+    assert.ok(event);
+    assert.equal(event.actorRole, 'worker');
+    // Self-registration: the actor is the newly created account.
+    assert.equal(event.resourceId, event.actorId);
+    // The email and password must never be stored in the audit event.
+    const serialized = JSON.stringify(event);
+    assert.ok(!serialized.includes('audit-new-user@homefix.test'));
+    assert.ok(!serialized.includes('a-brand-new-pass'));
+  });
+
   // These two mutate the acting user (a password change bumps the token version,
   // invalidating that user's token), so they run last — after the auth-gate tests
   // above that reuse the customer/worker tokens.

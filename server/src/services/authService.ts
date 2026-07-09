@@ -33,6 +33,11 @@ export async function login(input: LoginInput): Promise<LoginResult> {
     throw new AppError('Invalid email or password', 401);
   }
   const principal: Principal = { id: user.id, role: user.role };
+  await recordAuditEvent({
+    actor: principal,
+    action: 'account.logged_in',
+    resourceId: user.id,
+  });
   return { token: signToken(principal, user.tokenVersion), principal };
 }
 
@@ -55,6 +60,11 @@ export async function registerUser(input: RegisterInput): Promise<LoginResult> {
   };
   await userRepository.create(user);
   const principal: Principal = { id: user.id, role: user.role };
+  await recordAuditEvent({
+    actor: principal,
+    action: 'account.registered',
+    resourceId: user.id,
+  });
   return { token: signToken(principal, user.tokenVersion), principal };
 }
 
