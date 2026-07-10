@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto';
 
-import type { Payment, Payout, PayoutWebhookEvent, Principal } from '../../../shared/schemas.ts';
+import type {
+  EarningsSummary,
+  Payment,
+  Payout,
+  PayoutWebhookEvent,
+  Principal,
+} from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { payoutRepository } from '../repositories/payoutRepository.ts';
 import { recordNotification } from './notificationService.ts';
@@ -83,6 +89,14 @@ export async function listMyPayouts(principal: Principal): Promise<Payout[]> {
     throw new AppError('No payout history for this role', 403);
   }
   return payoutRepository.findByWorker(principal.id);
+}
+
+/** A worker's own earnings summary: paid-out vs. still-pending totals. Worker-only. */
+export async function myEarnings(principal: Principal): Promise<EarningsSummary> {
+  if (principal.role !== 'worker') {
+    throw new AppError('No earnings for this role', 403);
+  }
+  return payoutRepository.workerTotals(principal.id);
 }
 
 /** Act on a verified payout webhook. Only 'payout.paid' settles a payout. */

@@ -19,6 +19,8 @@ export interface PayoutRepository {
   deleteByPayment(paymentId: string): Promise<void>;
   /** Count + summed amount of payouts still owed (pending) and already paid. */
   outstandingTotals(): Promise<PayoutTotals>;
+  /** The same totals, but for a single worker (their own earnings summary). */
+  workerTotals(workerId: string): Promise<PayoutTotals>;
   clear(): Promise<void>;
 }
 
@@ -73,6 +75,28 @@ export class InMemoryPayoutRepository implements PayoutRepository {
       paidAmountCents: 0,
     };
     for (const payout of this.payouts.values()) {
+      if (payout.status === 'paid') {
+        totals.paidCount += 1;
+        totals.paidAmountCents += payout.amountCents;
+      } else {
+        totals.pendingCount += 1;
+        totals.pendingAmountCents += payout.amountCents;
+      }
+    }
+    return Promise.resolve(totals);
+  }
+
+  public workerTotals(workerId: string): Promise<PayoutTotals> {
+    const totals: PayoutTotals = {
+      pendingCount: 0,
+      pendingAmountCents: 0,
+      paidCount: 0,
+      paidAmountCents: 0,
+    };
+    for (const payout of this.payouts.values()) {
+      if (payout.workerId !== workerId) {
+        continue;
+      }
       if (payout.status === 'paid') {
         totals.paidCount += 1;
         totals.paidAmountCents += payout.amountCents;

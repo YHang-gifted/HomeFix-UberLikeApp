@@ -795,10 +795,17 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   `tests/paypal-webhook.test.mjs` (capture-completed → paid; approved → captured + paid;
   bad signature 401; unrelated type 200 no-op; unconfigured 404). Runbook + deployment env
   updated (`PAYPAL_WEBHOOK_ID`, webhook creation step). **PayPal line A–D + C2 complete.**
-  Backend only — _handed off_.
+  Backend only — merged.
+- **159** worker earnings summary (backend, **slice A** of the earnings dashboard). New
+  `GET /payouts/summary` (worker-only, 403 otherwise) → `earningsSummarySchema`
+  (`pendingCount`/`pendingAmountCents`/`paidCount`/`paidAmountCents`, the worker's net in
+  minor units). `payoutRepository.workerTotals(workerId)` (in-memory + Postgres, mirrors
+  `outstandingTotals` filtered by worker) + `payoutService.myEarnings`. Tests
+  `tests/worker-earnings.test.mjs` (paid + pending split; zeros for none; non-worker 403).
+  **App dashboard card is slice B.** Backend/shared only — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **158** (PayPal webhook backup), which were handed off.
+(Stripe go-live runbook), and **159** (worker earnings summary), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

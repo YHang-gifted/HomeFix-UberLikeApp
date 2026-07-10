@@ -102,6 +102,31 @@ export class PostgresPayoutRepository implements PayoutRepository {
     };
   }
 
+  public async workerTotals(workerId: string): Promise<PayoutTotals> {
+    const result = await this.db.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE status = 'pending')::int AS pending_count,
+         COALESCE(SUM(amount_cents) FILTER (WHERE status = 'pending'), 0)::bigint AS pending_amount_cents,
+         COUNT(*) FILTER (WHERE status = 'paid')::int AS paid_count,
+         COALESCE(SUM(amount_cents) FILTER (WHERE status = 'paid'), 0)::bigint AS paid_amount_cents
+       FROM payouts
+        WHERE worker_id = $1`,
+      [workerId],
+    );
+    const row = result.rows[0] as {
+      pending_count: number;
+      pending_amount_cents: string | number;
+      paid_count: number;
+      paid_amount_cents: string | number;
+    };
+    return {
+      pendingCount: Number(row.pending_count),
+      pendingAmountCents: Number(row.pending_amount_cents),
+      paidCount: Number(row.paid_count),
+      paidAmountCents: Number(row.paid_amount_cents),
+    };
+  }
+
   public async clear(): Promise<void> {
     await this.db.query('DELETE FROM payouts');
   }

@@ -108,6 +108,16 @@ export const adminStatsSchema = z.object({
 });
 export type AdminStats = z.infer<typeof adminStatsSchema>;
 
+// A worker's own earnings summary (Model B payouts): what has been paid out vs. what is
+// still scheduled (pending). Amounts are the worker's net, in minor units.
+export const earningsSummarySchema = z.object({
+  pendingCount: countField,
+  pendingAmountCents: countField,
+  paidCount: countField,
+  paidAmountCents: countField,
+});
+export type EarningsSummary = z.infer<typeof earningsSummarySchema>;
+
 export const principalSchema = z.object({
   id: z.uuid(),
   role: roleSchema,
