@@ -543,6 +543,35 @@ export function selectConnectOnboarder(env: Env = loadEnv()): CreateConnectOnboa
   return stripeConnectOnboarder({ secretKey, returnUrl, refreshUrl });
 }
 
+/**
+ * Sends a payout to a worker's connected account (a Stripe Transfer). Injected so the
+ * payout flow is unit-testable without a network call; the real one is
+ * {@link stripePayoutSender}. Throws when the transfer fails.
+ */
+export type SendPayout = (input: {
+  amountCents: number;
+  currency: string;
+  destinationAccountId: string;
+}) => Promise<void>;
+
+/** The real sender: transfers the amount from the platform to the connected account. */
+export function stripePayoutSender(secretKey: string): SendPayout {
+  const stripe = new Stripe(secretKey);
+  return async ({ amountCents, currency, destinationAccountId }) => {
+    await stripe.transfers.create({
+      amount: amountCents,
+      currency: currency.toLowerCase(),
+      destination: destinationAccountId,
+    });
+  };
+}
+
+/** The configured payout sender, or undefined when Stripe isn't configured. */
+export function selectPayoutSender(env: Env = loadEnv()): SendPayout | undefined {
+  const secretKey = env.STRIPE_SECRET_KEY;
+  return secretKey === undefined ? undefined : stripePayoutSender(secretKey);
+}
+
 /** The configured PayPal webhook verifier, or undefined when it is not fully configured. */
 export function selectPaypalWebhookVerifier(env: Env = loadEnv()): VerifyPaypalWebhook | undefined {
   const config = paypalConfigFromEnv(env);
