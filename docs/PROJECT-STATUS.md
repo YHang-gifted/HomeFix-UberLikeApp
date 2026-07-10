@@ -808,10 +808,20 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   still renders if it fails, so older clients/tests are unaffected) and shows a header card
   with **Paid out** / **Pending** totals + counts above the payout list. Test in
   `PayoutsScreen.test.tsx` (card renders the totals). app-expo + `app/` apiClient only —
+  merged.
+- **161** real **Stripe refunds** (**slice A** of real refunds). New `RefundCharge` seam +
+  `stripeRefunder` (`stripe.refunds.create({ payment_intent: providerRef })`) +
+  `selectStripeRefunder` (config-gated on `STRIPE_SECRET_KEY`), with a globalThis test
+  override. `refundPayment` now, for a `provider === 'stripe'` payment, **reverses the
+  charge at Stripe first** (by the stored PaymentIntent `providerRef`) and only then marks
+  it refunded — if the provider refund throws, nothing is recorded (payment stays paid).
+  Mock payments still just flip status; **PayPal real refunds are a follow-up** (they need
+  the capture id, which isn't stored yet). Tests `tests/stripe-refund.test.mjs` (Stripe
+  charge reversed by providerRef → refunded; refund failure → stays paid). Backend only —
   _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **160** (worker earnings card), which were handed off.
+(Stripe go-live runbook), and **161** (real Stripe refunds), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

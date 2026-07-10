@@ -22,8 +22,9 @@ import {
   paymentProvider,
   selectPaymentProviderForMethod,
   selectPaypalCapturer,
+  selectStripeRefunder,
 } from './paymentProvider.ts';
-import type { CapturePaypalOrder, PaymentProvider } from './paymentProvider.ts';
+import type { CapturePaypalOrder, PaymentProvider, RefundCharge } from './paymentProvider.ts';
 import type { PaymentMethod } from '../../../shared/schemas.ts';
 
 /**
@@ -81,6 +82,25 @@ export function setPaypalCapturerForTests(capturer: CapturePaypalOrder): void {
 
 export function resetPaypalCapturerForTests(): void {
   capturerRegistry()[CAPTURER_OVERRIDE_KEY] = undefined;
+}
+
+// The Stripe refunder has the same globalThis-anchored test override.
+const REFUNDER_OVERRIDE_KEY = '__homefixStripeRefunderOverride__';
+
+function refunderRegistry(): Record<string, RefundCharge | undefined> {
+  return globalThis as unknown as Record<string, RefundCharge | undefined>;
+}
+
+function activeStripeRefunder(): RefundCharge | undefined {
+  return refunderRegistry()[REFUNDER_OVERRIDE_KEY] ?? selectStripeRefunder();
+}
+
+export function setStripeRefunderForTests(refunder: RefundCharge): void {
+  refunderRegistry()[REFUNDER_OVERRIDE_KEY] = refunder;
+}
+
+export function resetStripeRefunderForTests(): void {
+  refunderRegistry()[REFUNDER_OVERRIDE_KEY] = undefined;
 }
 
 async function loadRequest(requestId: string): Promise<ServiceRequest> {
@@ -417,9 +437,12 @@ async function markRefunded(payment: Payment): Promise<Payment> {
 }
 
 /**
- * Admin-only: refund a request's paid payment (mock — no provider is contacted).
- * Only a paid payment can be refunded; a refund is audited. 404 if there is no
- * payment, 409 if it is not paid.
+ * Admin-only: refund a request's paid payment. For a Stripe payment the charge is
+ * reversed at the provider first (so the money actually returns) before the payment is
+ * marked refunded; if the provider refund fails, nothing is marked and the error
+ * surfaces. Mock payments just flip status. (PayPal real refunds need the capture id —
+ * a follow-up — so a PayPal payment is still only marked refunded for now.) Only a paid
+ * payment can be refunded; a refund is audited. 404 if there is no payment, 409 if unpaid.
  */
 export async function refundPayment(requestId: string, principal: Principal): Promise<Payment> {
   if (principal.role !== 'admin') {
@@ -431,6 +454,13 @@ export async function refundPayment(requestId: string, principal: Principal): Pr
   }
   if (payment.status !== 'paid') {
     throw new AppError('Only a paid payment can be refunded', 409);
+  }
+  if (payment.provider === 'stripe') {
+    const refunder = activeStripeRefunder();
+    if (refunder === undefined || payment.providerRef === undefined) {
+      throw new AppError('This Stripe payment cannot be refunded (not configured)', 400);
+    }
+    await refunder(payment.providerRef);
   }
   const refunded = await markRefunded(payment);
   await recordAuditEvent({
