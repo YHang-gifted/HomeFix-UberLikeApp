@@ -16,6 +16,7 @@ import type {
   NotificationList,
   NotificationPreferences,
   Payment,
+  PaymentMethod,
   Payout,
   Principal,
   PublicUser,
@@ -302,13 +303,29 @@ export class ApiClient {
     return certificationSchema.parse(data);
   }
 
-  public async createPayment(id: string, amountCents: number): Promise<Payment> {
-    const data = await this.send('POST', `/service-requests/${id}/payment`, { amountCents }, true);
+  public async createPayment(
+    id: string,
+    amountCents: number,
+    method?: PaymentMethod,
+  ): Promise<Payment> {
+    const body = { amountCents, ...(method !== undefined ? { method } : {}) };
+    const data = await this.send('POST', `/service-requests/${id}/payment`, body, true);
     return paymentSchema.parse(data);
   }
 
   public async payPayment(id: string): Promise<Payment> {
     const data = await this.send('POST', `/service-requests/${id}/payment/pay`, undefined, true);
+    return paymentSchema.parse(data);
+  }
+
+  /** Capture an approved PayPal order to settle the payment (called on return). */
+  public async capturePaypalPayment(id: string): Promise<Payment> {
+    const data = await this.send(
+      'POST',
+      `/service-requests/${id}/payment/paypal/capture`,
+      undefined,
+      true,
+    );
     return paymentSchema.parse(data);
   }
 
