@@ -840,10 +840,20 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
     `tests/connect-onboarding.test.mjs` (account created + id stored + reused on a second call;
     non-worker 403; unconfigured 400). **Next: the payout sender (transfer to the connected
     account) + the `account.updated` webhook + the app onboarding button.** Backend/shared only
-    — _handed off_.
+    — merged.
+- **164** Connect payout transfers (**slice B** of real payouts). When a payment settles and
+  schedules the worker's pending payout, `createPayoutForPayment` now sends it **best-effort**:
+  `SendPayout` seam + `stripePayoutSender` (`stripe.transfers.create({ destination: acct })`) +
+  `selectPayoutSender` (config-gated on `STRIPE_SECRET_KEY`, globalThis override in
+  `payoutService`). `tryTransferPayout` is a no-op unless payouts are configured **and** the
+  worker has onboarded (`stripeAccountId`); on success it settles the payout
+  (`confirmPayoutPaid`), on failure it leaves it pending (retriable) and never disturbs the
+  payment settlement. Tests `tests/connect-payout.test.mjs` (onboarded → transferred to the
+  account + settled; not onboarded → pending; transfer fails → pending). Backend only —
+  _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **163** (Connect worker onboarding), which were handed off.
+(Stripe go-live runbook), and **164** (Connect payout transfers), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

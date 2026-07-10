@@ -9,19 +9,70 @@ import type {
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { payoutRepository } from '../repositories/payoutRepository.ts';
+import { userRepository } from '../repositories/userRepository.ts';
 import { recordNotification } from './notificationService.ts';
+import { selectPayoutSender } from './paymentProvider.ts';
+import type { SendPayout } from './paymentProvider.ts';
 
 /** The webhook event type that settles a payout. Other types are ignored. */
 const PAYOUT_PAID = 'payout.paid';
+
+// The payout sender has a globalThis-anchored test override (a fake avoids the Stripe
+// Transfer network call while still exercising the send-then-settle path).
+const SENDER_OVERRIDE_KEY = '__homefixPayoutSenderOverride__';
+
+function senderRegistry(): Record<string, SendPayout | undefined> {
+  return globalThis as unknown as Record<string, SendPayout | undefined>;
+}
+
+function activePayoutSender(): SendPayout | undefined {
+  return senderRegistry()[SENDER_OVERRIDE_KEY] ?? selectPayoutSender();
+}
+
+export function setPayoutSenderForTests(sender: SendPayout): void {
+  senderRegistry()[SENDER_OVERRIDE_KEY] = sender;
+}
+
+export function resetPayoutSenderForTests(): void {
+  senderRegistry()[SENDER_OVERRIDE_KEY] = undefined;
+}
 
 function workerNetOf(payment: Payment): number {
   return payment.workerNetCents ?? payment.amountCents - (payment.platformFeeCents ?? 0);
 }
 
 /**
+ * Best-effort: transfer a pending payout to the worker's connected account and settle it.
+ * A no-op unless payouts are configured AND the worker has completed Connect onboarding;
+ * a transfer failure leaves the payout pending (it can be retried) and never disturbs the
+ * payment settlement that scheduled it.
+ */
+async function tryTransferPayout(payout: Payout): Promise<void> {
+  const sender = activePayoutSender();
+  if (sender === undefined) {
+    return;
+  }
+  const worker = await userRepository.findById(payout.workerId);
+  if (worker?.stripeAccountId === undefined) {
+    return;
+  }
+  try {
+    await sender({
+      amountCents: payout.amountCents,
+      currency: payout.currency,
+      destinationAccountId: worker.stripeAccountId,
+    });
+    await confirmPayoutPaid(payout.id);
+  } catch {
+    // Leave the payout pending; a later retry or webhook can settle it.
+  }
+}
+
+/**
  * Create a pending payout of a paid payment's worker net (Model B). Idempotent:
  * a payment that already has a payout is left as-is, so re-confirming a payment
- * never creates a duplicate. Mock — no provider is contacted.
+ * never creates a duplicate. When payouts are configured and the worker has onboarded,
+ * the transfer is sent immediately (best-effort); otherwise it stays pending.
  */
 export async function createPayoutForPayment(payment: Payment): Promise<Payout> {
   const existing = await payoutRepository.findByPayment(payment.id);
@@ -38,6 +89,7 @@ export async function createPayoutForPayment(payment: Payment): Promise<Payout> 
     createdAt: new Date().toISOString(),
   };
   await payoutRepository.save(payout);
+  await tryTransferPayout(payout);
   return payout;
 }
 
