@@ -28,6 +28,7 @@ import type {
   AuditEvent,
   Coordinates,
   Payment,
+  PaymentMethod,
   Quote,
   Receipt,
   Review,
@@ -78,6 +79,12 @@ export interface RequestDetailScreenProps {
    * Maps preview from config.
    */
   mapPreviewUrl?: (location: Coordinates) => string | null;
+  /**
+   * Whether to offer PayPal as a payment method. Defaults from
+   * `EXPO_PUBLIC_PAYPAL_ENABLED` — the operator sets it when PayPal is configured on the
+   * server. When false, only the default card provider is used (no method picker).
+   */
+  paypalEnabled?: boolean;
 }
 
 export function RequestDetailScreen({
@@ -89,6 +96,7 @@ export function RequestDetailScreen({
   onViewMessages,
   openCheckout,
   mapPreviewUrl = staticMapPreviewUrl,
+  paypalEnabled = process.env.EXPO_PUBLIC_PAYPAL_ENABLED === 'true',
 }: RequestDetailScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
   const principal = useMemo(() => activeClient.getPrincipal(), [activeClient]);
@@ -125,6 +133,7 @@ export function RequestDetailScreen({
   const [favoriteBusy, setFavoriteBusy] = useState(false);
   const [payment, setPayment] = useState<Payment | null>(null);
   const [amountText, setAmountText] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [paymentBusy, setPaymentBusy] = useState(false);
@@ -331,7 +340,11 @@ export function RequestDetailScreen({
     setPaymentError(null);
     setPaymentBusy(true);
     try {
-      const created = await activeClient.createPayment(requestId, amountCents);
+      // Default (card) keeps the two-arg call; only send an explicit method for PayPal.
+      const created =
+        paymentMethod === 'card'
+          ? await activeClient.createPayment(requestId, amountCents)
+          : await activeClient.createPayment(requestId, amountCents, paymentMethod);
       setPayment(created);
       setAmountText('');
     } catch (paymentSetupError) {
@@ -358,6 +371,9 @@ export function RequestDetailScreen({
         // customer returns to the app and refreshes to see the updated status.
         await openCheckout(checkoutUrl);
         setPaymentNotice('Complete the payment in the page that opened, then return and refresh.');
+      } else if (payment?.provider === 'paypal') {
+        // Back from PayPal approval (no checkout URL left): capture to settle.
+        setPayment(await activeClient.capturePaypalPayment(requestId));
       } else {
         // Mock provider (dev/test): the server marks it paid directly.
         setPayment(await activeClient.payPayment(requestId));
@@ -526,6 +542,14 @@ export function RequestDetailScreen({
       : quoteView.prefillAmountCents !== null
         ? centsToDollars(quoteView.prefillAmountCents)
         : '';
+  // Label the pay action by provider: a PayPal payment redirects to approve (while a
+  // checkout URL is present), then captures on return; everything else is "Pay now".
+  const payActionLabel =
+    payment?.provider === 'paypal'
+      ? payment.checkoutUrl !== undefined
+        ? 'Pay with PayPal'
+        : 'Complete PayPal payment'
+      : 'Pay now';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -854,6 +878,32 @@ export function RequestDetailScreen({
 
           {isOwner && payment === null && (
             <>
+              {paypalEnabled && (
+                <View style={styles.methodRow}>
+                  {(['card', 'paypal'] as const).map((method) => {
+                    const selected = paymentMethod === method;
+                    return (
+                      <Pressable
+                        key={method}
+                        style={[styles.methodChip, selected && styles.methodChipSelected]}
+                        onPress={() => {
+                          setPaymentMethod(method);
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          method === 'card' ? 'Card payment method' : 'PayPal payment method'
+                        }
+                      >
+                        <Text
+                          style={[styles.methodChipText, selected && styles.methodChipTextSelected]}
+                        >
+                          {method === 'card' ? 'Card' : 'PayPal'}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
               <TextInput
                 style={styles.paymentInput}
                 value={paymentAmountValue}
@@ -889,12 +939,12 @@ export function RequestDetailScreen({
               }}
               disabled={paymentBusy}
               accessibilityRole="button"
-              accessibilityLabel="Pay now"
+              accessibilityLabel={payActionLabel}
             >
               {paymentBusy ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.payButtonText}>Pay now</Text>
+                <Text style={styles.payButtonText}>{payActionLabel}</Text>
               )}
             </Pressable>
           )}
@@ -1306,6 +1356,18 @@ const styles = StyleSheet.create({
     color: colors.ink,
     backgroundColor: colors.canvas,
   },
+  methodRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  methodChip: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  methodChipSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
+  methodChipText: { fontSize: 14, fontWeight: '700', color: colors.ink },
+  methodChipTextSelected: { color: colors.white },
   payButton: {
     marginTop: 12,
     backgroundColor: colors.brand,

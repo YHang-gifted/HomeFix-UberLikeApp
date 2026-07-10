@@ -316,6 +316,88 @@ describe('RequestDetailScreen payments', () => {
   });
 });
 
+describe('RequestDetailScreen PayPal', () => {
+  const makeMatched = () => makeRequest({ status: 'matched', workerId: WORKER_ID });
+
+  it('offers a method picker and sets up + redirects a PayPal payment', async () => {
+    const request = makeMatched();
+    const createPayment = jest.fn().mockResolvedValue(
+      makePayment({
+        provider: 'paypal',
+        checkoutUrl: 'https://www.paypal.com/checkoutnow?token=O1',
+      }),
+    );
+    const openCheckout = jest.fn().mockResolvedValue(undefined);
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      getPayment: jest.fn().mockRejectedValue(new ApiError(404, 'no payment')),
+      createPayment,
+    });
+
+    const { findByLabelText } = await render(
+      <RequestDetailScreen
+        requestId={request.id}
+        client={client}
+        openCheckout={openCheckout}
+        paypalEnabled
+      />,
+    );
+
+    await fireEvent.changeText(await findByLabelText('Payment amount'), '1500');
+    await fireEvent.press(await findByLabelText('PayPal payment method'));
+    await fireEvent.press(await findByLabelText('Set up payment'));
+    await waitFor(() => {
+      expect(createPayment).toHaveBeenCalledWith(request.id, 150000, 'paypal');
+    });
+
+    // The created PayPal payment carries a checkout URL → the pay button redirects.
+    await fireEvent.press(await findByLabelText('Pay with PayPal'));
+    await waitFor(() => {
+      expect(openCheckout).toHaveBeenCalledWith('https://www.paypal.com/checkoutnow?token=O1');
+    });
+  });
+
+  it('captures a returned PayPal payment (no checkout URL) to settle it', async () => {
+    const request = makeMatched();
+    const capturePaypalPayment = jest
+      .fn()
+      .mockResolvedValue(
+        makePayment({ provider: 'paypal', status: 'paid', paidAt: '2026-06-22T01:00:00.000Z' }),
+      );
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      // A pending PayPal payment with no checkout URL — the state after returning.
+      getPayment: jest.fn().mockResolvedValue(makePayment({ provider: 'paypal' })),
+      capturePaypalPayment,
+    });
+
+    const { findByLabelText, findByText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} paypalEnabled />,
+    );
+
+    await fireEvent.press(await findByLabelText('Complete PayPal payment'));
+    await waitFor(() => {
+      expect(capturePaypalPayment).toHaveBeenCalledWith(request.id);
+    });
+    await findByText('Paid');
+  });
+
+  it('hides the method picker when PayPal is disabled', async () => {
+    const request = makeMatched();
+    const client = clientWith({
+      getServiceRequest: jest.fn().mockResolvedValue(request),
+      getPayment: jest.fn().mockRejectedValue(new ApiError(404, 'no payment')),
+    });
+
+    const { findByLabelText, queryByLabelText } = await render(
+      <RequestDetailScreen requestId={request.id} client={client} />,
+    );
+
+    await findByLabelText('Payment amount');
+    expect(queryByLabelText('PayPal payment method')).toBeNull();
+  });
+});
+
 describe('RequestDetailScreen', () => {
   it('renders the request and offers cancel for the owner on a non-terminal request', async () => {
     const request = makeRequest({ status: 'pending' });

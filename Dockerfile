@@ -58,6 +58,11 @@ ENV EXPO_PUBLIC_GOOGLE_MAPS_STATIC_KEY=${EXPO_PUBLIC_GOOGLE_MAPS_STATIC_KEY}
 ARG EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY
 ENV EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY=${EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY}
 
+# OPTIONAL: set to `true` to offer PayPal as a checkout method on the app (only when the
+# server has PayPal configured). Unset → only the default card provider is offered.
+ARG EXPO_PUBLIC_PAYPAL_ENABLED
+ENV EXPO_PUBLIC_PAYPAL_ENABLED=${EXPO_PUBLIC_PAYPAL_ENABLED}
+
 # Install app-expo dependencies first so this layer caches unless the lockfile
 # changes. (node_modules is excluded by .dockerignore, so the later source copy
 # never clobbers it.)

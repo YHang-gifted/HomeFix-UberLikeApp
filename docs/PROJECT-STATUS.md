@@ -763,10 +763,21 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   `tests/paypal-capture.test.mjs` (capture → paid + payout; non-owner 403; non-PayPal 409;
   non-COMPLETED 402 + still pending; `/pay` on a PayPal payment 409). **Remaining: `/webhooks/paypal`
   as a robustness backup for interrupted returns (C2), then the app method picker + return
-  handling (D).** Backend only — _handed off_.
+  handling (D).** Backend only — merged.
+- **156** app PayPal checkout (**slice D**) — PayPal is now usable end-to-end in the app.
+  `apiClient.createPayment(id, amount, method?)` + `capturePaypalPayment(id)`. RequestDetail
+  shows a **Card / PayPal** method picker (gated by `EXPO_PUBLIC_PAYPAL_ENABLED`, wired as an
+  optional Docker build arg + `.env.example`); `setupPayment` sends `method: 'paypal'` (card
+  keeps the 2-arg call); the pay button is provider-aware — `Pay with PayPal` (redirects via
+  the existing `openCheckout` while a checkout URL is present) then `Complete PayPal payment`
+  on return (calls `capturePaypalPayment`), while non-PayPal stays `Pay now`. Tests in
+  `RequestDetailScreen.test.tsx` (picker → `createPayment(…, 'paypal')` + redirect; returned
+  payment → capture → Paid; picker hidden when disabled). **PayPal happy path now works
+  end-to-end for sandbox testing.** Remaining: `/webhooks/paypal` robustness backup (C2) for
+  interrupted returns, and a PayPal go-live runbook. — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **155** (PayPal capture settlement), which were handed off.
+(Stripe go-live runbook), and **156** (app PayPal checkout), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
