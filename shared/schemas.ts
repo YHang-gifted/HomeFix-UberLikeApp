@@ -108,6 +108,10 @@ export const adminStatsSchema = z.object({
 });
 export type AdminStats = z.infer<typeof adminStatsSchema>;
 
+// The hosted Stripe Connect onboarding URL a worker is redirected to, to set up payouts.
+export const connectOnboardingSchema = z.object({ url: z.url() });
+export type ConnectOnboarding = z.infer<typeof connectOnboardingSchema>;
+
 // A worker's own earnings summary (Model B payouts): what has been paid out vs. what is
 // still scheduled (pending). Amounts are the worker's net, in minor units.
 export const earningsSummarySchema = z.object({

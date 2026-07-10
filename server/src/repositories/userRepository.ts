@@ -30,6 +30,8 @@ export interface UserRecord {
   notifyEmail: boolean;
   /** Whether the user wants push notifications (default true). */
   notifyPush: boolean;
+  /** The worker's Stripe Connect account id (`acct_…`), once they start payout onboarding. */
+  stripeAccountId?: string;
 }
 
 export interface UserRepository {
@@ -47,6 +49,8 @@ export interface UserRepository {
   bumpTokenVersion(id: string): Promise<number | undefined>;
   /** Set the account lifecycle status. Returns the updated record, or undefined if unknown. */
   setStatus(id: string, status: AccountStatus): Promise<UserRecord | undefined>;
+  /** Store the worker's Stripe Connect account id. Returns the updated record. */
+  setStripeAccountId(id: string, accountId: string): Promise<UserRecord | undefined>;
   /**
    * Soft-delete: scrub the account's personal data (email, name, phone, bio,
    * skills, password), set status to `deleted`, and revoke all tokens. The row
@@ -160,6 +164,8 @@ export class InMemoryUserRepository implements UserRepository {
       ...(patch.bio !== undefined ? { bio: patch.bio } : {}),
       ...(patch.skills !== undefined ? { skills: patch.skills } : {}),
       ...(patch.availability !== undefined ? { availability: patch.availability } : {}),
+      // Payout onboarding isn't a profile field — carry it through a profile edit.
+      ...(user.stripeAccountId !== undefined ? { stripeAccountId: user.stripeAccountId } : {}),
     };
     this.users.set(user.email.toLowerCase(), updated);
     return Promise.resolve(updated);
@@ -191,6 +197,16 @@ export class InMemoryUserRepository implements UserRepository {
       return Promise.resolve(undefined);
     }
     const updated: UserRecord = { ...user, status };
+    this.users.set(user.email.toLowerCase(), updated);
+    return Promise.resolve(updated);
+  }
+
+  public setStripeAccountId(id: string, accountId: string): Promise<UserRecord | undefined> {
+    const user = [...this.users.values()].find((candidate) => candidate.id === id);
+    if (!user) {
+      return Promise.resolve(undefined);
+    }
+    const updated: UserRecord = { ...user, stripeAccountId: accountId };
     this.users.set(user.email.toLowerCase(), updated);
     return Promise.resolve(updated);
   }

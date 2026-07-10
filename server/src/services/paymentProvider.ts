@@ -494,6 +494,55 @@ export function selectPaypalRefunder(env: Env = loadEnv()): RefundCharge | undef
   return config === undefined ? undefined : paypalRefunder(config);
 }
 
+// --- Stripe Connect (worker payout onboarding) ----------------------------------
+
+/** A created onboarding link: the worker's connected account id and the hosted URL. */
+export interface ConnectOnboardingResult {
+  accountId: string;
+  url: string;
+}
+
+/**
+ * Creates (or reuses) a worker's Stripe Connect account and returns a hosted onboarding
+ * link to redirect them to. Injected so the flow is unit-testable without a network call;
+ * the real one is {@link stripeConnectOnboarder}.
+ */
+export type CreateConnectOnboarding = (
+  existingAccountId: string | undefined,
+) => Promise<ConnectOnboardingResult>;
+
+interface ConnectConfig {
+  secretKey: string;
+  returnUrl: string;
+  refreshUrl: string;
+}
+
+/** The real onboarder: creates an Express account if needed, then an onboarding link. */
+export function stripeConnectOnboarder(config: ConnectConfig): CreateConnectOnboarding {
+  const stripe = new Stripe(config.secretKey);
+  return async (existingAccountId) => {
+    const accountId = existingAccountId ?? (await stripe.accounts.create({ type: 'express' })).id;
+    const link = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: config.refreshUrl,
+      return_url: config.returnUrl,
+      type: 'account_onboarding',
+    });
+    return { accountId, url: link.url };
+  };
+}
+
+/** The configured Connect onboarder, or undefined when it isn't fully configured. */
+export function selectConnectOnboarder(env: Env = loadEnv()): CreateConnectOnboarding | undefined {
+  const secretKey = env.STRIPE_SECRET_KEY;
+  const returnUrl = env.STRIPE_CONNECT_RETURN_URL;
+  const refreshUrl = env.STRIPE_CONNECT_REFRESH_URL;
+  if (secretKey === undefined || returnUrl === undefined || refreshUrl === undefined) {
+    return undefined;
+  }
+  return stripeConnectOnboarder({ secretKey, returnUrl, refreshUrl });
+}
+
 /** The configured PayPal webhook verifier, or undefined when it is not fully configured. */
 export function selectPaypalWebhookVerifier(env: Env = loadEnv()): VerifyPaypalWebhook | undefined {
   const config = paypalConfigFromEnv(env);

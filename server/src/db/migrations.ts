@@ -460,4 +460,11 @@ export const migrations: Migration[] = [
     id: '0034_payment_capture_ref',
     sql: `ALTER TABLE payments ADD COLUMN IF NOT EXISTS capture_ref text`,
   },
+  {
+    // A worker's Stripe Connect account id, set when they start payout onboarding. The
+    // platform transfers their net to this connected account. Nullable: most rows (and
+    // all non-workers) have none.
+    id: '0035_user_stripe_account_id',
+    sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_account_id text`,
+  },
 ];

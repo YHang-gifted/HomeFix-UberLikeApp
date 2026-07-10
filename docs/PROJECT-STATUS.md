@@ -828,10 +828,22 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   `selectPaypalRefunder`, globalThis override) before marking refunded — throw → nothing
   recorded. Tests `tests/paypal-refund.test.mjs` (capture stored → refund by captureRef →
   refunded; refund failure → stays paid). **Real refunds now cover both providers**; only
-  real payouts remain mock. Backend/shared only — _handed off_.
+  real payouts remain mock. Backend/shared only — merged.
+- **163** Stripe Connect worker onboarding (**slice A** of real payouts). Workers get a
+  `stripeAccountId` (nullable, `UserRecord` + both repos + migration `0035`; cleared on
+  anonymize, carried through a profile edit). New `POST /me/connect/onboard` (worker-only,
+  403 else; 400 when payouts aren't configured) creates/reuses the worker's Stripe **Express**
+  connected account and returns the hosted onboarding URL (`connectOnboardingSchema`). Seam:
+  `CreateConnectOnboarding` + `stripeConnectOnboarder` (`accounts.create` → `accountLinks.create`)
+  - `selectConnectOnboarder` (config-gated on `STRIPE_SECRET_KEY` + `STRIPE_CONNECT_RETURN_URL`
+    / `STRIPE_CONNECT_REFRESH_URL`), with a globalThis test override in `connectService`. Tests
+    `tests/connect-onboarding.test.mjs` (account created + id stored + reused on a second call;
+    non-worker 403; unconfigured 400). **Next: the payout sender (transfer to the connected
+    account) + the `account.updated` webhook + the app onboarding button.** Backend/shared only
+    — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **162** (real PayPal refunds), which were handed off.
+(Stripe go-live runbook), and **163** (Connect worker onboarding), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
