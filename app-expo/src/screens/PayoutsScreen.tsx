@@ -1,7 +1,9 @@
 import { type ReactElement, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
+import { isApiError } from '../../../app/src/services/apiClient';
+import type { OpenCheckout } from '../../../app/src/features/payments/checkout';
 import { formatCents } from '../../../app/src/features/payments/paymentFormat';
 import type { EarningsSummary, Payout } from '../../../shared/schemas';
 import { apiClient } from '../api';
@@ -11,14 +13,71 @@ export interface PayoutsScreenProps {
   client?: ApiClient;
   /** Bump this to force a reload (e.g. when the screen regains focus). */
   refreshToken?: number;
+  /** Opens the Stripe Connect onboarding page. Injected; wired in App.tsx. */
+  openCheckout?: OpenCheckout;
+  /**
+   * Whether to offer payout onboarding. Defaults from `EXPO_PUBLIC_CONNECT_PAYOUTS_ENABLED`
+   * — the operator sets it when Stripe Connect is configured on the server.
+   */
+  payoutsEnabled?: boolean;
 }
 
-export function PayoutsScreen({ client, refreshToken }: PayoutsScreenProps): ReactElement {
+export function PayoutsScreen({
+  client,
+  refreshToken,
+  openCheckout,
+  payoutsEnabled = process.env.EXPO_PUBLIC_CONNECT_PAYOUTS_ENABLED === 'true',
+}: PayoutsScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
   const [payouts, setPayouts] = useState<Payout[] | null>(null);
   const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [onboarding, setOnboarding] = useState(false);
+  const [onboardError, setOnboardError] = useState<string | null>(null);
+
+  async function setUpPayouts(): Promise<void> {
+    setOnboardError(null);
+    setOnboarding(true);
+    try {
+      const { url } = await activeClient.startConnectOnboarding();
+      if (openCheckout !== undefined) {
+        await openCheckout(url);
+      }
+    } catch (onboardFailure) {
+      setOnboardError(
+        isApiError(onboardFailure) ? onboardFailure.message : 'Could not start payout setup.',
+      );
+    } finally {
+      setOnboarding(false);
+    }
+  }
+
+  function setupButton(): ReactElement | null {
+    if (!payoutsEnabled) {
+      return null;
+    }
+    return (
+      <View style={styles.setup}>
+        <Pressable
+          style={({ pressed }) => [styles.setupButton, pressed && styles.setupButtonPressed]}
+          onPress={() => {
+            void setUpPayouts();
+          }}
+          disabled={onboarding}
+          accessibilityRole="button"
+          accessibilityLabel="Set up payouts"
+        >
+          {onboarding ? (
+            <ActivityIndicator color="#2563eb" />
+          ) : (
+            <Text style={styles.setupButtonText}>Set up payouts</Text>
+          )}
+        </Pressable>
+        {onboardError !== null && <Text style={styles.error}>{onboardError}</Text>}
+      </View>
+    );
+  }
 
   useEffect(() => {
     let active = true;
@@ -71,8 +130,11 @@ export function PayoutsScreen({ client, refreshToken }: PayoutsScreenProps): Rea
 
   if (payouts.length === 0) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.empty}>You have no payouts yet.</Text>
+      <View style={styles.emptyRoot}>
+        {setupButton()}
+        <View style={styles.centered}>
+          <Text style={styles.empty}>You have no payouts yet.</Text>
+        </View>
       </View>
     );
   }
@@ -84,6 +146,7 @@ export function PayoutsScreen({ client, refreshToken }: PayoutsScreenProps): Rea
       keyExtractor={(item) => item.id}
       ListHeaderComponent={
         <View>
+          {setupButton()}
           {earnings !== null && (
             <View style={styles.summary} accessibilityLabel="Earnings summary">
               <View style={styles.summaryCol}>
@@ -127,6 +190,19 @@ const styles = StyleSheet.create({
   error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
   empty: { color: '#64748b', fontSize: 15, textAlign: 'center' },
   hint: { fontSize: 13, color: '#64748b', padding: 16, paddingBottom: 8 },
+  emptyRoot: { flex: 1, backgroundColor: '#ffffff' },
+  setup: { padding: 16, paddingBottom: 8 },
+  setupButton: {
+    borderWidth: 1,
+    borderColor: '#2563eb',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  setupButtonPressed: { backgroundColor: '#eff6ff' },
+  setupButtonText: { color: '#2563eb', fontSize: 15, fontWeight: '600' },
   summary: {
     flexDirection: 'row',
     gap: 12,

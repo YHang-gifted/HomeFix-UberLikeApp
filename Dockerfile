@@ -63,6 +63,11 @@ ENV EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY=${EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY}
 ARG EXPO_PUBLIC_PAYPAL_ENABLED
 ENV EXPO_PUBLIC_PAYPAL_ENABLED=${EXPO_PUBLIC_PAYPAL_ENABLED}
 
+# OPTIONAL: set to `true` to show the worker "Set up payouts" (Stripe Connect onboarding)
+# button — only when the server has Connect configured. Unset → the button is hidden.
+ARG EXPO_PUBLIC_CONNECT_PAYOUTS_ENABLED
+ENV EXPO_PUBLIC_CONNECT_PAYOUTS_ENABLED=${EXPO_PUBLIC_CONNECT_PAYOUTS_ENABLED}
+
 # Install app-expo dependencies first so this layer caches unless the lockfile
 # changes. (node_modules is excluded by .dockerignore, so the later source copy
 # never clobbers it.)

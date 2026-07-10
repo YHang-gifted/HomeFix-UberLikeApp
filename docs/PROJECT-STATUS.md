@@ -850,10 +850,19 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   (`confirmPayoutPaid`), on failure it leaves it pending (retriable) and never disturbs the
   payment settlement. Tests `tests/connect-payout.test.mjs` (onboarded → transferred to the
   account + settled; not onboarded → pending; transfer fails → pending). Backend only —
-  _handed off_.
+  merged.
+- **165** worker payout onboarding button (**slice D**, app). `apiClient.startConnectOnboarding()`
+  → `POST /me/connect/onboard`. `PayoutsScreen` shows a **"Set up payouts"** button (gated by
+  `EXPO_PUBLIC_CONNECT_PAYOUTS_ENABLED`, wired as an optional Docker build arg + `.env.example`;
+  reachable in both the empty state and the list) that starts onboarding and redirects to the
+  hosted URL via the existing `openCheckout` seam (wired in `App.tsx`). Test in
+  `PayoutsScreen.test.tsx` (button → `startConnectOnboarding` + redirect; hidden when disabled).
+  **Real payouts are now usable end-to-end** (worker onboards → future payments transfer to
+  their account). Remaining hardening: `account.updated` webhook + a backfill for payouts
+  scheduled before onboarding. app-expo + `app/` apiClient — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **164** (Connect payout transfers), which were handed off.
+(Stripe go-live runbook), and **165** (worker payout onboarding button), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import type { Payout } from '../../../shared/schemas';
@@ -65,5 +65,36 @@ describe('PayoutsScreen', () => {
     await findByText('2 payout(s)');
     await findByText('NT$2,000.00');
     await findByText('3 scheduled');
+  });
+
+  it('starts payout onboarding and redirects to the hosted URL', async () => {
+    const listMyPayouts = jest.fn().mockResolvedValue([]);
+    const startConnectOnboarding = jest
+      .fn()
+      .mockResolvedValue({ url: 'https://connect.stripe.com/onboard/x' });
+    const openCheckout = jest.fn().mockResolvedValue(undefined);
+    const client = { listMyPayouts, startConnectOnboarding } as unknown as ApiClient;
+
+    const { findByLabelText } = await render(
+      <PayoutsScreen client={client} openCheckout={openCheckout} payoutsEnabled />,
+    );
+
+    await fireEvent.press(await findByLabelText('Set up payouts'));
+    await waitFor(() => {
+      expect(startConnectOnboarding).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(openCheckout).toHaveBeenCalledWith('https://connect.stripe.com/onboard/x');
+    });
+  });
+
+  it('hides the setup button when payouts are not enabled', async () => {
+    const listMyPayouts = jest.fn().mockResolvedValue([]);
+    const client = { listMyPayouts } as unknown as ApiClient;
+
+    const { findByText, queryByLabelText } = await render(<PayoutsScreen client={client} />);
+
+    await findByText('You have no payouts yet.');
+    expect(queryByLabelText('Set up payouts')).toBeNull();
   });
 });
