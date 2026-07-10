@@ -321,14 +321,12 @@ describe('RequestDetailScreen PayPal', () => {
 
   it('offers a method picker and sets up + redirects a PayPal payment', async () => {
     const request = makeMatched();
-    const createPayment = jest
-      .fn()
-      .mockResolvedValue(
-        makePayment({
-          provider: 'paypal',
-          checkoutUrl: 'https://www.paypal.com/checkoutnow?token=O1',
-        }),
-      );
+    const createPayment = jest.fn().mockResolvedValue(
+      makePayment({
+        provider: 'paypal',
+        checkoutUrl: 'https://www.paypal.com/checkoutnow?token=O1',
+      }),
+    );
     const openCheckout = jest.fn().mockResolvedValue(undefined);
     const client = clientWith({
       getServiceRequest: jest.fn().mockResolvedValue(request),
