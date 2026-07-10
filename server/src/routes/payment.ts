@@ -8,6 +8,7 @@ import {
   postServiceRequestPayment,
   postServiceRequestPaymentPay,
   postServiceRequestPaymentRefund,
+  postServiceRequestPaypalCapture,
   postStripeWebhook,
 } from '../controllers/paymentController.ts';
 import { authenticate } from '../middlewares/auth.ts';
@@ -23,6 +24,11 @@ paymentRouter.get(
 );
 paymentRouter.post('/service-requests/:id/payment', authenticate, postServiceRequestPayment);
 paymentRouter.post('/service-requests/:id/payment/pay', authenticate, postServiceRequestPaymentPay);
+paymentRouter.post(
+  '/service-requests/:id/payment/paypal/capture',
+  authenticate,
+  postServiceRequestPaypalCapture,
+);
 paymentRouter.post(
   '/service-requests/:id/payment/refund',
   authenticate,
