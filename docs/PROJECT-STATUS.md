@@ -802,10 +802,16 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   minor units). `payoutRepository.workerTotals(workerId)` (in-memory + Postgres, mirrors
   `outstandingTotals` filtered by worker) + `payoutService.myEarnings`. Tests
   `tests/worker-earnings.test.mjs` (paid + pending split; zeros for none; non-worker 403).
-  **App dashboard card is slice B.** Backend/shared only — _handed off_.
+  **App dashboard card is slice B.** Backend/shared only — merged.
+- **160** worker earnings card (**slice B**, app). `apiClient.getMyEarnings()` →
+  `GET /payouts/summary`. `PayoutsScreen` fetches the summary **best-effort** (the list
+  still renders if it fails, so older clients/tests are unaffected) and shows a header card
+  with **Paid out** / **Pending** totals + counts above the payout list. Test in
+  `PayoutsScreen.test.tsx` (card renders the totals). app-expo + `app/` apiClient only —
+  _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **159** (worker earnings summary), which were handed off.
+(Stripe go-live runbook), and **160** (worker earnings card), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

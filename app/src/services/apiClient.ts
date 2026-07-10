@@ -10,6 +10,7 @@ import type {
   CreateQuoteInput,
   CreateReviewInput,
   CreateServiceRequestInput,
+  EarningsSummary,
   ImageContentType,
   Message,
   Notification,
@@ -45,6 +46,7 @@ import {
   certificationListSchema,
   certificationSchema,
   deviceTokenListSchema,
+  earningsSummarySchema,
   messageListSchema,
   messageSchema,
   notificationListSchema,
@@ -265,6 +267,12 @@ export class ApiClient {
   public async listMyPayouts(): Promise<Payout[]> {
     const data = await this.send('GET', '/payouts', undefined, true);
     return payoutListSchema.parse(data).items;
+  }
+
+  /** The signed-in worker's earnings summary (paid-out vs. pending totals). */
+  public async getMyEarnings(): Promise<EarningsSummary> {
+    const data = await this.send('GET', '/payouts/summary', undefined, true);
+    return earningsSummarySchema.parse(data);
   }
 
   /** The signed-in worker's certifications, most-recent-first. */

@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-nativ
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import { formatCents } from '../../../app/src/features/payments/paymentFormat';
-import type { Payout } from '../../../shared/schemas';
+import type { EarningsSummary, Payout } from '../../../shared/schemas';
 import { apiClient } from '../api';
 
 export interface PayoutsScreenProps {
@@ -17,6 +17,7 @@ export function PayoutsScreen({ client, refreshToken }: PayoutsScreenProps): Rea
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
   const [payouts, setPayouts] = useState<Payout[] | null>(null);
+  const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -33,6 +34,16 @@ export function PayoutsScreen({ client, refreshToken }: PayoutsScreenProps): Rea
         if (active) {
           setError('Could not load your payouts.');
         }
+        return;
+      }
+      // The summary card is best-effort — the list still renders if it fails.
+      try {
+        const summary = await activeClient.getMyEarnings();
+        if (active) {
+          setEarnings(summary);
+        }
+      } catch {
+        // Leave the summary hidden.
       }
     }
 
@@ -72,7 +83,25 @@ export function PayoutsScreen({ client, refreshToken }: PayoutsScreenProps): Rea
       data={payouts}
       keyExtractor={(item) => item.id}
       ListHeaderComponent={
-        <Text style={styles.hint}>Your net earnings, paid out after each completed payment.</Text>
+        <View>
+          {earnings !== null && (
+            <View style={styles.summary} accessibilityLabel="Earnings summary">
+              <View style={styles.summaryCol}>
+                <Text style={styles.summaryLabel}>Paid out</Text>
+                <Text style={styles.summaryPaid}>{formatCents(earnings.paidAmountCents)}</Text>
+                <Text style={styles.summaryCount}>{earnings.paidCount} payout(s)</Text>
+              </View>
+              <View style={styles.summaryCol}>
+                <Text style={styles.summaryLabel}>Pending</Text>
+                <Text style={styles.summaryPending}>
+                  {formatCents(earnings.pendingAmountCents)}
+                </Text>
+                <Text style={styles.summaryCount}>{earnings.pendingCount} scheduled</Text>
+              </View>
+            </View>
+          )}
+          <Text style={styles.hint}>Your net earnings, paid out after each completed payment.</Text>
+        </View>
       }
       renderItem={({ item }) => (
         <View style={styles.row}>
@@ -98,6 +127,23 @@ const styles = StyleSheet.create({
   error: { color: '#dc2626', fontSize: 15, textAlign: 'center' },
   empty: { color: '#64748b', fontSize: 15, textAlign: 'center' },
   hint: { fontSize: 13, color: '#64748b', padding: 16, paddingBottom: 8 },
+  summary: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 16,
+    paddingBottom: 8,
+  },
+  summaryCol: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    padding: 12,
+  },
+  summaryLabel: { fontSize: 12, fontWeight: '600', color: '#64748b' },
+  summaryPaid: { fontSize: 20, fontWeight: '800', color: '#16a34a', marginTop: 4 },
+  summaryPending: { fontSize: 20, fontWeight: '800', color: '#d97706', marginTop: 4 },
+  summaryCount: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
   row: {
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
