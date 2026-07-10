@@ -363,6 +363,23 @@ export async function capturePaypalPayment(
 }
 
 /**
+ * Capture a PayPal order by its id and settle the matching payment. Used by the webhook
+ * backup for an approved order whose buyer never returned to complete capture. Best
+ * effort and idempotent: no-op when PayPal isn't configured or the capture isn't
+ * COMPLETED; settles by the capture's `custom_id` (our paymentId).
+ */
+export async function settlePaypalOrderById(orderId: string): Promise<void> {
+  const capturer = activePaypalCapturer();
+  if (capturer === undefined) {
+    return;
+  }
+  const result = await capturer(orderId);
+  if (result.status === 'COMPLETED' && result.paymentId !== null) {
+    await confirmPaymentPaid(result.paymentId);
+  }
+}
+
+/**
  * Confirm a payment as paid from a verified provider webhook. Idempotent: an
  * already-paid payment is returned unchanged (providers may retry deliveries).
  * 404 if the referenced payment is unknown. No authorization here — the caller

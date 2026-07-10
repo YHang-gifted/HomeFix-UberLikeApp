@@ -25,11 +25,12 @@ supply the credentials and run the sandbox test. Nothing here is exercised in CI
 - The mock `/pay` path is disabled (**409**) for any PayPal payment, so it can't be marked
   paid "for free".
 
-> **Known limitation (until the webhook backup lands):** settlement currently relies on the
-> customer returning and completing capture. If they approve but never return, the order is
-> approved-but-uncaptured and the payment stays `pending`. A `/webhooks/paypal` backup
-> (`PAYMENT.CAPTURE.COMPLETED` / server-side capture on `CHECKOUT.ORDER.APPROVED`) is the
-> planned hardening — do a small-scale rollout first.
+- **Robustness backup (webhook):** if the buyer approves but never returns to complete
+  capture, the `POST /webhooks/paypal` endpoint settles it out-of-band — a
+  `CHECKOUT.ORDER.APPROVED` delivery captures the order server-side, and a
+  `PAYMENT.CAPTURE.COMPLETED` delivery settles by the order's `custom_id`. Each delivery is
+  verified against PayPal's verify-webhook-signature API. Set `PAYPAL_WEBHOOK_ID` (with the
+  credentials) to enable it; unset and the endpoint is disabled (404).
 
 ## Required configuration
 
@@ -42,6 +43,7 @@ supply the credentials and run the sandbox test. Nothing here is exercised in CI
 | `PAYPAL_RETURN_URL`    | app URL + `?payment=success`         | **Required** when the client id is set (the server fails fast otherwise). |
 | `PAYPAL_CANCEL_URL`    | app URL + `?payment=cancelled`       | Required (as above).                                                      |
 | `PAYPAL_ENV`           | `sandbox` (default) or `live`        | Chooses `api-m.sandbox.paypal.com` vs `api-m.paypal.com`.                 |
+| `PAYPAL_WEBHOOK_ID`    | dashboard webhook id                 | Enables the `POST /webhooks/paypal` settlement backup. Unset → 404.       |
 
 **Web app** (Docker build arg, inlined at build time):
 
@@ -57,6 +59,10 @@ supply the credentials and run the sandbox test. Nothing here is exercised in CI
 2. **Create App** (a REST/merchant app). Copy its **Client ID** and **Secret**.
 3. (Optional, US) enable **Venmo** for the app / business account so Venmo shows as a
    funding option in checkout — no code change needed; eligibility is PayPal-side.
+4. Under the app's **Webhooks**, **Add webhook**: URL `https://<your-host>/webhooks/paypal`,
+   subscribe to **`CHECKOUT.ORDER.APPROVED`** and **`PAYMENT.CAPTURE.COMPLETED`**, and copy
+   the **Webhook ID** into `PAYPAL_WEBHOOK_ID`. This is the settlement backup for a buyer
+   who approves but never returns to complete capture.
 
 ### 2. Set the variables (sandbox) and redeploy
 
@@ -68,6 +74,7 @@ PAYPAL_CLIENT_SECRET=<sandbox secret>
 PAYPAL_RETURN_URL=https://<your-host>/?payment=success
 PAYPAL_CANCEL_URL=https://<your-host>/?payment=cancelled
 PAYPAL_ENV=sandbox
+PAYPAL_WEBHOOK_ID=<webhook id from step 1.4>
 ```
 
 Rebuild the web bundle with the picker enabled (Railway: add the variable; it is declared

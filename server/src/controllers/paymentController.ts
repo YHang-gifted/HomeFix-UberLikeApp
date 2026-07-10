@@ -18,6 +18,10 @@ import {
 } from '../services/paymentService.ts';
 import { handlePaymentWebhook, verifyPaymentWebhook } from '../services/paymentWebhookService.ts';
 import {
+  activePaypalWebhookVerifier,
+  handlePaypalWebhook,
+} from '../services/paypalWebhookService.ts';
+import {
   handleStripeWebhook,
   selectStripeEventConstructor,
 } from '../services/stripeWebhookService.ts';
@@ -229,6 +233,36 @@ export async function postStripeWebhook(
     }
     const rawBody = req.rawBody ?? Buffer.alloc(0);
     await handleStripeWebhook(construct(rawBody, signature));
+    res.status(200).json({ received: true });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * PayPal webhook (unauthenticated — verified via PayPal's verify-webhook-signature API).
+ * A completed capture settles the payment; an approved order is captured server-side.
+ * Disabled (404) unless the PayPal credentials + `PAYPAL_WEBHOOK_ID` are configured.
+ */
+export async function postPaypalWebhook(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const verify = activePaypalWebhookVerifier();
+    if (verify === undefined) {
+      throw new AppError('PayPal webhooks are not configured', 404);
+    }
+    const headers = {
+      authAlgo: req.header('paypal-auth-algo') ?? '',
+      certUrl: req.header('paypal-cert-url') ?? '',
+      transmissionId: req.header('paypal-transmission-id') ?? '',
+      transmissionSig: req.header('paypal-transmission-sig') ?? '',
+      transmissionTime: req.header('paypal-transmission-time') ?? '',
+    };
+    const rawBody = req.rawBody ?? Buffer.alloc(0);
+    await handlePaypalWebhook(await verify(headers, rawBody));
     res.status(200).json({ received: true });
   } catch (error) {
     next(error);

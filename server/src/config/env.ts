@@ -184,6 +184,14 @@ const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.enum(['sandbox', 'live']).default('sandbox'),
     ),
+    // PayPal webhook id (from the dashboard webhook you create). Set it (with the client
+    // credentials) to accept `POST /webhooks/paypal` — each delivery is verified against
+    // PayPal's verify-webhook-signature API. Unset and the endpoint is disabled (404), so
+    // no payment can be settled out-of-band before you are ready. Empty = unset.
+    PAYPAL_WEBHOOK_ID: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
     // Absolute path to the built web bundle (the Expo web export, `app-expo/dist`).
     // Set it to serve the web app same-origin with the API (static assets + an SPA
     // fallback); leave unset (dev/test) and only the API is served. Empty = unset.
