@@ -394,7 +394,13 @@ function PaymentsRoute({
 function PayoutsRoute(): ReactElement {
   const refreshToken = useFocusRefreshToken();
 
-  return <PayoutsScreen client={apiClient} refreshToken={refreshToken} />;
+  return (
+    <PayoutsScreen
+      client={apiClient}
+      refreshToken={refreshToken}
+      openCheckout={deviceOpenCheckout}
+    />
+  );
 }
 
 function ProfileRoute(): ReactElement {

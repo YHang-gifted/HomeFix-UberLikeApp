@@ -6,6 +6,7 @@ import type {
   AuditPage,
   Certification,
   CertificationStatus,
+  ConnectOnboarding,
   CreateCertificationInput,
   CreateQuoteInput,
   CreateReviewInput,
@@ -45,6 +46,7 @@ import {
   auditPageSchema,
   certificationListSchema,
   certificationSchema,
+  connectOnboardingSchema,
   deviceTokenListSchema,
   earningsSummarySchema,
   messageListSchema,
@@ -273,6 +275,12 @@ export class ApiClient {
   public async getMyEarnings(): Promise<EarningsSummary> {
     const data = await this.send('GET', '/payouts/summary', undefined, true);
     return earningsSummarySchema.parse(data);
+  }
+
+  /** Start Stripe Connect payout onboarding; returns the hosted URL to redirect to. */
+  public async startConnectOnboarding(): Promise<ConnectOnboarding> {
+    const data = await this.send('POST', '/me/connect/onboard', undefined, true);
+    return connectOnboardingSchema.parse(data);
   }
 
   /** The signed-in worker's certifications, most-recent-first. */
