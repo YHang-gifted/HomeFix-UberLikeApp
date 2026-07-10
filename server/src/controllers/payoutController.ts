@@ -6,7 +6,7 @@ import { payoutWebhookEventSchema } from '../../../shared/schemas.ts';
 import { loadEnv } from '../config/env.ts';
 import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
-import { handlePayoutWebhook, listMyPayouts } from '../services/payoutService.ts';
+import { handlePayoutWebhook, listMyPayouts, myEarnings } from '../services/payoutService.ts';
 import { verifyPaymentWebhook } from '../services/paymentWebhookService.ts';
 
 export async function getMyPayouts(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -17,6 +17,23 @@ export async function getMyPayouts(req: Request, res: Response, next: NextFuncti
 
   try {
     res.status(200).json({ items: await listMyPayouts(principal) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getMyEarnings(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  try {
+    res.status(200).json(await myEarnings(principal));
   } catch (error) {
     next(error);
   }
