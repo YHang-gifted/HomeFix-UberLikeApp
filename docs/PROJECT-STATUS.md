@@ -818,10 +818,20 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   Mock payments still just flip status; **PayPal real refunds are a follow-up** (they need
   the capture id, which isn't stored yet). Tests `tests/stripe-refund.test.mjs` (Stripe
   charge reversed by providerRef → refunded; refund failure → stays paid). Backend only —
-  _handed off_.
+  merged.
+- **162** real **PayPal refunds** (**slice B** of real refunds). PayPal refunds are on the
+  **capture** id, not the order — so the capture id is now stored: `PaypalCaptureResult`
+  gains `captureId`, and `capturePaypalPayment` / `settlePaypalOrderById` persist it as
+  `payment.captureRef` (new optional field + migration `0034`) before settling. `refundPayment`
+  now, for a `provider === 'paypal'` payment, refunds the capture at PayPal
+  (`POST /v2/payments/captures/{captureRef}/refund` via `paypalRefunder` /
+  `selectPaypalRefunder`, globalThis override) before marking refunded — throw → nothing
+  recorded. Tests `tests/paypal-refund.test.mjs` (capture stored → refund by captureRef →
+  refunded; refund failure → stays paid). **Real refunds now cover both providers**; only
+  real payouts remain mock. Backend/shared only — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **161** (real Stripe refunds), which were handed off.
+(Stripe go-live runbook), and **162** (real PayPal refunds), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

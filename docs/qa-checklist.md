@@ -16,7 +16,7 @@ native-module coverage that automation can't._
 ## 0. Prerequisites & environment
 
 - [ ] Backend running with a real Postgres (`DATABASE_URL` set); all migrations
-      (`0001`–`0033`) applied on boot.
+      (`0001`–`0034`) applied on boot.
 - [ ] `JWT_SECRET` set to a strong, non-default value (the server refuses to boot
       in production otherwise).
 - [ ] `CORS_ALLOWED_ORIGINS` set to the app/web origin(s) if testing from a

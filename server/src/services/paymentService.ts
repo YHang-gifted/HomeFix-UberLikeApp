@@ -22,6 +22,7 @@ import {
   paymentProvider,
   selectPaymentProviderForMethod,
   selectPaypalCapturer,
+  selectPaypalRefunder,
   selectStripeRefunder,
 } from './paymentProvider.ts';
 import type { CapturePaypalOrder, PaymentProvider, RefundCharge } from './paymentProvider.ts';
@@ -101,6 +102,21 @@ export function setStripeRefunderForTests(refunder: RefundCharge): void {
 
 export function resetStripeRefunderForTests(): void {
   refunderRegistry()[REFUNDER_OVERRIDE_KEY] = undefined;
+}
+
+// The PayPal refunder has the same globalThis-anchored test override.
+const PAYPAL_REFUNDER_OVERRIDE_KEY = '__homefixPaypalRefunderOverride__';
+
+function activePaypalRefunder(): RefundCharge | undefined {
+  return refunderRegistry()[PAYPAL_REFUNDER_OVERRIDE_KEY] ?? selectPaypalRefunder();
+}
+
+export function setPaypalRefunderForTests(refunder: RefundCharge): void {
+  refunderRegistry()[PAYPAL_REFUNDER_OVERRIDE_KEY] = refunder;
+}
+
+export function resetPaypalRefunderForTests(): void {
+  refunderRegistry()[PAYPAL_REFUNDER_OVERRIDE_KEY] = undefined;
 }
 
 async function loadRequest(requestId: string): Promise<ServiceRequest> {
@@ -379,6 +395,11 @@ export async function capturePaypalPayment(
   if (result.status !== 'COMPLETED') {
     throw new AppError('The PayPal payment was not completed', 402);
   }
+  // Persist the capture id (needed to refund later) before settling; confirmPaymentPaid
+  // reloads the payment, so it carries the capture ref through.
+  if (typeof result.captureId === 'string') {
+    await paymentRepository.save({ ...payment, captureRef: result.captureId });
+  }
   return confirmPaymentPaid(payment.id);
 }
 
@@ -395,6 +416,12 @@ export async function settlePaypalOrderById(orderId: string): Promise<void> {
   }
   const result = await capturer(orderId);
   if (result.status === 'COMPLETED' && result.paymentId !== null) {
+    if (typeof result.captureId === 'string') {
+      const payment = await paymentRepository.findById(result.paymentId);
+      if (payment) {
+        await paymentRepository.save({ ...payment, captureRef: result.captureId });
+      }
+    }
     await confirmPaymentPaid(result.paymentId);
   }
 }
@@ -437,12 +464,12 @@ async function markRefunded(payment: Payment): Promise<Payment> {
 }
 
 /**
- * Admin-only: refund a request's paid payment. For a Stripe payment the charge is
- * reversed at the provider first (so the money actually returns) before the payment is
- * marked refunded; if the provider refund fails, nothing is marked and the error
- * surfaces. Mock payments just flip status. (PayPal real refunds need the capture id —
- * a follow-up — so a PayPal payment is still only marked refunded for now.) Only a paid
- * payment can be refunded; a refund is audited. 404 if there is no payment, 409 if unpaid.
+ * Admin-only: refund a request's paid payment. For a Stripe or PayPal payment the charge
+ * is reversed at the provider first (Stripe by the PaymentIntent `providerRef`, PayPal by
+ * the `captureRef` stored at capture) — so the money actually returns — before the payment
+ * is marked refunded; if the provider refund fails, nothing is marked and the error
+ * surfaces. Mock payments just flip status. Only a paid payment can be refunded; a refund
+ * is audited. 404 if there is no payment, 409 if unpaid.
  */
 export async function refundPayment(requestId: string, principal: Principal): Promise<Payment> {
   if (principal.role !== 'admin') {
@@ -461,6 +488,12 @@ export async function refundPayment(requestId: string, principal: Principal): Pr
       throw new AppError('This Stripe payment cannot be refunded (not configured)', 400);
     }
     await refunder(payment.providerRef);
+  } else if (payment.provider === 'paypal') {
+    const refunder = activePaypalRefunder();
+    if (refunder === undefined || payment.captureRef === undefined) {
+      throw new AppError('This PayPal payment cannot be refunded (not configured)', 400);
+    }
+    await refunder(payment.captureRef);
   }
   const refunded = await markRefunded(payment);
   await recordAuditEvent({
