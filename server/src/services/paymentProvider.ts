@@ -366,6 +366,96 @@ export function selectPaypalCapturer(env: Env = loadEnv()): CapturePaypalOrder |
   return config === undefined ? undefined : paypalOrderCapturer(config);
 }
 
+// --- PayPal webhook verification -------------------------------------------------
+
+/** The PayPal signature headers on a webhook delivery. */
+export interface PaypalWebhookHeaders {
+  authAlgo: string;
+  certUrl: string;
+  transmissionId: string;
+  transmissionSig: string;
+  transmissionTime: string;
+}
+
+/** The reduced webhook event we act on: its type + our ids for settlement. */
+export interface PaypalWebhookEvent {
+  type: string;
+  /** Our paymentId (the order's `custom_id`), when the event carries it. */
+  paymentId: string | null;
+  /** The PayPal order id (on order events), used to capture an approved order. */
+  orderId: string | null;
+}
+
+/**
+ * Verifies a PayPal webhook delivery and returns the reduced event. Injected so the
+ * handler is unit-testable without a network call; the real one is
+ * {@link paypalWebhookVerifier}. Throws `AppError(401)` when verification fails.
+ */
+export type VerifyPaypalWebhook = (
+  headers: PaypalWebhookHeaders,
+  rawBody: Buffer,
+) => Promise<PaypalWebhookEvent>;
+
+interface PaypalEventBody {
+  event_type?: string;
+  resource?: {
+    id?: string;
+    custom_id?: string;
+    purchase_units?: { custom_id?: string }[];
+  };
+}
+
+function reducePaypalEvent(event: PaypalEventBody): PaypalWebhookEvent {
+  const resource = event.resource;
+  const customId = resource?.custom_id ?? resource?.purchase_units?.[0]?.custom_id ?? null;
+  return { type: event.event_type ?? '', paymentId: customId, orderId: resource?.id ?? null };
+}
+
+/**
+ * The real verifier: posts the delivery back to PayPal's verify-webhook-signature API
+ * (authenticated) and only accepts it on `verification_status === 'SUCCESS'`.
+ */
+export function paypalWebhookVerifier(
+  config: PaypalConfig,
+  webhookId: string,
+): VerifyPaypalWebhook {
+  return async (headers, rawBody) => {
+    const token = await paypalAccessToken(config);
+    const event = JSON.parse(rawBody.toString('utf8')) as PaypalEventBody;
+    const res = await fetch(`${config.baseUrl}/v1/notifications/verify-webhook-signature`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        auth_algo: headers.authAlgo,
+        cert_url: headers.certUrl,
+        transmission_id: headers.transmissionId,
+        transmission_sig: headers.transmissionSig,
+        transmission_time: headers.transmissionTime,
+        webhook_id: webhookId,
+        webhook_event: event,
+      }),
+    });
+    if (!res.ok) {
+      throw new AppError('Could not verify the PayPal webhook', 502);
+    }
+    const body = (await res.json()) as { verification_status?: string };
+    if (body.verification_status !== 'SUCCESS') {
+      throw new AppError('Invalid PayPal webhook signature', 401);
+    }
+    return reducePaypalEvent(event);
+  };
+}
+
+/** The configured PayPal webhook verifier, or undefined when it is not fully configured. */
+export function selectPaypalWebhookVerifier(env: Env = loadEnv()): VerifyPaypalWebhook | undefined {
+  const config = paypalConfigFromEnv(env);
+  const webhookId = env.PAYPAL_WEBHOOK_ID;
+  if (config === undefined || webhookId === undefined) {
+    return undefined;
+  }
+  return paypalWebhookVerifier(config, webhookId);
+}
+
 /**
  * Choose the payment provider from configuration: real Stripe hosted checkout when
  * `STRIPE_SECRET_KEY` (+ return URLs) is set, otherwise the inert mock. Credentials

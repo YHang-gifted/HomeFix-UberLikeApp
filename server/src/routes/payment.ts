@@ -5,6 +5,7 @@ import {
   getServiceRequestPayment,
   getServiceRequestPaymentReceipt,
   postPaymentWebhook,
+  postPaypalWebhook,
   postServiceRequestPayment,
   postServiceRequestPaymentPay,
   postServiceRequestPaymentRefund,
@@ -38,3 +39,5 @@ paymentRouter.post(
 paymentRouter.post('/webhooks/payments', postPaymentWebhook);
 // Stripe hosted-checkout webhook (verified by Stripe's own signature).
 paymentRouter.post('/webhooks/stripe', postStripeWebhook);
+// PayPal webhook (verified via PayPal's verify-webhook-signature API).
+paymentRouter.post('/webhooks/paypal', postPaypalWebhook);

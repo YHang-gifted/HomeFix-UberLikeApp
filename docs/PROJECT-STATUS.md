@@ -783,10 +783,22 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
     sandbox buyer, the live switch, and rollback. Notes the interrupted-return limitation
     (until the `/webhooks/paypal` backup lands), Venmo (US, eligibility-gated, no code), and
     the currency/zero-decimal caveat. Linked from `deployment.md` (which now also lists the
-    `PAYPAL_*` env). — _handed off_.
+    `PAYPAL_*` env). — merged.
+- **158** PayPal webhook backup (**C2**) — settles an interrupted return out-of-band.
+  New `POST /webhooks/paypal`, disabled (404) unless the credentials + `PAYPAL_WEBHOOK_ID`
+  are set; each delivery is verified via PayPal's **verify-webhook-signature** API
+  (injected `VerifyPaypalWebhook` seam with a globalThis test override; real verifier in
+  `paymentProvider`). `handlePaypalWebhook`: `PAYMENT.CAPTURE.COMPLETED` → settle by the
+  order's `custom_id`; `CHECKOUT.ORDER.APPROVED` → `settlePaypalOrderById` captures the
+  order server-side and settles (the buyer-approved-but-never-returned case). All
+  idempotent; unrelated event types are acked (200) with no effect. Tests
+  `tests/paypal-webhook.test.mjs` (capture-completed → paid; approved → captured + paid;
+  bad signature 401; unrelated type 200 no-op; unconfigured 404). Runbook + deployment env
+  updated (`PAYPAL_WEBHOOK_ID`, webhook creation step). **PayPal line A–D + C2 complete.**
+  Backend only — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **157** (PayPal go-live runbook), which were handed off.
+(Stripe go-live runbook), and **158** (PayPal webhook backup), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

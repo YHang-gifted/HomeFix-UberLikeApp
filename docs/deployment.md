@@ -52,9 +52,11 @@ startup by `server/src/config/env.ts` (see `.env.example`). The active variables
   PayPal (and Venmo, US) as a second checkout method alongside Stripe; leave unset and a
   `paypal` payment is rejected (400) while card/mock is unaffected. When the id is set,
   `PAYPAL_RETURN_URL` and `PAYPAL_CANCEL_URL` are **required** (the server fails fast),
-  and `PAYPAL_ENV` (`sandbox` default / `live`) selects the API host. To show the method
-  picker in the app, also build the web bundle with `EXPO_PUBLIC_PAYPAL_ENABLED=true`. For
-  the full switch-on (sandbox dry run → live), see **`docs/paypal-go-live.md`**.
+  and `PAYPAL_ENV` (`sandbox` default / `live`) selects the API host. `PAYPAL_WEBHOOK_ID`
+  enables the `POST /webhooks/paypal` settlement backup (verified via PayPal's
+  verify-webhook-signature API); unset and that endpoint is disabled (404). To show the
+  method picker in the app, also build the web bundle with `EXPO_PUBLIC_PAYPAL_ENABLED=true`.
+  For the full switch-on (sandbox dry run → live), see **`docs/paypal-go-live.md`**.
 - `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION` / `STORAGE_S3_ACCESS_KEY_ID` /
   `STORAGE_S3_SECRET_ACCESS_KEY` — object storage for uploaded images. Set all
   four to store images in real S3 (the API returns a presigned PUT URL the client
