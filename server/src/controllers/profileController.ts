@@ -11,6 +11,23 @@ import {
   getNotificationPreferences,
   updateNotificationPreferences,
 } from '../services/notificationPreferenceService.ts';
+import { startConnectOnboarding } from '../services/connectService.ts';
+
+export async function postConnectOnboard(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+  try {
+    res.status(200).json(await startConnectOnboarding(principal));
+  } catch (error) {
+    next(error);
+  }
+}
 
 export async function getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
   const principal = requirePrincipal(req, next);

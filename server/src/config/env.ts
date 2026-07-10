@@ -184,6 +184,18 @@ const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.enum(['sandbox', 'live']).default('sandbox'),
     ),
+    // Where Stripe Connect returns the worker after (or during) onboarding. Both are
+    // required to enable worker payout onboarding (with STRIPE_SECRET_KEY); point them at
+    // the app. `return_url` = onboarding finished; `refresh_url` = the link expired and a
+    // fresh one is needed. Empty = unset.
+    STRIPE_CONNECT_RETURN_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.url().optional(),
+    ),
+    STRIPE_CONNECT_REFRESH_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.url().optional(),
+    ),
     // PayPal webhook id (from the dashboard webhook you create). Set it (with the client
     // credentials) to accept `POST /webhooks/paypal` — each delivery is verified against
     // PayPal's verify-webhook-signature API. Unset and the endpoint is disabled (404), so

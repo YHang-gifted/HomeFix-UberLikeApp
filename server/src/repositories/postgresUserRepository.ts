@@ -32,6 +32,7 @@ interface UserRow {
   status: string;
   notify_email: boolean;
   notify_push: boolean;
+  stripe_account_id: string | null;
 }
 
 function parseAvailability(value: unknown): WorkerAvailability | undefined {
@@ -67,6 +68,7 @@ function mapRow(row: unknown): UserRecord {
     ...(r.bio !== null ? { bio: r.bio } : {}),
     ...(skills !== undefined ? { skills } : {}),
     ...(availability !== undefined ? { availability } : {}),
+    ...(r.stripe_account_id !== null ? { stripeAccountId: r.stripe_account_id } : {}),
   };
 }
 
@@ -158,6 +160,15 @@ export class PostgresUserRepository implements UserRepository {
     return row === undefined ? undefined : mapRow(row);
   }
 
+  public async setStripeAccountId(id: string, accountId: string): Promise<UserRecord | undefined> {
+    const result = await this.db.query(
+      'UPDATE users SET stripe_account_id = $2 WHERE id = $1 RETURNING *',
+      [id, accountId],
+    );
+    const row = result.rows[0];
+    return row === undefined ? undefined : mapRow(row);
+  }
+
   public async anonymize(id: string): Promise<UserRecord | undefined> {
     const result = await this.db.query(
       `UPDATE users
@@ -169,6 +180,7 @@ export class PostgresUserRepository implements UserRepository {
               availability = NULL,
               password_hash = $3,
               status = 'deleted',
+              stripe_account_id = NULL,
               token_version = token_version + 1
         WHERE id = $1
         RETURNING *`,

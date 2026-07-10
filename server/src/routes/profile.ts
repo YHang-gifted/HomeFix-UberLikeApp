@@ -5,6 +5,7 @@ import {
   getMyNotificationPreferences,
   patchMe,
   patchMyNotificationPreferences,
+  postConnectOnboard,
 } from '../controllers/profileController.ts';
 import { authenticate } from '../middlewares/auth.ts';
 
@@ -14,3 +15,4 @@ profileRouter.get('/me', authenticate, getMe);
 profileRouter.patch('/me', authenticate, patchMe);
 profileRouter.get('/me/notification-preferences', authenticate, getMyNotificationPreferences);
 profileRouter.patch('/me/notification-preferences', authenticate, patchMyNotificationPreferences);
+profileRouter.post('/me/connect/onboard', authenticate, postConnectOnboard);
