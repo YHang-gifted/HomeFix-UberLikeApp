@@ -453,4 +453,11 @@ export const migrations: Migration[] = [
       ALTER TABLE payments ADD CONSTRAINT chk_payments_provider CHECK (provider IS NULL OR provider IN ('mock', 'stripe', 'paypal'))
     `,
   },
+  {
+    // The provider's capture/charge reference used to refund. PayPal refunds are on the
+    // capture id (returned when the order is captured), distinct from the order id stored
+    // in provider_ref. Nullable: only set once a PayPal order is captured.
+    id: '0034_payment_capture_ref',
+    sql: `ALTER TABLE payments ADD COLUMN IF NOT EXISTS capture_ref text`,
+  },
 ];

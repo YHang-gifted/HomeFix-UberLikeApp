@@ -264,10 +264,12 @@ async function paypalAccessToken(config: PaypalConfig): Promise<string> {
   return body.access_token;
 }
 
-/** The result of capturing a PayPal order: its status and our `custom_id` (paymentId). */
+/** The result of capturing a PayPal order: status, our `custom_id`, and the capture id. */
 export interface PaypalCaptureResult {
   status: string;
   paymentId: string | null;
+  /** The PayPal capture id — needed to refund this payment later. */
+  captureId: string | null;
 }
 
 /**
@@ -279,7 +281,9 @@ export type CapturePaypalOrder = (orderId: string) => Promise<PaypalCaptureResul
 
 interface PaypalCaptureResponse {
   status?: string;
-  purchase_units?: { payments?: { captures?: { status?: string; custom_id?: string }[] } }[];
+  purchase_units?: {
+    payments?: { captures?: { id?: string; status?: string; custom_id?: string }[] };
+  }[];
 }
 
 /** The real capturer: authenticates, then captures the order (charges the buyer). */
@@ -298,6 +302,7 @@ export function paypalOrderCapturer(config: PaypalConfig): CapturePaypalOrder {
     return {
       status: body.status ?? capture?.status ?? 'UNKNOWN',
       paymentId: capture?.custom_id ?? null,
+      captureId: capture?.id ?? null,
     };
   };
 }
@@ -467,6 +472,26 @@ export function stripeRefunder(secretKey: string): RefundCharge {
 export function selectStripeRefunder(env: Env = loadEnv()): RefundCharge | undefined {
   const secretKey = env.STRIPE_SECRET_KEY;
   return secretKey === undefined ? undefined : stripeRefunder(secretKey);
+}
+
+/** The real PayPal refunder: refunds a capture in full. `ref` is the capture id. */
+export function paypalRefunder(config: PaypalConfig): RefundCharge {
+  return async (ref) => {
+    const token = await paypalAccessToken(config);
+    const res = await fetch(`${config.baseUrl}/v2/payments/captures/${ref}/refund`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    });
+    if (!res.ok) {
+      throw new AppError('Could not refund the PayPal payment', 502);
+    }
+  };
+}
+
+/** The configured PayPal refunder, or undefined when PayPal isn't configured. */
+export function selectPaypalRefunder(env: Env = loadEnv()): RefundCharge | undefined {
+  const config = paypalConfigFromEnv(env);
+  return config === undefined ? undefined : paypalRefunder(config);
 }
 
 /** The configured PayPal webhook verifier, or undefined when it is not fully configured. */

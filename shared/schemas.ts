@@ -433,6 +433,9 @@ export const paymentSchema = z.object({
   // Which backend took this payment (mock/stripe/paypal), so its webhook and any
   // refund route to the right provider. Optional: legacy rows predate the column.
   provider: paymentProviderIdSchema.optional(),
+  // The provider's capture/charge reference used to REFUND (PayPal refunds on the
+  // capture id, not the order in `providerRef`). Set when a PayPal order is captured.
+  captureRef: z.string().optional(),
   // The provider's client secret for completing the payment (e.g. a Stripe
   // PaymentIntent client secret). Ephemeral: returned ONLY on the create-payment
   // response so the app can start checkout; never persisted, never on a later GET.
