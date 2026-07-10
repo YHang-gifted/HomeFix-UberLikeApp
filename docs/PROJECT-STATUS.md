@@ -774,10 +774,19 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   `RequestDetailScreen.test.tsx` (picker → `createPayment(…, 'paypal')` + redirect; returned
   payment → capture → Paid; picker hidden when disabled). **PayPal happy path now works
   end-to-end for sandbox testing.** Remaining: `/webhooks/paypal` robustness backup (C2) for
-  interrupted returns, and a PayPal go-live runbook. — _handed off_.
+  interrupted returns, and a PayPal go-live runbook. — merged.
+- **157** PayPal go-live runbook (`docs/paypal-go-live.md`). No code — the operator
+  procedure for the A–D PayPal flow: how the creds switch it on (mock/card unaffected;
+  settlement is create → approve → **return + capture**, not auto like Stripe; mock `/pay`
+  409s for PayPal), the required env (`PAYPAL_CLIENT_ID/SECRET/RETURN_URL/CANCEL_URL/ENV`
+  - `EXPO_PUBLIC_PAYPAL_ENABLED`), creating a sandbox REST app, a **sandbox dry run** with a
+    sandbox buyer, the live switch, and rollback. Notes the interrupted-return limitation
+    (until the `/webhooks/paypal` backup lands), Venmo (US, eligibility-gated, no code), and
+    the currency/zero-decimal caveat. Linked from `deployment.md` (which now also lists the
+    `PAYPAL_*` env). — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **156** (app PayPal checkout), which were handed off.
+(Stripe go-live runbook), and **157** (PayPal go-live runbook), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
