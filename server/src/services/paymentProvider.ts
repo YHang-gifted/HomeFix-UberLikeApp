@@ -446,6 +446,29 @@ export function paypalWebhookVerifier(
   };
 }
 
+// --- Refunds --------------------------------------------------------------------
+
+/**
+ * Reverses a charge at the provider by its reference (for Stripe, the PaymentIntent id
+ * stored as our `providerRef`). Injected so the refund flow is unit-testable without a
+ * network call; the real one is {@link stripeRefunder}. Throws when the refund fails.
+ */
+export type RefundCharge = (providerRef: string) => Promise<void>;
+
+/** The real Stripe refunder: refunds the full amount of the PaymentIntent. */
+export function stripeRefunder(secretKey: string): RefundCharge {
+  const stripe = new Stripe(secretKey);
+  return async (providerRef) => {
+    await stripe.refunds.create({ payment_intent: providerRef });
+  };
+}
+
+/** The configured Stripe refunder, or undefined when Stripe isn't configured. */
+export function selectStripeRefunder(env: Env = loadEnv()): RefundCharge | undefined {
+  const secretKey = env.STRIPE_SECRET_KEY;
+  return secretKey === undefined ? undefined : stripeRefunder(secretKey);
+}
+
 /** The configured PayPal webhook verifier, or undefined when it is not fully configured. */
 export function selectPaypalWebhookVerifier(env: Env = loadEnv()): VerifyPaypalWebhook | undefined {
   const config = paypalConfigFromEnv(env);
