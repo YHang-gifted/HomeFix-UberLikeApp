@@ -48,4 +48,22 @@ describe('PayoutsScreen', () => {
 
     await findByText('You have no payouts yet.');
   });
+
+  it('shows an earnings summary card from the totals', async () => {
+    const listMyPayouts = jest.fn().mockResolvedValue([makePayout()]);
+    const getMyEarnings = jest.fn().mockResolvedValue({
+      paidCount: 2,
+      paidAmountCents: 500000,
+      pendingCount: 3,
+      pendingAmountCents: 200000,
+    });
+    const client = { listMyPayouts, getMyEarnings } as unknown as ApiClient;
+
+    const { findByText } = await render(<PayoutsScreen client={client} />);
+
+    await findByText('NT$5,000.00');
+    await findByText('2 payout(s)');
+    await findByText('NT$2,000.00');
+    await findByText('3 scheduled');
+  });
 });
