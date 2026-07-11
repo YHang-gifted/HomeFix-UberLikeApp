@@ -36,6 +36,7 @@ Use exactly one of: `authentication`, `authorization`, `input-validation`, `inje
 | SEC-0005 | 2026-06-28 | payment-integrity | Release/reset left the prior worker's quote & payment on the request | fixed     |
 | SEC-0006 | 2026-07-11 | payment-integrity | A paid service request could still be cancelled (orphaned payment)   | fixed     |
 | SEC-0007 | 2026-07-11 | payment-integrity | Direct admin refund did not reverse the worker's payout (double-pay) | fixed     |
+| SEC-0008 | 2026-07-11 | payment-integrity | Provider refund webhook did not reconcile the worker's payout        | fixed     |
 
 ## Entry template
 
@@ -149,4 +150,17 @@ Copy this block for every new fix.
 - **Canonical fix:** Move the reconciliation **into** `refundPayment` so every caller is safe: before any money moves it calls `reversePendingPayout(payment.id)`, which removes a still-pending payout (no double-pay) and throws `AppError(…, 409)` if the payout was already sent (refund aborts before the provider refund and before `markRefunded`; the worker's net needs a manual clawback). `adminCancelService` was simplified to just call `refundPayment` (it no longer needs its own reversal). This mirrors SEC-0005's "guard settled money, then clear dependent unsettled records" applied to the refund action; reuse it for any future action that unwinds a settled payment.
 - **Regression test:** `tests/refund-reverses-payout.test.mjs` (refunding a paid payment removes the still-pending payout; a payment whose payout was already sent aborts the refund with 409, leaving both payment and payout paid). Existing `tests/stripe-refund.test.mjs` / `tests/paypal-refund.test.mjs` still pass (their pending payout is simply reversed).
 - **Prevention:** This ledger entry + SEC-0005/0006 as the pattern of record: reconciliation of dependent billing must live in the shared service operation, not in one orchestrator, so every caller inherits it. Any new caller of `refundPayment` (or a new refund path) is covered automatically; mandatory payments tests per `CLAUDE.md`.
-- **Related:** SEC-0005, SEC-0006
+- **Related:** SEC-0005, SEC-0006, SEC-0008
+
+### SEC-0008 — Provider refund webhook did not reconcile the worker's payout
+
+- **Date:** 2026-07-11
+- **Category:** payment-integrity
+- **Severity:** medium
+- **Affected area:** `server/src/services/paymentService.ts` (`confirmPaymentRefunded`, reached by `confirmPaymentRefundedByRef` ← the `payment.refunded` webhook on `POST /webhooks/payments`)
+- **Vulnerability:** SEC-0007 fixed the admin refund action, but a refund can also arrive as a **provider webhook** — a refund issued directly from the Stripe/PayPal dashboard, or a chargeback — which settles through `confirmPaymentRefunded`, a different code path that our admin `refundPayment` never runs. That path marked the payment refunded **without touching the worker's payout**, so a still-`pending` payout would still transfer (slices 164/167): customer refunded externally **and** worker paid — the same double-pay as SEC-0007, via the webhook.
+- **Root cause:** Same class as SEC-0007 (dependent-billing reconciliation missing on a refund path), but on the webhook settler rather than the admin action. It could not simply reuse the SEC-0007 fix: `reversePendingPayout` throws 409 on an already-paid payout, and a webhook must be **acknowledged** (throwing would make the provider retry forever and never record the refund), so the webhook path needs a non-throwing reconcile.
+- **Canonical fix:** Add `reconcilePayoutForExternalRefund(paymentId)` to `payoutService` — the fait-accompli sibling of `reversePendingPayout`: it removes a still-pending payout (no double-pay) and is a **no-op (never throws)** for an already-paid-out payout (left for a manual clawback) or when there is no payout. `confirmPaymentRefunded` calls it before `markRefunded`. Rule for the class: an action the actor can retry (admin) fails closed (throw/409); a fait-accompli event (verified webhook) reconciles best-effort and always acknowledges.
+- **Regression test:** `tests/refund-webhook-reverses-payout.test.mjs` (a `payment.refunded` webhook removes a still-pending payout and settles the refund; an already-paid-out payout is left paid while the webhook still returns 200 and records the refund).
+- **Prevention:** This ledger entry + SEC-0007: every refund path (admin action AND provider webhook) must reconcile the payout; webhook settlers reconcile without throwing. Mandatory payments tests per `CLAUDE.md`.
+- **Related:** SEC-0007, SEC-0005, SEC-0006
