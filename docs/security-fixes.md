@@ -35,6 +35,7 @@ Use exactly one of: `authentication`, `authorization`, `input-validation`, `inje
 | SEC-0004 | 2026-06-26 | authentication    | Default JWT signing secret could reach production                    | fixed     |
 | SEC-0005 | 2026-06-28 | payment-integrity | Release/reset left the prior worker's quote & payment on the request | fixed     |
 | SEC-0006 | 2026-07-11 | payment-integrity | A paid service request could still be cancelled (orphaned payment)   | fixed     |
+| SEC-0007 | 2026-07-11 | payment-integrity | Direct admin refund did not reverse the worker's payout (double-pay) | fixed     |
 
 ## Entry template
 
@@ -136,3 +137,16 @@ Copy this block for every new fix.
 - **Regression test:** `tests/cancel-paid-guard.test.mjs` (a paid request cannot be cancelled — 422, payment preserved; an unpaid request can still be cancelled — 200).
 - **Prevention:** This ledger entry + SEC-0005 as the pattern of record: any request-lifecycle transition that voids or re-pools a request must call `assertNotPaid` and add a cross-domain test. Mandatory tests for matching/payments/order-state per `CLAUDE.md`.
 - **Related:** SEC-0005
+
+### SEC-0007 — Direct admin refund did not reverse the worker's payout
+
+- **Date:** 2026-07-11
+- **Category:** payment-integrity
+- **Severity:** medium
+- **Affected area:** `server/src/services/paymentService.ts` (`refundPayment`), reached by `POST /service-requests/:id/payment/refund`
+- **Vulnerability:** Settling a payment schedules the worker's net as a payout (`markPaid` → `createPayoutForPayment`). The **cancel-and-refund** flow (`adminCancelService`) reversed that payout before refunding, but the **standalone refund endpoint** called `refundPayment` directly, which reversed the charge at the provider and marked the payment refunded **without touching the payout**. So an admin refunding a paid request (without cancelling) left the worker's payout intact: a still-`pending` payout would still transfer the net to the worker (slices 164/167) — the customer is refunded **and** the worker is paid, a silent double loss — and an already-paid-out payout had no guard at all. Admin-gated, but with real Stripe Connect payouts live it moves real money and was completely untested.
+- **Root cause:** Cross-domain lifecycle coupling missed on one path: the payout-reversal was implemented in the cancel orchestrator (`adminCancelService`) rather than inside `refundPayment` itself, so the direct refund endpoint — a second caller of the same operation — bypassed it. Same class as SEC-0005/0006 (guard settled state, then reconcile dependent billing), one code path short.
+- **Canonical fix:** Move the reconciliation **into** `refundPayment` so every caller is safe: before any money moves it calls `reversePendingPayout(payment.id)`, which removes a still-pending payout (no double-pay) and throws `AppError(…, 409)` if the payout was already sent (refund aborts before the provider refund and before `markRefunded`; the worker's net needs a manual clawback). `adminCancelService` was simplified to just call `refundPayment` (it no longer needs its own reversal). This mirrors SEC-0005's "guard settled money, then clear dependent unsettled records" applied to the refund action; reuse it for any future action that unwinds a settled payment.
+- **Regression test:** `tests/refund-reverses-payout.test.mjs` (refunding a paid payment removes the still-pending payout; a payment whose payout was already sent aborts the refund with 409, leaving both payment and payout paid). Existing `tests/stripe-refund.test.mjs` / `tests/paypal-refund.test.mjs` still pass (their pending payout is simply reversed).
+- **Prevention:** This ledger entry + SEC-0005/0006 as the pattern of record: reconciliation of dependent billing must live in the shared service operation, not in one orchestrator, so every caller inherits it. Any new caller of `refundPayment` (or a new refund path) is covered automatically; mandatory payments tests per `CLAUDE.md`.
+- **Related:** SEC-0005, SEC-0006
