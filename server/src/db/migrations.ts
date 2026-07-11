@@ -467,4 +467,11 @@ export const migrations: Migration[] = [
     id: '0035_user_stripe_account_id',
     sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_account_id text`,
   },
+  {
+    // Whether a worker's connected account can receive payouts, tracked from Stripe's
+    // account.updated webhook (`payouts_enabled`). The platform only transfers a payout
+    // once this is true. Defaults false; irrelevant for non-workers.
+    id: '0036_user_stripe_payouts_enabled',
+    sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_payouts_enabled boolean NOT NULL DEFAULT false`,
+  },
 ];
