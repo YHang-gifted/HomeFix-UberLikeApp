@@ -17,7 +17,11 @@ import { isRequestParty } from './serviceRequestService.ts';
 import { getPublicUserById } from './userService.ts';
 import { recordNotification } from './notificationService.ts';
 import { recordAuditEvent } from './auditService.ts';
-import { createPayoutForPayment, reversePendingPayout } from './payoutService.ts';
+import {
+  createPayoutForPayment,
+  reconcilePayoutForExternalRefund,
+  reversePendingPayout,
+} from './payoutService.ts';
 import {
   paymentProvider,
   selectPaymentProviderForMethod,
@@ -512,10 +516,13 @@ export async function refundPayment(requestId: string, principal: Principal): Pr
 }
 
 /**
- * Confirm a refund from a verified provider webhook. Idempotent: an
- * already-refunded payment is returned unchanged. 404 if unknown, 409 if the
- * payment was never paid. No authorization here — the caller verifies the
- * webhook.
+ * Confirm a refund from a verified provider webhook (the refund already happened at the
+ * provider — e.g. issued from its dashboard, or a chargeback). Idempotent: an
+ * already-refunded payment is returned unchanged. 404 if unknown, 409 if the payment was
+ * never paid. No authorization here — the caller verifies the webhook. The worker's payout
+ * is reconciled (SEC-0008): a still-pending payout is removed so it can't transfer after the
+ * refund (no double-pay); this is best-effort and never throws, since the webhook must be
+ * acknowledged (an already-paid-out payout is left for a manual clawback).
  */
 export async function confirmPaymentRefunded(paymentId: string): Promise<Payment> {
   const payment = await paymentRepository.findById(paymentId);
@@ -528,6 +535,7 @@ export async function confirmPaymentRefunded(paymentId: string): Promise<Payment
   if (payment.status !== 'paid') {
     throw new AppError('Only a paid payment can be refunded', 409);
   }
+  await reconcilePayoutForExternalRefund(payment.id);
   return markRefunded(payment);
 }
 

@@ -156,6 +156,23 @@ export async function reversePendingPayout(paymentId: string): Promise<void> {
   await payoutRepository.deleteByPayment(paymentId);
 }
 
+/**
+ * Reconcile the worker's payout for a refund that ALREADY happened at the provider (a
+ * verified `payment.refunded` webhook — e.g. a refund issued from the Stripe/PayPal
+ * dashboard, or a chargeback). Unlike {@link reversePendingPayout} this NEVER throws: the
+ * refund is a fait accompli, so the webhook must be acknowledged. A still-pending payout is
+ * removed so it can never transfer (no double-pay); an already-paid-out payout is left as-is
+ * (the net is gone and needs a manual clawback — a reversal is impossible from here). A
+ * no-op when the payment has no payout.
+ */
+export async function reconcilePayoutForExternalRefund(paymentId: string): Promise<void> {
+  const payout = await payoutRepository.findByPayment(paymentId);
+  if (!payout || payout.status === 'paid') {
+    return;
+  }
+  await payoutRepository.deleteByPayment(paymentId);
+}
+
 /** A worker's own payouts, most-recent-first. Only workers have payouts. */
 export async function listMyPayouts(principal: Principal): Promise<Payout[]> {
   if (principal.role !== 'worker') {

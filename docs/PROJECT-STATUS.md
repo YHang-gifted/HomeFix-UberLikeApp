@@ -895,10 +895,21 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   clawback) — so every caller is safe; `adminCancelService` simplified to just call
   `refundPayment`. Ledger `SEC-0007` + `tests/refund-reverses-payout.test.mjs`. Backend only
   (touches the code-owner-protected `docs/security-fixes.md` → needs security-reviewer
-  approval) — _handed off_.
+  approval) — merged.
+- **169** SEC-0008 — provider **refund webhook** reconciles the worker payout. Sibling of
+  SEC-0007 on the other refund path: a `payment.refunded` webhook (a refund issued from the
+  Stripe/PayPal dashboard, or a chargeback) settles via `confirmPaymentRefunded`, which our
+  admin `refundPayment` never runs, and it left the payout intact → same double-pay. Fix:
+  new `payoutService.reconcilePayoutForExternalRefund(paymentId)` — the non-throwing sibling
+  of `reversePendingPayout` (removes a pending payout; no-op for an already-sent one, since a
+  verified webhook must be acknowledged, not 409'd) — called by `confirmPaymentRefunded`
+  before `markRefunded`. Ledger `SEC-0008` + `tests/refund-webhook-reverses-payout.test.mjs`.
+  Backend only (code-owner-protected `docs/security-fixes.md` → needs security-reviewer
+  approval) — _handed off_. **Both refund paths (admin action + provider webhook) now
+  reconcile the payout.**
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **168** (SEC-0007 refund reverses payout), which were handed off.
+(Stripe go-live runbook), and **169** (SEC-0008 refund webhook reconciles payout), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
