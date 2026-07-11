@@ -2,7 +2,6 @@ import type { Principal, ServiceRequest } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { paymentRepository } from '../repositories/paymentRepository.ts';
 import { refundPayment } from './paymentService.ts';
-import { reversePendingPayout } from './payoutService.ts';
 import { updateServiceRequestStatus } from './serviceRequestService.ts';
 
 /**
@@ -10,11 +9,10 @@ import { updateServiceRequestStatus } from './serviceRequestService.ts';
  * first so no money is orphaned. This is the deliberate counterpart to SEC-0006,
  * which blocks a plain cancel on a paid request (there is no refund in that path).
  *
- * Orchestrates across three services (payment, payout, request) from a standalone
- * module so it does not add an import cycle between them:
- *  1. If the request has a paid payment, reverse the worker's still-pending payout
- *     (409 if the worker was already paid out — that needs a manual clawback), then
- *     refund the payment (paid -> refunded, audited).
+ *  1. If the request has a paid payment, refund it. `refundPayment` reconciles the
+ *     worker's payout itself (SEC-0007): it reverses a still-pending payout and aborts
+ *     with 409 if the worker was already paid out — before any state changes — so we
+ *     never refund without also having handled the payout.
  *  2. Cancel the request. With the payment now refunded (not paid), the SEC-0006
  *     guard no longer blocks the transition.
  *
@@ -32,9 +30,6 @@ export async function adminCancelRequestWithRefund(
 
   const payment = await paymentRepository.findByRequest(requestId);
   if (payment?.status === 'paid') {
-    // Order matters: the payout check can abort (409) before any state changes,
-    // so we never refund without also having reversed the payout.
-    await reversePendingPayout(payment.id);
     await refundPayment(requestId, principal);
   }
 

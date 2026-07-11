@@ -17,7 +17,7 @@ import { isRequestParty } from './serviceRequestService.ts';
 import { getPublicUserById } from './userService.ts';
 import { recordNotification } from './notificationService.ts';
 import { recordAuditEvent } from './auditService.ts';
-import { createPayoutForPayment } from './payoutService.ts';
+import { createPayoutForPayment, reversePendingPayout } from './payoutService.ts';
 import {
   paymentProvider,
   selectPaymentProviderForMethod,
@@ -464,12 +464,15 @@ async function markRefunded(payment: Payment): Promise<Payment> {
 }
 
 /**
- * Admin-only: refund a request's paid payment. For a Stripe or PayPal payment the charge
- * is reversed at the provider first (Stripe by the PaymentIntent `providerRef`, PayPal by
- * the `captureRef` stored at capture) — so the money actually returns — before the payment
- * is marked refunded; if the provider refund fails, nothing is marked and the error
- * surfaces. Mock payments just flip status. Only a paid payment can be refunded; a refund
- * is audited. 404 if there is no payment, 409 if unpaid.
+ * Admin-only: refund a request's paid payment. The worker's payout is reconciled FIRST
+ * (SEC-0007): a still-pending payout is removed so the refund can't double-pay, and an
+ * already-paid-out payout aborts the whole refund with 409 (manual clawback needed) before
+ * any money moves — so we never refund the customer while the worker keeps their net. Then,
+ * for a Stripe or PayPal payment the charge is reversed at the provider (Stripe by the
+ * PaymentIntent `providerRef`, PayPal by the `captureRef` stored at capture) — so the money
+ * actually returns — before the payment is marked refunded; if the provider refund fails,
+ * nothing is marked and the error surfaces. Mock payments just flip status. Only a paid
+ * payment can be refunded; a refund is audited. 404 if there is no payment, 409 if unpaid.
  */
 export async function refundPayment(requestId: string, principal: Principal): Promise<Payment> {
   if (principal.role !== 'admin') {
@@ -482,6 +485,10 @@ export async function refundPayment(requestId: string, principal: Principal): Pr
   if (payment.status !== 'paid') {
     throw new AppError('Only a paid payment can be refunded', 409);
   }
+  // Reverse the worker's payout before anything else: this throws 409 if the payout was
+  // already sent (so no provider refund happens and the payment stays paid), and removes a
+  // still-pending payout so it can never transfer after the customer has been refunded.
+  await reversePendingPayout(payment.id);
   if (payment.provider === 'stripe') {
     const refunder = activeStripeRefunder();
     if (refunder === undefined || payment.providerRef === undefined) {

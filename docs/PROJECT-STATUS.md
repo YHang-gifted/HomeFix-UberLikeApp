@@ -885,9 +885,20 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   `onboardWorker` helper was split into onboard + `setPayoutsEnabled(bool)`. Backend only —
   _handed off_. **The real Connect payout line is now complete: onboard → gate on
   `payouts_enabled` → transfer on settle → backfill the gap.**
+- **168** SEC-0007 — direct admin refund now reverses the worker's payout. A money-flow
+  security review found that `POST /service-requests/:id/payment/refund` → `refundPayment`
+  refunded the customer (and reversed the provider charge) but left the worker's scheduled
+  payout intact, so a still-pending payout would still transfer (customer refunded **and**
+  worker paid — silent double loss); the cancel-and-refund path already reversed it, the
+  standalone refund didn't. Fix: `refundPayment` now calls `reversePendingPayout(payment.id)`
+  before any money moves — removes a pending payout, or 409s if already paid out (manual
+  clawback) — so every caller is safe; `adminCancelService` simplified to just call
+  `refundPayment`. Ledger `SEC-0007` + `tests/refund-reverses-payout.test.mjs`. Backend only
+  (touches the code-owner-protected `docs/security-fixes.md` → needs security-reviewer
+  approval) — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **167** (payout backfill), which were handed off.
+(Stripe go-live runbook), and **168** (SEC-0007 refund reverses payout), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
