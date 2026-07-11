@@ -4,6 +4,7 @@ import { AppError } from '../errors/appError.ts';
 import { userRepository } from '../repositories/userRepository.ts';
 import { selectConnectOnboarder } from './paymentProvider.ts';
 import type { CreateConnectOnboarding } from './paymentProvider.ts';
+import { retryPendingPayoutsForWorker } from './payoutService.ts';
 
 // The Connect onboarder has a globalThis-anchored test override (a fake avoids the network
 // call to Stripe while still exercising the account-id persistence). Same rationale as the
@@ -65,4 +66,9 @@ export async function recordConnectPayoutStatus(
     return;
   }
   await userRepository.setStripePayoutsEnabled(worker.id, payoutsEnabled);
+  // Now that the account can receive payouts, flush any payouts that were scheduled while
+  // it couldn't (they were left pending by `tryTransferPayout`).
+  if (payoutsEnabled) {
+    await retryPendingPayoutsForWorker(worker.id);
+  }
 }

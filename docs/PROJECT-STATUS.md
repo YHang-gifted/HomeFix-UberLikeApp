@@ -873,11 +873,21 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   account can receive payouts (avoids a guaranteed-to-fail transfer). Tests
   `tests/connect-webhook.test.mjs` (constructor verify/reduce + bad-sig 401; select gating;
   handler records/ignores; endpoint 404); `connect-payout.test.mjs` updated to enable payouts
-  via the webhook before expecting a transfer. Backend only — _handed off_. **Next: a backfill
-  that retries payouts scheduled before the account.updated confirmation.**
+  via the webhook before expecting a transfer. Backend only — merged.
+- **167** payout **backfill** (**payout hardening**, closes the Connect gap). New
+  `payoutService.retryPendingPayoutsForWorker(workerId)` re-runs the guarded, best-effort
+  `tryTransferPayout` over each of a worker's still-pending payouts;
+  `connectService.recordConnectPayoutStatus` calls it whenever `account.updated` flips
+  `payouts_enabled` to true — so a payout scheduled before onboarding finished (left pending
+  by slice 166's gate) now goes out automatically, no manual step. Covered end-to-end in
+  `tests/connect-payout.test.mjs` (new: pay while not-yet-enabled → payout pending, no
+  transfer; then `account.updated` enabled → retried → transferred + settled); its
+  `onboardWorker` helper was split into onboard + `setPayoutsEnabled(bool)`. Backend only —
+  _handed off_. **The real Connect payout line is now complete: onboard → gate on
+  `payouts_enabled` → transfer on settle → backfill the gap.**
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **166** (Connect account.updated webhook), which were handed off.
+(Stripe go-live runbook), and **167** (payout backfill), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
