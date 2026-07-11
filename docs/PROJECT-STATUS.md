@@ -926,10 +926,26 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   WebSocket true-push, not polling), and re-derived **What a testable v1 still needs** (now:
   public frontend deploy → E2E/device QA → observability/backups → payments go-live as an
   operator step) and **Recommended next slices**. Also fixed the section-6 heading range.
-  No code — _handed off_.
+  No code — merged.
+- **171** [BUG] Connect accounts never requested the **`transfers` capability**. Found while
+  verifying the Connect API against current Stripe docs before writing the go-live runbook.
+  `stripeConnectOnboarder` created the worker's Express account with
+  `accounts.create({ type: 'express' })` and **no capabilities** — but a Stripe capability is
+  inactive until it is _requested_ and verified, so `transfers` would never activate,
+  `payouts_enabled` would never turn true, and (behind the slice-166 gate) **every payout
+  would sit `pending` for ever, silently**. The whole real-payout line was inert in
+  production. Fix: the account is created from an exported `EXPRESS_ACCOUNT_PARAMS`
+  (`{ type: 'express', capabilities: { transfers: { requested: true } } }`) — only
+  `transfers` is requested, since the worker merely _receives_ funds and never charges cards,
+  and requesting `card_payments` would demand more onboarding data. Regression test in
+  `tests/connect-onboarding.test.mjs` locks the params (the real `accounts.create` needs the
+  network, so it is exercised only in the go-live dry run, never in CI). Backend only —
+  _handed off_. **Note:** a related go-live blocker is still open — payments and payouts
+  hard-code `currency: 'TWD'` while the target market is the US; a Stripe transfer must match
+  the platform's settlement currency, so this needs a currency slice before real payouts.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **170** (status-doc refresh), which were handed off.
+(Stripe go-live runbook), and **171** (Connect transfers capability), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

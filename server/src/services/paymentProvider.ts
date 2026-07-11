@@ -517,11 +517,34 @@ interface ConnectConfig {
   refreshUrl: string;
 }
 
+/**
+ * The parameters a worker's Express connected account is created with.
+ *
+ * The **`transfers` capability must be requested** — a capability is inactive until it is
+ * requested and Stripe has verified its requirements, so without this Stripe never activates
+ * transfers on the account, `payouts_enabled` stays false forever, and the platform can never
+ * send the worker their net. (With the `payouts_enabled` gate this fails *silently*: every
+ * payout would simply sit `pending` for ever.)
+ *
+ * We request **only** `transfers`: the platform takes the customer's payment and merely
+ * *transfers* the net onward, so the worker's account never charges cards itself and
+ * `card_payments` is not needed — requesting it would only force more onboarding
+ * information out of the worker.
+ *
+ * Exported so the requirement is locked in by a test: the `accounts.create` call itself
+ * needs the network, so it is exercised only in the go-live dry run, never in CI.
+ */
+export const EXPRESS_ACCOUNT_PARAMS: Stripe.AccountCreateParams = {
+  type: 'express',
+  capabilities: { transfers: { requested: true } },
+};
+
 /** The real onboarder: creates an Express account if needed, then an onboarding link. */
 export function stripeConnectOnboarder(config: ConnectConfig): CreateConnectOnboarding {
   const stripe = new Stripe(config.secretKey);
   return async (existingAccountId) => {
-    const accountId = existingAccountId ?? (await stripe.accounts.create({ type: 'express' })).id;
+    const accountId =
+      existingAccountId ?? (await stripe.accounts.create(EXPRESS_ACCOUNT_PARAMS)).id;
     const link = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: config.refreshUrl,
