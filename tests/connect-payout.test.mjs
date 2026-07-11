@@ -82,13 +82,11 @@ describe('Connect payout transfer', () => {
       Promise.resolve({ accountId: 'acct_1', url: 'https://connect.stripe.com/onboard/x' }),
     );
     await api(WORKER_ID, 'worker', 'POST', '/me/connect/onboard');
-    // Stripe's account.updated confirms the connected account can receive payouts; only
-    // then does a transfer fire (slice 166 gates on payouts_enabled).
-    await handleConnectWebhook({
-      type: 'account.updated',
-      accountId: 'acct_1',
-      payoutsEnabled: true,
-    });
+  }
+
+  /** Deliver an account.updated that sets whether the connected account can receive payouts. */
+  async function setPayoutsEnabled(payoutsEnabled) {
+    await handleConnectWebhook({ type: 'account.updated', accountId: 'acct_1', payoutsEnabled });
   }
 
   /** Drive a request to a paid (mock) payment, which schedules the worker's payout. */
@@ -128,6 +126,7 @@ describe('Connect payout transfer', () => {
 
   it('leaves the payout pending when the transfer fails', async () => {
     await onboardWorker();
+    await setPayoutsEnabled(true);
     setPayoutSenderForTests(() => Promise.reject(new Error('transfer failed')));
     await driveToPaid();
     const page = await payouts();
@@ -136,6 +135,7 @@ describe('Connect payout transfer', () => {
 
   it('transfers the net to the connected account and settles the payout', async () => {
     await onboardWorker();
+    await setPayoutsEnabled(true);
     let sent;
     setPayoutSenderForTests((input) => {
       sent = input;
@@ -146,6 +146,30 @@ describe('Connect payout transfer', () => {
 
     const page = await payouts();
     assert.equal(page.items.length, 1);
+    assert.equal(page.items[0].status, 'paid');
+    assert.equal(sent.destinationAccountId, 'acct_1');
+    assert.equal(sent.amountCents, WORKER_NET);
+  });
+
+  it('backfills a payout scheduled before the account became payouts-enabled', async () => {
+    await onboardWorker();
+    // The account isn't payouts-enabled yet (independent of test order), so the payout the
+    // payment schedules is left pending — no transfer attempted.
+    await setPayoutsEnabled(false);
+    let sent;
+    setPayoutSenderForTests((input) => {
+      sent = input;
+      return Promise.resolve();
+    });
+
+    await driveToPaid();
+    assert.equal((await payouts()).items[0].status, 'pending');
+    assert.equal(sent, undefined);
+
+    // account.updated flips payouts_enabled → the worker's pending payouts are retried.
+    await setPayoutsEnabled(true);
+
+    const page = await payouts();
     assert.equal(page.items[0].status, 'paid');
     assert.equal(sent.destinationAccountId, 'acct_1');
     assert.equal(sent.amountCents, WORKER_NET);

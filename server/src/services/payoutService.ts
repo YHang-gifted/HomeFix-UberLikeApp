@@ -99,6 +99,22 @@ export async function createPayoutForPayment(payment: Payment): Promise<Payout> 
 }
 
 /**
+ * Backfill: retry every still-pending payout for a worker, best-effort. Called when the
+ * worker's connected account becomes payouts-enabled (the `account.updated` webhook), so
+ * payouts scheduled BEFORE onboarding finished — which `tryTransferPayout` left pending —
+ * now go out. Each retry is the same guarded, best-effort transfer, so a failure just
+ * leaves that payout pending for a later attempt.
+ */
+export async function retryPendingPayoutsForWorker(workerId: string): Promise<void> {
+  const payouts = await payoutRepository.findByWorker(workerId);
+  for (const payout of payouts) {
+    if (payout.status === 'pending') {
+      await tryTransferPayout(payout);
+    }
+  }
+}
+
+/**
  * Confirm a payout as settled (from a verified provider webhook). Idempotent: an
  * already-paid payout is returned unchanged. 404 if the payout is unknown. No
  * authorization here — the caller verifies the webhook.
