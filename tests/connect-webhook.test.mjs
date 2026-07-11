@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
-import { after, before, beforeEach, describe, it } from 'node:test';
+import { after, before, describe, it } from 'node:test';
 
 import Stripe from 'stripe';
 
 import { createApp } from '../server/src/app.ts';
-import { userRepository } from '../server/src/repositories/userRepository.ts';
 import {
   handleConnectWebhook,
   selectConnectEventConstructor,
@@ -14,10 +13,9 @@ import {
 
 // slice 166: a Stripe Connect `account.updated` webhook records whether a worker's
 // connected account can receive payouts (`payouts_enabled`) — the platform only transfers
-// once it is true.
-
-const WORKER_ID = '423e4567-e89b-12d3-a456-426614174000';
-const ACCOUNT_ID = 'acct_cw_test';
+// once it is true. The record-then-transfer effect is covered end-to-end (through the app)
+// in connect-payout.test.mjs; here we cover the signature/reduce, the config gating, the
+// ignore branches, and the endpoint being off when unconfigured.
 
 describe('stripeConnectEventConstructor', () => {
   // constructEvent verifies the signature locally (no network), so a dummy key is fine.
@@ -85,33 +83,23 @@ describe('selectConnectEventConstructor', () => {
 });
 
 describe('handleConnectWebhook', () => {
-  beforeEach(async () => {
-    await userRepository.setStripeAccountId(WORKER_ID, ACCOUNT_ID);
-    await userRepository.setStripePayoutsEnabled(WORKER_ID, false);
-  });
-
-  it('records payouts enabled for the worker who owns the account', async () => {
+  // A non-account.updated event, and an account.updated for an account no worker owns, are
+  // acknowledged with no effect (and no throw). We assert only that these resolve — the
+  // persist-then-transfer effect is proven end-to-end in connect-payout.test.mjs, which
+  // avoids asserting on the repository singleton (a direct .mjs import can be a separate
+  // module instance from the app graph under tsx — the same reason injections are
+  // globalThis-anchored).
+  it('ignores an untracked account and non-account.updated events without throwing', async () => {
     await handleConnectWebhook({
       type: 'account.updated',
-      accountId: ACCOUNT_ID,
-      payoutsEnabled: true,
-    });
-    assert.equal((await userRepository.findById(WORKER_ID))?.stripePayoutsEnabled, true);
-  });
-
-  it('ignores an untracked account and non-account.updated events (no throw)', async () => {
-    await handleConnectWebhook({
-      type: 'account.updated',
-      accountId: 'acct_unknown',
+      accountId: 'acct_owned_by_nobody',
       payoutsEnabled: true,
     });
     await handleConnectWebhook({
       type: 'account.application.deauthorized',
-      accountId: ACCOUNT_ID,
+      accountId: 'acct_owned_by_nobody',
       payoutsEnabled: true,
     });
-    // The tracked worker is untouched (still disabled from the beforeEach reset).
-    assert.equal((await userRepository.findById(WORKER_ID))?.stripePayoutsEnabled, false);
   });
 });
 
