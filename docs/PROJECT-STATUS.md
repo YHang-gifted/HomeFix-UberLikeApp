@@ -859,10 +859,25 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   `PayoutsScreen.test.tsx` (button → `startConnectOnboarding` + redirect; hidden when disabled).
   **Real payouts are now usable end-to-end** (worker onboards → future payments transfer to
   their account). Remaining hardening: `account.updated` webhook + a backfill for payouts
-  scheduled before onboarding. app-expo + `app/` apiClient — _handed off_.
+  scheduled before onboarding. app-expo + `app/` apiClient — merged.
+- **166** Connect `account.updated` webhook (**payout hardening**). New
+  `POST /webhooks/connect` (Stripe-signature-verified via a **separate** Connect webhook
+  secret) reduces `account.updated` to `{type, accountId, payoutsEnabled}` and records the
+  worker's `stripePayoutsEnabled` (new nullable `UserRecord` field + both repos + migration
+  `0036`; cleared on anonymize, carried through a profile edit; `findByStripeAccountId`
+  added). Seam `ConstructConnectEvent` + `stripeConnectEventConstructor` +
+  `selectConnectEventConstructor` (config-gated on `STRIPE_SECRET_KEY` +
+  `STRIPE_CONNECT_WEBHOOK_SECRET`; endpoint 404 when unset) in `connectWebhookService`;
+  `connectService.recordConnectPayoutStatus` persists it. `payoutService.tryTransferPayout`
+  now **also gates on `payouts_enabled`** — a transfer only fires once Stripe confirms the
+  account can receive payouts (avoids a guaranteed-to-fail transfer). Tests
+  `tests/connect-webhook.test.mjs` (constructor verify/reduce + bad-sig 401; select gating;
+  handler records/ignores; endpoint 404); `connect-payout.test.mjs` updated to enable payouts
+  via the webhook before expecting a transfer. Backend only — _handed off_. **Next: a backfill
+  that retries payouts scheduled before the account.updated confirmation.**
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **165** (worker payout onboarding button), which were handed off.
+(Stripe go-live runbook), and **166** (Connect account.updated webhook), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

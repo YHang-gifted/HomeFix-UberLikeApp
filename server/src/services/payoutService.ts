@@ -43,8 +43,10 @@ function workerNetOf(payment: Payment): number {
 
 /**
  * Best-effort: transfer a pending payout to the worker's connected account and settle it.
- * A no-op unless payouts are configured AND the worker has completed Connect onboarding;
- * a transfer failure leaves the payout pending (it can be retried) and never disturbs the
+ * A no-op unless payouts are configured AND the worker has completed Connect onboarding
+ * AND Stripe has confirmed their account can receive payouts (`payouts_enabled`, tracked
+ * from the account.updated webhook) — transferring before then would be rejected. A
+ * transfer failure leaves the payout pending (it can be retried) and never disturbs the
  * payment settlement that scheduled it.
  */
 async function tryTransferPayout(payout: Payout): Promise<void> {
@@ -54,6 +56,9 @@ async function tryTransferPayout(payout: Payout): Promise<void> {
   }
   const worker = await userRepository.findById(payout.workerId);
   if (worker?.stripeAccountId === undefined) {
+    return;
+  }
+  if (worker.stripePayoutsEnabled !== true) {
     return;
   }
   try {

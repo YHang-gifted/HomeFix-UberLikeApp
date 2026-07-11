@@ -33,6 +33,7 @@ interface UserRow {
   notify_email: boolean;
   notify_push: boolean;
   stripe_account_id: string | null;
+  stripe_payouts_enabled: boolean;
 }
 
 function parseAvailability(value: unknown): WorkerAvailability | undefined {
@@ -69,6 +70,7 @@ function mapRow(row: unknown): UserRecord {
     ...(skills !== undefined ? { skills } : {}),
     ...(availability !== undefined ? { availability } : {}),
     ...(r.stripe_account_id !== null ? { stripeAccountId: r.stripe_account_id } : {}),
+    ...(r.stripe_payouts_enabled ? { stripePayoutsEnabled: true } : {}),
   };
 }
 
@@ -169,6 +171,26 @@ export class PostgresUserRepository implements UserRepository {
     return row === undefined ? undefined : mapRow(row);
   }
 
+  public async findByStripeAccountId(accountId: string): Promise<UserRecord | undefined> {
+    const result = await this.db.query('SELECT * FROM users WHERE stripe_account_id = $1', [
+      accountId,
+    ]);
+    const row = result.rows[0];
+    return row === undefined ? undefined : mapRow(row);
+  }
+
+  public async setStripePayoutsEnabled(
+    id: string,
+    enabled: boolean,
+  ): Promise<UserRecord | undefined> {
+    const result = await this.db.query(
+      'UPDATE users SET stripe_payouts_enabled = $2 WHERE id = $1 RETURNING *',
+      [id, enabled],
+    );
+    const row = result.rows[0];
+    return row === undefined ? undefined : mapRow(row);
+  }
+
   public async anonymize(id: string): Promise<UserRecord | undefined> {
     const result = await this.db.query(
       `UPDATE users
@@ -181,6 +203,7 @@ export class PostgresUserRepository implements UserRepository {
               password_hash = $3,
               status = 'deleted',
               stripe_account_id = NULL,
+              stripe_payouts_enabled = false,
               token_version = token_version + 1
         WHERE id = $1
         RETURNING *`,

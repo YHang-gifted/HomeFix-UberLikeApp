@@ -196,6 +196,17 @@ const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.url().optional(),
     ),
+    // Stripe **Connect** webhook signing secret (`whsec_…`), from the dashboard's
+    // "connected accounts" webhook. Set it (with STRIPE_SECRET_KEY) to accept
+    // `POST /webhooks/connect` — each delivery's `Stripe-Signature` is verified against it,
+    // and an `account.updated` event records whether the worker's connected account can
+    // receive payouts (`payouts_enabled`). Distinct from STRIPE_WEBHOOK_SECRET (the
+    // platform/checkout webhook). Unset and `/webhooks/connect` is disabled (404).
+    // Operator-supplied — never committed. Empty is treated as unset.
+    STRIPE_CONNECT_WEBHOOK_SECRET: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
     // PayPal webhook id (from the dashboard webhook you create). Set it (with the client
     // credentials) to accept `POST /webhooks/paypal` — each delivery is verified against
     // PayPal's verify-webhook-signature API. Unset and the endpoint is disabled (404), so

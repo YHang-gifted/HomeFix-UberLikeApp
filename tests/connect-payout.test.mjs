@@ -18,6 +18,7 @@ import {
   resetConnectOnboarderForTests,
   setConnectOnboarderForTests,
 } from '../server/src/services/connectService.ts';
+import { handleConnectWebhook } from '../server/src/services/connectWebhookService.ts';
 
 // slice 164: a scheduled payout is transferred to the worker's connected account and
 // settled — best-effort, so it stays pending when the worker hasn't onboarded or the
@@ -81,6 +82,13 @@ describe('Connect payout transfer', () => {
       Promise.resolve({ accountId: 'acct_1', url: 'https://connect.stripe.com/onboard/x' }),
     );
     await api(WORKER_ID, 'worker', 'POST', '/me/connect/onboard');
+    // Stripe's account.updated confirms the connected account can receive payouts; only
+    // then does a transfer fire (slice 166 gates on payouts_enabled).
+    await handleConnectWebhook({
+      type: 'account.updated',
+      accountId: 'acct_1',
+      payoutsEnabled: true,
+    });
   }
 
   /** Drive a request to a paid (mock) payment, which schedules the worker's payout. */

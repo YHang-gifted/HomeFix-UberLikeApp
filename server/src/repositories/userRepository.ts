@@ -32,6 +32,12 @@ export interface UserRecord {
   notifyPush: boolean;
   /** The worker's Stripe Connect account id (`acct_…`), once they start payout onboarding. */
   stripeAccountId?: string;
+  /**
+   * Whether the worker's connected account can receive payouts (Stripe's
+   * `payouts_enabled`), tracked from the `account.updated` webhook. Undefined/false until
+   * Stripe confirms onboarding is complete; the platform only transfers once it is true.
+   */
+  stripePayoutsEnabled?: boolean;
 }
 
 export interface UserRepository {
@@ -51,6 +57,10 @@ export interface UserRepository {
   setStatus(id: string, status: AccountStatus): Promise<UserRecord | undefined>;
   /** Store the worker's Stripe Connect account id. Returns the updated record. */
   setStripeAccountId(id: string, accountId: string): Promise<UserRecord | undefined>;
+  /** Find a worker by their Stripe Connect account id (for the account.updated webhook). */
+  findByStripeAccountId(accountId: string): Promise<UserRecord | undefined>;
+  /** Record whether the worker's connected account can receive payouts. */
+  setStripePayoutsEnabled(id: string, enabled: boolean): Promise<UserRecord | undefined>;
   /**
    * Soft-delete: scrub the account's personal data (email, name, phone, bio,
    * skills, password), set status to `deleted`, and revoke all tokens. The row
@@ -166,6 +176,9 @@ export class InMemoryUserRepository implements UserRepository {
       ...(patch.availability !== undefined ? { availability: patch.availability } : {}),
       // Payout onboarding isn't a profile field — carry it through a profile edit.
       ...(user.stripeAccountId !== undefined ? { stripeAccountId: user.stripeAccountId } : {}),
+      ...(user.stripePayoutsEnabled !== undefined
+        ? { stripePayoutsEnabled: user.stripePayoutsEnabled }
+        : {}),
     };
     this.users.set(user.email.toLowerCase(), updated);
     return Promise.resolve(updated);
@@ -207,6 +220,22 @@ export class InMemoryUserRepository implements UserRepository {
       return Promise.resolve(undefined);
     }
     const updated: UserRecord = { ...user, stripeAccountId: accountId };
+    this.users.set(user.email.toLowerCase(), updated);
+    return Promise.resolve(updated);
+  }
+
+  public findByStripeAccountId(accountId: string): Promise<UserRecord | undefined> {
+    return Promise.resolve(
+      [...this.users.values()].find((user) => user.stripeAccountId === accountId),
+    );
+  }
+
+  public setStripePayoutsEnabled(id: string, enabled: boolean): Promise<UserRecord | undefined> {
+    const user = [...this.users.values()].find((candidate) => candidate.id === id);
+    if (!user) {
+      return Promise.resolve(undefined);
+    }
+    const updated: UserRecord = { ...user, stripePayoutsEnabled: enabled };
     this.users.set(user.email.toLowerCase(), updated);
     return Promise.resolve(updated);
   }

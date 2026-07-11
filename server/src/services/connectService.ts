@@ -49,3 +49,20 @@ export async function startConnectOnboarding(principal: Principal): Promise<Conn
   }
   return { url: result.url };
 }
+
+/**
+ * Record whether a worker's connected account can now receive payouts, keyed by the Stripe
+ * account id carried on an `account.updated` webhook. A no-op when no worker owns that
+ * account (e.g. an event for an account we don't track), so unrelated Connect events are
+ * harmless.
+ */
+export async function recordConnectPayoutStatus(
+  accountId: string,
+  payoutsEnabled: boolean,
+): Promise<void> {
+  const worker = await userRepository.findByStripeAccountId(accountId);
+  if (!worker) {
+    return;
+  }
+  await userRepository.setStripePayoutsEnabled(worker.id, payoutsEnabled);
+}
