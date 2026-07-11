@@ -1,60 +1,57 @@
 # HomeFix — Project Status & Road to a Testable v1
 
-_Snapshot as of 2026-07-01. Compiled against the original vision: an Uber-like
-home-repair marketplace with three roles (customer, worker, admin), a request
-lifecycle, worker matching, quoting, payments, reviews, and messaging._
+_Snapshot as of 2026-07-11 (through slice 169). Compiled against the original vision:
+an Uber-like home-repair marketplace with three roles (customer, worker, admin), a
+request lifecycle, worker matching, quoting, payments, reviews, and messaging._
 
-> **Update log.** Since the 2026-06-30 snapshot the following completed and merged:
-> the **real-money mock flow end-to-end** — the **payout** leg (worker net → a
-> pending payout on every paid payment, settled via a `payout.paid` webhook, with a
-> worker payout-history screen) now joins the split, webhook confirmation, and
-> refunds; **image upload** (provider-agnostic mock store + app picker/upload +
-> real `expo-image-picker` provider); **live-updating chat** (the message thread
-> polls while open); and **per-user notification preferences** end-to-end (email /
-> push toggles in Profile; a channel only delivers when globally enabled **and** the
-> recipient wants it). Migrations are now 0001–0028. The real-money **mock** flow is
-> complete; the remaining real-money work is a **real provider adapter** (intent
-> creation + stored provider reference + raw-body signature verification), deferred
-> until a provider is wired.
+> **Update log (2026-07-11).** The **real-money line is now complete and no longer a
+> mock**: real **Stripe** hosted Checkout and real **PayPal** (Orders v2) coexist as
+> selectable methods, both settling only via signature-verified webhooks; real
+> **refunds** work at both providers; and real **payouts** run over **Stripe Connect**
+> (worker onboarding → `account.updated` gate on `payouts_enabled` → transfer on
+> settle → backfill of payouts scheduled before onboarding finished), with a worker
+> "Set up payouts" button in the app. Every provider is **config-gated and
+> mock-by-default** — no real money moves without operator-supplied keys. A money-flow
+> **security review** closed two payment-integrity holes: **SEC-0007** (a direct admin
+> refund left the worker's payout intact → double-pay) and **SEC-0008** (the same gap
+> on the provider refund webhook), so both refund paths now reconcile the payout.
+> Migrations are `0001`–`0036`. Go-live runbooks exist for Stripe and PayPal; the
+> Connect one is still to be written.
 >
-> **Update log (later on 2026-07-01).** Also merged since: an **interactive map
-> picker** for request coordinates (a pure region helper + injected `react-native-maps`
-> modal, hidden on web); the **real payment-provider integration shape** —
-> payments now carry the provider's own **`providerRef`** (mock by default) and the
-> payment/payout **webhooks are resolved by that reference and authenticated by an
-> HMAC-SHA256 signature over the raw request body** (`x-webhook-signature`), exactly
-> as a real provider signs; and **expanded audit** covering the quote lifecycle
-> (proposed / accepted / declined) and payment creation. Migrations are now
-> 0001–0029. A structured **5xx error-logging** slice is in review. The remaining
-> real-money work is now only a concrete provider adapter (creating the charge with
-> a client secret) plus its credentials — the surrounding flow is provider-shaped.
+> **Note on earlier snapshots.** Sections 3–5 previously listed "a real payment-provider
+> adapter" and "an interactive map picker" as open gaps. Both shipped (payments across
+> slices 129–169; the map picker in 124 — a pure region helper + injected
+> `react-native-maps` modal on native and a Google Maps JS picker on web). They have been
+> removed from the gap list below.
 
 ## 1. Where we are in one sentence
 
-The **marketplace engine is built, tested end-to-end, hardened for operation, and
-the API is now live on a hosted environment** — a customer can sign up, post a
-repair request, get matched (admin assignment or a worker self-claiming by
-category), receive and accept a worker's price quote, pay the agreed amount,
-message the other party, and review the worker (and read the worker's reply) —
-all persisted to Postgres, behind server-side authorization, and covered by an
-extensive test suite. Accounts now have a **full lifecycle** (change/forgot
-password, log-out-everywhere, admin suspend/reinstate, self-delete) and payments
-carry a **marketplace commission split** with a **provider-webhook confirmation
-seam, refunds, and worker payouts** (still mock/sandbox — no real money moves).
-Requests support **photo upload**, chat threads **update live** while open, and
-each user controls their **email/push notification preferences**. We are at
-**internal alpha, deployed**, with the main gaps to a real-user test build being
-**a public frontend deploy, a map/place picker, a real payment-provider adapter,
-and a full E2E/device QA pass** — not core domain logic, notification delivery, or
-a deploy target.
+The **marketplace engine is built, tested end-to-end, hardened for operation, live
+on a hosted environment, and now wired for real money** — a customer can sign up,
+post a repair request, get matched (admin assignment or a worker self-claiming by
+category), receive and accept a worker's price quote, **pay for real via Stripe or
+PayPal**, message the other party, and review the worker (and read the worker's
+reply) — all persisted to Postgres, behind server-side authorization, and covered
+by an extensive test suite. Accounts have a **full lifecycle** (change/forgot
+password, log-out-everywhere, admin suspend/reinstate, self-delete); payments carry
+a **marketplace commission split** and settle only through **signature-verified
+provider webhooks**; **refunds are real** at both providers and **reconcile the
+worker's payout** (SEC-0007/0008); and the worker's net is **really paid out over
+Stripe Connect**. Every provider is **config-gated and mock-by-default**, so no
+money moves until the operator supplies keys. Requests support **photo upload** and
+an **interactive map picker**, chat threads **update live**, and each user controls
+their **email/push notification preferences**. We are at **internal alpha,
+deployed**, with the main gaps to a real-user test build being **a public frontend
+deploy, a full E2E/device QA pass, and production observability/backups** — not core
+domain logic, payments, notification delivery, or a deploy target.
 
 ## 2. What is done
 
 **Foundation & quality.** TypeScript-strict monorepo (`shared` / `server` /
 `app` logic / `app-expo` UI), ESLint + Prettier + typecheck + tests as enforced
-quality gates, CI on every PR, a security-fix ledger, and file-integrity checks.
-Disciplined one-slice-per-PR workflow (~99 feature slices, many split into
-backend/app sub-slices, merged to `main`).
+quality gates, CI on every PR, a security-fix ledger (SEC-0002…SEC-0008), and
+file-integrity checks. Disciplined one-slice-per-PR workflow (~169 feature slices,
+many split into backend/app sub-slices, merged to `main`).
 
 **Auth & identity.** Account **sign-up** (`POST /auth/register`) and JWT login
 with scrypt-hashed passwords; `authenticate` on every protected route;
@@ -89,33 +86,47 @@ paths are **atomic** (a single conditional update), so two workers racing for th
 same request can never both win. A worker can **release** an active job back to
 the pool, and an admin can **force-reset** a stuck assignment back to pending for
 reassignment. Request location can be auto-filled from the device's current
-location or set via address → coordinates geocoding.
+location, set via address → coordinates geocoding, or picked on an **interactive
+map** (a `react-native-maps` modal on native; a Google Maps JS picker on web,
+enabled by `EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY`), with a static-map thumbnail on the
+request's Location.
 
 **Quoting & payments.** The assigned worker proposes a price **quote** (amount +
 note); the owning customer accepts or declines; payment is **gated server-side**
-on an accepted quote of the matching amount (mock/sandbox payments only — no real
-money moves). A NT$1 minimum is enforced on quotes and payments. Customers and
-workers each have a **payment history** view (paid/received).
+on an accepted quote of the matching amount. A NT$1 minimum is enforced on quotes
+and payments. Customers and workers each have a **payment history** view
+(paid/received), and a **receipt** is derivable once a payment is paid.
 
-**Real-money groundwork (provider-agnostic, mock by default).** We chose a
-**Model B marketplace split**: each payment is split at creation into a **platform
-commission** (`PLATFORM_FEE_BPS`, default 15%) and the **worker's net**, surfaced
-in the app (payment history + request detail). Payment confirmation runs through a
-**provider-webhook seam** — `POST /webhooks/payments`, verified by a shared secret
-(`PAYMENTS_WEBHOOK_SECRET`; in production an unset secret rejects all webhooks so
-nothing confirms by accident), idempotent, the seam a real provider (Stripe
-Connect / PayPal / Adyen, or a TW provider) would call in place of the mock
-checkout. **Refunds** exist end-to-end: an admin can refund a paid payment (the
-job can then be re-pooled), the webhook also handles `payment.refunded`, and the
-app shows a `refunded` state + an admin Refund action. **Payouts** complete the
-mock money flow: every paid payment schedules a **pending payout** of the worker's
-net, settled via a `payout.paid` webhook (idempotent), with a **worker payout-
-history screen** (persisted to Postgres, migration 0027). All audited; still no
-real money. The mock flow (split → confirm → refund → payout) is complete;
-**remaining real-money work is a real provider adapter** — intent creation with a
-client secret, a stored provider reference to map webhooks back to our
-payment/payout, and raw-body signature verification — deferred by project rule
-until a provider is actually wired.
+**Real money — Stripe + PayPal (config-gated, mock by default).** We use a **Model B
+marketplace split**: each payment is split at creation into a **platform commission**
+(`PLATFORM_FEE_BPS`, default 15%) and the **worker's net**, surfaced in the app.
+Payments record **which provider** took them (`payment.provider`) plus that provider's
+own reference, so webhooks and refunds always route back correctly.
+
+- **Stripe** — hosted Checkout: creating a payment opens a Checkout Session and returns
+  a `checkoutUrl`; the app redirects; the payment settles **only** on the signed
+  `checkout.session.completed` webhook (`POST /webhooks/stripe`, verified against
+  `STRIPE_WEBHOOK_SECRET`).
+- **PayPal** — Orders v2 (a second, coexisting method the customer picks at checkout;
+  brings **Venmo** in the US for free): create order → buyer approves → **capture** →
+  settle, with `POST /webhooks/paypal` (verified via PayPal's verify-webhook-signature
+  API) as the backup that captures/settles an approved order whose buyer never returned.
+- **Real refunds** at both providers (Stripe by PaymentIntent, PayPal by the stored
+  capture id). If the provider refund fails, nothing is recorded.
+- **Real payouts over Stripe Connect** — the worker onboards to an Express connected
+  account from a **"Set up payouts"** button in the app; an `account.updated` webhook
+  (`POST /webhooks/connect`) tracks `payouts_enabled`, and the platform only **transfers**
+  their net once Stripe confirms the account can receive it, with a **backfill** that
+  flushes payouts scheduled before onboarding finished.
+- **Refund ↔ payout integrity (SEC-0007/0008).** Both refund paths — the admin action and
+  the provider refund webhook — reconcile the worker's payout: a still-pending payout is
+  removed (never double-pay), and an already-sent payout fails the admin refund closed
+  (409, manual clawback) while the webhook still acknowledges.
+
+The mock provider remains the default and the direct `/pay` endpoint is **disabled (409)**
+for any payment a real provider took, so a payment can never be marked paid for free. All of
+it is audited. **Going live is an operator step** (supply keys, point the dashboards'
+webhooks at us): see `docs/stripe-go-live.md` and `docs/paypal-go-live.md`.
 
 **Supporting domains, each backend + Postgres + app UI.** Reviews & worker
 ratings (aggregated in SQL) **with a worker public reply**, in-app notifications
@@ -139,22 +150,25 @@ it — enforced at the recipient-resolver layer, so an opted-out channel resolve
 **Media & realtime.** Requests support **photo upload** — a provider-agnostic,
 mock-by-default upload store (request an upload target → PUT the bytes → public
 URL), an app image picker/upload helper, and a real `expo-image-picker` device
-provider. The in-app **message thread updates live** by polling while it is open
-(chosen over a WebSocket to avoid new infrastructure; a true-push upgrade remains
-optional).
+provider (with real S3 storage available behind `STORAGE_S3_*`). The in-app
+**message thread is true-push over a WebSocket** — the server attaches a message
+hub, `messageService` publishes to it, and the app consumes a live stream with
+reconnect/backoff on both platforms; polling remains only as the fallback when no
+stream is injected (e.g. tests).
 
 **Persistence & DB hardening.** All domains (requests, audit, reviews,
 notifications, users, favorites, messages, payments, quotes, device tokens,
-payouts) run on Postgres via SQL migrations `0001`–`0028`, run automatically on
-boot (a multi-statement-capable runner), with an in-memory fallback for tests/dev.
-The schema is hardened with **indexes** on filtered columns (0016), **CHECK
-constraints** enforcing the domain enums/ranges (0017), and **foreign keys** across
-the graph (0018–0021, added `NOT VALID` so they enforce new writes without a
+payouts, certifications) run on Postgres via SQL migrations `0001`–`0036`, run
+automatically on boot (a multi-statement-capable runner), with an in-memory fallback
+for tests/dev. The schema is hardened with **indexes** on filtered columns (0016),
+**CHECK constraints** enforcing the domain enums/ranges (0017), and **foreign keys**
+across the graph (0018–0021, added `NOT VALID` so they enforce new writes without a
 boot-time scan of legacy rows). Later migrations add `users.token_version` (0022),
 `password_reset_tokens` (0023), `users.status` (0024), the payment
 `platform_fee_cents` split (0025), the `refunded` payment status (0026), the
-`payouts` table (0027), and per-user `users.notify_email/notify_push` preferences
-(0028).
+`payouts` table (0027), per-user `users.notify_email/notify_push` preferences (0028),
+and the real-money columns: `payment.provider` (0033), `payment.capture_ref` (0034),
+`users.stripe_account_id` (0035), and `users.stripe_payouts_enabled` (0036).
 
 **Apps.** Full three-role Expo React Native app: registration, login/session
 persistence (SecureStore on native, localStorage on web), and role-specific
@@ -180,77 +194,72 @@ real test users could exercise":
    `app-expo` builds a static `dist/` pointing at the Railway API); it still needs
    the `dist/` hosted (e.g. Netlify) and the backend `CORS_ALLOWED_ORIGINS`
    pointed at that origin. Web runtime guards for native-only modules
-   (push/location) to be confirmed once hosted.
-2. **Real payment-provider adapter.** The full mock money flow (split → webhook
-   confirm → refund → payout) is done; a real provider still needs intent creation
-   (client secret), a stored provider reference to map webhooks back to our
-   payment/payout, and raw-body signature verification. Mock/sandbox by project
-   rule until a provider is wired.
-3. **Map / place picker.** Location can be auto-filled from the device or set by
-   address search, but there is still no interactive map picker.
-4. **End-to-end + device QA.** Unit/integration coverage is strong (and a QA
+   (push/location) to be confirmed once hosted. **This is the single biggest blocker
+   to putting the product in front of real testers.**
+2. **End-to-end + device QA.** Unit/integration coverage is strong (and a QA
    checklist exists at `docs/qa-checklist.md`); there is no full E2E run on a real
    device/build, nor accessibility/performance passes.
-5. **Production observability & backups.** Managed Postgres is provisioned on
+3. **Production observability & backups.** Managed Postgres is provisioned on
    Railway; log shipping/observability and a backup policy are not yet set up.
+   Structured 5xx error logging and a Prometheus `/metrics` endpoint exist.
+4. **Payments go-live (operator step, not code).** The code is complete and
+   config-gated; going live means supplying keys and pointing the providers'
+   dashboard webhooks at us, following the runbooks. `docs/stripe-go-live.md` and
+   `docs/paypal-go-live.md` exist; **a Connect payouts runbook is still to be
+   written** (onboarding, the `account.updated` webhook, `STRIPE_CONNECT_WEBHOOK_SECRET`,
+   a test-mode dry run, rollback).
 
 ## 4. How far to a testable v1
 
-- **Internal alpha, deployed (reached).** Sign-up, full three-role loop,
-  category matching, quoting + mock payments, real (config-gated) notification
-  delivery, ops hardening, and a **live API on Railway** are done — the team can
-  exercise every flow against the hosted backend.
-- **Closed test (friendly users).** Host the frontend web app, add a map/place
-  picker, and per-user notification preferences.
-- **Payments-enabled test.** Quote + mock payment + server-side gate + payment
-  history already exist; add receipts/order state as needed (still no real money,
-  per project rules).
+- **Internal alpha, deployed (reached).** Sign-up, full three-role loop, category
+  matching, quoting, map picker, real (config-gated) notification delivery, ops
+  hardening, and a **live API on Railway** — the team can exercise every flow against
+  the hosted backend.
+- **Payments-enabled (reached, in code).** Real Stripe + PayPal checkout, real
+  refunds, and real Stripe Connect payouts are all built, tested, and reconciled
+  (SEC-0007/0008). They are **mock-by-default**; flipping them on is an operator step
+  with the go-live runbooks — no further engineering required.
+- **Closed test (friendly users) — the next milestone.** Needs the **frontend hosted**
+  publicly with `CORS_ALLOWED_ORIGINS` pointed at it, then a **test-mode payments dry
+  run** end-to-end against the hosted build.
 - **Production-hardened.** API is deployed with managed Postgres; remaining:
   observability/backups and an E2E/device QA pass.
 
-**Bottom line:** the hardest, riskiest parts — the domain model, authorization,
-state machine, concurrency, persistence, quoting/payment integrity, the
-three-role app loop, notification delivery, and a live deployment — are **done,
-tested, and hardened**. A small, well-scoped set of slices (host the frontend,
-map picker, notification preferences, then an E2E pass) gets to a genuinely
-testable v1.
+**Bottom line:** the hardest, riskiest parts — the domain model, authorization, the
+state machine, concurrency, persistence, **real payments/refunds/payouts and their
+integrity**, the three-role app loop, notification delivery, and a live deployment —
+are **done, tested, and hardened**. What stands between here and a genuinely testable
+v1 is now mostly **deployment and QA, not engineering**: host the frontend, do a
+test-mode payments dry run, then an E2E/device pass.
 
 ## 5. Recommended next slices (in order)
 
-0. ~~**[BUG — billing consistency] A paid request can still be cancelled.**~~ **Fixed
-   in slice 144 (SEC-0006)** — `updateServiceRequestStatus` now calls `assertNotPaid`
-   before a `→ cancelled` transition (422 on a paid payment), mirroring the SEC-0005
-   release/reset guard; the app hides the cancel control when paid. ~~Admin
-   "cancel + refund" remains a separate future capability.~~ **Built in slice 145** —
-   admin `POST /service-requests/:id/cancel` refunds the paid payment, reverses the
-   worker's pending payout, then cancels (409 if the worker was already paid out —
-   manual clawback).
 1. **Host the frontend web app** — deploy the merged `app-expo/dist`, set
-   `CORS_ALLOWED_ORIGINS` to the frontend origin, and verify the login loop on
-   web (guard native-only push/location/map calls behind `Platform.OS`).
-2. **Backups & log shipping** for the Railway deployment (managed Postgres backup
-   policy, ship the structured logs somewhere queryable). Structured 5xx error
-   logging is done.
-3. A full **E2E / device QA** pass against `docs/qa-checklist.md`.
-4. **Real payment go-live** — the full Stripe hosted-Checkout flow is now done:
-   backend Checkout Session (130c), app redirect (130d), and the signed
-   `checkout.session.completed` webhook that settles the payment (130e). Going live
-   is an operator step: set `STRIPE_SECRET_KEY`, `STRIPE_CHECKOUT_SUCCESS_URL`,
-   `STRIPE_CHECKOUT_CANCEL_URL`, and `STRIPE_WEBHOOK_SECRET`, point Stripe's
-   dashboard webhook at `/webhooks/stripe`, and test end-to-end with a `sk_test_…`
-   key before switching to live keys. The full sequenced procedure (test-mode dry run →
-   live switch → rollback) is now written up in **`docs/stripe-go-live.md`** (152).
-5. ~~**WebSocket true-push chat** — optional upgrade over the current polling.~~ **Done**
-   (122a–d + 125): `server.ts` attaches the message WebSocket, `messageService` publishes
-   to the hub, and `MessagesScreen` consumes the live `connectStream` wired in `App.tsx`
-   on both platforms (with reconnect/backoff); polling remains only as the fallback when
-   no stream is injected (e.g. tests).
-6. **Further audit coverage** — ~~password change, profile edits, sessions-revoked,
-   account delete/suspend/reinstate, login and registration, failed logins~~ **all
-   audited** (login/registration in 149; failed logins in 151 via a nullable-actor
-   schema). Audit coverage of auth/account actions is complete.
+   `CORS_ALLOWED_ORIGINS` to the frontend origin, and verify the login loop on web
+   (guard native-only push/location/map calls behind `Platform.OS`). Remember
+   `EXPO_PUBLIC_*` values are inlined at **build** time, so changing one needs a
+   rebuild, and the API base URL must be a full origin with `https://`.
+2. **Connect payouts go-live runbook** (`docs/connect-go-live.md`) — the last missing
+   payments doc, mirroring `stripe-go-live.md` / `paypal-go-live.md`: worker onboarding,
+   the `account.updated` webhook + `STRIPE_CONNECT_WEBHOOK_SECRET`, a test-mode dry run,
+   and rollback.
+3. **Payments test-mode dry run** (operator) — with the frontend hosted, run the full
+   loop end-to-end on `sk_test_…` / PayPal sandbox: pay → settle via webhook → refund →
+   worker onboard → payout. This is the real proof the money line works, and nothing in
+   CI exercises it.
+4. A full **E2E / device QA** pass against `docs/qa-checklist.md` (no run on a real
+   device/build yet; no accessibility or performance pass).
+5. **Backups & log shipping** for the Railway deployment (managed Postgres backup
+   policy; ship the structured logs somewhere queryable). Structured 5xx error logging
+   and a Prometheus `/metrics` endpoint already exist.
 
-## 6. Slice ledger since the last snapshot (110c–117)
+Beyond a testable v1, the obvious product gaps are **scheduling/booking windows** (requests
+are matched immediately; there is a preferred time but no real calendar), a **customer-facing
+dispute flow** (refund and clawback exist as admin capabilities, but customers cannot raise a
+dispute), and **feeding worker ratings back into matching** (reviews are collected but do not
+influence ranking).
+
+## 6. Slice ledger since the last snapshot (110c–170)
 
 - **110c–110e** payout backend + Postgres (migration 0027) + worker payout-history
   screen — **real-money mock flow complete** (split → webhook confirm → refund →
@@ -905,11 +914,22 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   verified webhook must be acknowledged, not 409'd) — called by `confirmPaymentRefunded`
   before `markRefunded`. Ledger `SEC-0008` + `tests/refund-webhook-reverses-payout.test.mjs`.
   Backend only (code-owner-protected `docs/security-fixes.md` → needs security-reviewer
-  approval) — _handed off_. **Both refund paths (admin action + provider webhook) now
+  approval) — merged. **Both refund paths (admin action + provider webhook) now
   reconcile the payout.**
+- **170** status-doc refresh (docs only). Sections 1–5 had gone stale: they still listed
+  **"a real payment-provider adapter"** and **"an interactive map picker"** as open gaps
+  though both shipped (payments 129–169; map picker 124), still described payments as
+  "mock/sandbox — no real money moves", and the snapshot/update log stopped at 2026-07-01.
+  Rewrote the header snapshot + update log, the one-sentence summary, the payments section
+  of **What is done** (Stripe + PayPal + real refunds + Connect payouts + SEC-0007/0008),
+  the migration list (now 0001–0036), matching (map picker), media/realtime (chat is
+  WebSocket true-push, not polling), and re-derived **What a testable v1 still needs** (now:
+  public frontend deploy → E2E/device QA → observability/backups → payments go-live as an
+  operator step) and **Recommended next slices**. Also fixed the section-6 heading range.
+  No code — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **169** (SEC-0008 refund webhook reconciles payout), which were handed off.
+(Stripe go-live runbook), and **170** (status-doc refresh), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
