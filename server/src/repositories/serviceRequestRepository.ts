@@ -78,8 +78,13 @@ export class InMemoryServiceRequestRepository implements ServiceRequestRepositor
     ) {
       return Promise.resolve(undefined);
     }
-    const updated: ServiceRequest = { ...existing, status: 'pending' };
+    // Returning the job to the pool also drops the visit schedule: the appointment was an
+    // agreement with THAT worker, so a new worker must not inherit a "confirmed" time they
+    // never agreed to (same reasoning as clearing the stale quote/payment — SEC-0005).
+    const updated: ServiceRequest = { ...existing, status: 'pending', scheduleStatus: 'unset' };
     delete updated.workerId;
+    delete updated.scheduledAt;
+    delete updated.scheduleProposedBy;
     this.store.set(id, updated);
     return Promise.resolve(updated);
   }
@@ -94,8 +99,13 @@ export class InMemoryServiceRequestRepository implements ServiceRequestRepositor
     ) {
       return Promise.resolve(undefined);
     }
-    const updated: ServiceRequest = { ...existing, status: 'pending' };
+    // Returning the job to the pool also drops the visit schedule: the appointment was an
+    // agreement with THAT worker, so a new worker must not inherit a "confirmed" time they
+    // never agreed to (same reasoning as clearing the stale quote/payment — SEC-0005).
+    const updated: ServiceRequest = { ...existing, status: 'pending', scheduleStatus: 'unset' };
     delete updated.workerId;
+    delete updated.scheduledAt;
+    delete updated.scheduleProposedBy;
     this.store.set(id, updated);
     return Promise.resolve(updated);
   }

@@ -56,6 +56,22 @@ export const createServiceRequestInputSchema = z.object({
 });
 export type CreateServiceRequestInput = z.infer<typeof createServiceRequestInputSchema>;
 
+/**
+ * Where the visit time stands between the two parties.
+ * - `unset` — nobody has put a time on the table.
+ * - `proposed` — a time is on the table, waiting for the OTHER party to confirm.
+ * - `confirmed` — both parties have agreed on `scheduledAt`.
+ *
+ * Either party may propose a new time at any point (including after `confirmed`, which is
+ * how a reschedule is requested — it drops back to `proposed`).
+ */
+export const scheduleStatusSchema = z.enum(['unset', 'proposed', 'confirmed']);
+export type ScheduleStatus = z.infer<typeof scheduleStatusSchema>;
+
+/** Which party put the current `scheduledAt` on the table. Only the other one may confirm it. */
+export const scheduleProposerSchema = z.enum(['customer', 'worker']);
+export type ScheduleProposer = z.infer<typeof scheduleProposerSchema>;
+
 export const serviceRequestSchema = z.object({
   id: z.uuid(),
   customerId: z.uuid(),
@@ -68,10 +84,21 @@ export const serviceRequestSchema = z.object({
   status: serviceRequestStatusSchema,
   createdAt: z.iso.datetime(),
   photoUrls: z.array(z.url()).max(5).optional(),
-  // Optional preferred time for the visit (ISO 8601).
+  // The visit time currently on the table (ISO 8601). Its standing is `scheduleStatus`:
+  // a bare `scheduledAt` is only a *proposal* until the other party confirms it.
   scheduledAt: z.iso.datetime().optional(),
+  // Defaulted so legacy rows and lightweight fixtures stay valid (a row with no schedule
+  // parses as `unset`); the server always sets it.
+  scheduleStatus: scheduleStatusSchema.default('unset'),
+  scheduleProposedBy: scheduleProposerSchema.optional(),
 });
 export type ServiceRequest = z.infer<typeof serviceRequestSchema>;
+
+/** Propose (or re-propose) a visit time. Either party may send this. */
+export const proposeScheduleInputSchema = z.object({
+  scheduledAt: z.iso.datetime(),
+});
+export type ProposeScheduleInput = z.infer<typeof proposeScheduleInputSchema>;
 
 export const serviceRequestPageSchema = z.object({
   items: z.array(serviceRequestSchema),
@@ -218,6 +245,8 @@ export const auditActionSchema = z.enum([
   'quote.proposed',
   'quote.accepted',
   'quote.declined',
+  'schedule.proposed',
+  'schedule.confirmed',
   'payment.created',
   'payment.refunded',
   'certification.submitted',

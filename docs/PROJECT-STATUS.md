@@ -964,9 +964,26 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   complete, single-use account links, USD settlement, and the refund↔payout interaction
   (SEC-0007/0008). Docs only — _handed off_. **All three payments runbooks now exist; going
   live is purely an operator step.**
+- **174** visit **scheduling** — propose / confirm (backend). `scheduledAt` was only a one-way
+  wish: the customer typed a time, nobody agreed to it, nothing enforced it. It is now a
+  **two-party agreement**. New `scheduleStatus` (`unset` / `proposed` / `confirmed`) +
+  `scheduleProposedBy` on the request; `POST /service-requests/:id/schedule` (propose) and
+  `POST …/schedule/confirm`. The protocol is a counter-offer: **either party may propose, and
+  only the OTHER party may confirm** (409 on confirming your own), so neither side can book the
+  other unilaterally; re-proposing after a confirmation drops back to `proposed` — that is a
+  reschedule. A time given at creation is now recorded as the customer's proposal. Guards:
+  party-only (**admins are excluded** — they can see the request but are not a party to the
+  appointment, 403), an assigned worker is required (422), the request must not be closed
+  (422), and the time must be in the future (422). Notifies the other party and audits
+  `schedule.proposed` / `schedule.confirmed` (+ `AuditLogScreen` labels). Migration `0038`
+  (columns + CHECKs + backfill of existing times as customer proposals). **Consistency:
+  releasing/resetting a job now also drops the schedule** — the appointment was an agreement
+  with _that_ worker, so the next one must not inherit a confirmed time they never agreed to
+  (same reasoning as SEC-0005's stale-quote clearing). `tests/schedule.test.mjs`. Backend +
+  shared + `AuditLogScreen` — _handed off_. **Next: the app UI (175).**
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **173** (Connect go-live runbook), which were handed off.
+(Stripe go-live runbook), and **174** (visit scheduling backend), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

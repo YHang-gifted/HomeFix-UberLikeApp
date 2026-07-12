@@ -23,6 +23,7 @@ function makeRequest(overrides: Partial<ServiceRequest> = {}): ServiceRequest {
     location: { latitude: 25.03, longitude: 121.56 },
     status: 'pending',
     createdAt: '2026-06-22T00:00:00.000Z',
+    scheduleStatus: 'unset',
     ...overrides,
   };
 }

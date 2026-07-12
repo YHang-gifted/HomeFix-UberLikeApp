@@ -5,8 +5,11 @@ import type { Queryable } from '../db/queryable.ts';
 
 const UPSERT = `
   INSERT INTO service_requests
-    (id, customer_id, worker_id, category, description, latitude, longitude, status, created_at, photo_urls, scheduled_at, address)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12)
+    (id, customer_id, worker_id, category, description, latitude, longitude, status, created_at, photo_urls, scheduled_at, address, schedule_status, schedule_proposed_by)
+  -- COALESCE mirrors the schema's scheduleStatus default on the read side: an explicit NULL
+  -- from a caller that predates the column would otherwise override the column DEFAULT and
+  -- trip the NOT NULL constraint (an explicit NULL does not fall back to DEFAULT).
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, COALESCE($13, 'unset'), $14)
   ON CONFLICT (id) DO UPDATE SET
     customer_id = EXCLUDED.customer_id,
     worker_id = EXCLUDED.worker_id,
@@ -18,7 +21,9 @@ const UPSERT = `
     created_at = EXCLUDED.created_at,
     photo_urls = EXCLUDED.photo_urls,
     scheduled_at = EXCLUDED.scheduled_at,
-    address = EXCLUDED.address
+    address = EXCLUDED.address,
+    schedule_status = EXCLUDED.schedule_status,
+    schedule_proposed_by = EXCLUDED.schedule_proposed_by
 `;
 
 interface ServiceRequestRow {
@@ -34,6 +39,8 @@ interface ServiceRequestRow {
   photo_urls: unknown;
   scheduled_at: string | Date | null;
   address: string | null;
+  schedule_status: string;
+  schedule_proposed_by: string | null;
 }
 
 function mapRow(row: unknown): ServiceRequest {
@@ -50,6 +57,9 @@ function mapRow(row: unknown): ServiceRequest {
     createdAt: new Date(r.created_at).toISOString(),
     photoUrls: Array.isArray(r.photo_urls) ? r.photo_urls : [],
     ...(r.scheduled_at !== null ? { scheduledAt: new Date(r.scheduled_at).toISOString() } : {}),
+    // `schedule_status` is NOT NULL DEFAULT 'unset' (migration 0038), so it is always present.
+    scheduleStatus: r.schedule_status,
+    ...(r.schedule_proposed_by !== null ? { scheduleProposedBy: r.schedule_proposed_by } : {}),
   };
   return serviceRequestSchema.parse(candidate);
 }
@@ -75,6 +85,8 @@ export class PostgresServiceRequestRepository implements ServiceRequestRepositor
       JSON.stringify(request.photoUrls ?? []),
       request.scheduledAt ?? null,
       request.address ?? null,
+      request.scheduleStatus,
+      request.scheduleProposedBy ?? null,
     ]);
   }
 
@@ -113,7 +125,8 @@ export class PostgresServiceRequestRepository implements ServiceRequestRepositor
     // from an active state; the request returns to the pool as pending.
     const result = await this.db.query(
       `UPDATE service_requests
-          SET worker_id = NULL, status = 'pending'
+          SET worker_id = NULL, status = 'pending',
+              scheduled_at = NULL, schedule_status = 'unset', schedule_proposed_by = NULL
         WHERE id = $1
           AND worker_id = $2
           AND status IN ('matched', 'accepted', 'in_progress')
@@ -128,7 +141,8 @@ export class PostgresServiceRequestRepository implements ServiceRequestRepositor
     // Admin override: no worker_id constraint, only the active-status guard.
     const result = await this.db.query(
       `UPDATE service_requests
-          SET worker_id = NULL, status = 'pending'
+          SET worker_id = NULL, status = 'pending',
+              scheduled_at = NULL, schedule_status = 'unset', schedule_proposed_by = NULL
         WHERE id = $1 AND status IN ('matched', 'accepted', 'in_progress')
         RETURNING *`,
       [id],

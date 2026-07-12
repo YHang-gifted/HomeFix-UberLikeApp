@@ -22,6 +22,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   'quote.proposed': 'Proposed quote',
   'quote.accepted': 'Accepted quote',
   'quote.declined': 'Declined quote',
+  'schedule.proposed': 'Proposed a visit time',
+  'schedule.confirmed': 'Confirmed the visit time',
   'payment.created': 'Created payment',
   'payment.refunded': 'Refunded payment',
   'certification.submitted': 'Submitted certification',
