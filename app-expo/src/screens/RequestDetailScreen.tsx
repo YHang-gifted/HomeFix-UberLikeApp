@@ -24,6 +24,8 @@ import type { OpenCheckout } from '../../../app/src/features/payments/checkout';
 import { mapsUrl } from '../../../app/src/features/location/mapsLink';
 import { staticMapPreviewUrl } from '../staticMap';
 import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
+import { deriveScheduleView } from '../../../app/src/features/schedule/scheduleView';
+import { isFuture, parseLocalDateTime } from '../../../app/src/features/schedule/scheduleFormat';
 import type {
   AuditEvent,
   Coordinates,
@@ -102,6 +104,9 @@ export function RequestDetailScreen({
   const principal = useMemo(() => activeClient.getPrincipal(), [activeClient]);
 
   const [request, setRequest] = useState<ServiceRequest | null>(null);
+  const [scheduleText, setScheduleText] = useState('');
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduling, setScheduling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -272,6 +277,46 @@ export function RequestDetailScreen({
           : 'Could not release the job. Please try again.',
       );
       setReleasing(false);
+    }
+  }
+
+  /** Put a time on the table. Validated locally first so an obvious mistake never round-trips. */
+  async function proposeVisit(): Promise<void> {
+    const iso = parseLocalDateTime(scheduleText);
+    if (iso === null) {
+      setScheduleError('Enter the time as YYYY-MM-DD HH:MM, e.g. 2026-08-01 14:30.');
+      return;
+    }
+    if (!isFuture(iso)) {
+      setScheduleError('Choose a time in the future.');
+      return;
+    }
+    setScheduling(true);
+    setScheduleError(null);
+    try {
+      setRequest(await activeClient.proposeSchedule(requestId, iso));
+      setScheduleText('');
+    } catch (failure) {
+      setScheduleError(
+        isApiError(failure) ? failure.message : 'Could not propose that time. Please try again.',
+      );
+    } finally {
+      setScheduling(false);
+    }
+  }
+
+  /** Accept the time the other party proposed. */
+  async function confirmVisit(): Promise<void> {
+    setScheduling(true);
+    setScheduleError(null);
+    try {
+      setRequest(await activeClient.confirmSchedule(requestId));
+    } catch (failure) {
+      setScheduleError(
+        isApiError(failure) ? failure.message : 'Could not confirm the time. Please try again.',
+      );
+    } finally {
+      setScheduling(false);
     }
   }
 
@@ -535,6 +580,7 @@ export function RequestDetailScreen({
       request.status === 'in_progress');
 
   const quoteView = deriveQuoteView({ principal, request, quote });
+  const scheduleView = deriveScheduleView({ principal, request });
   const locationPreview = mapPreviewUrl(request.location);
   const paymentAmountValue =
     amountText !== ''
@@ -619,11 +665,57 @@ export function RequestDetailScreen({
       <Text style={styles.label}>Requested</Text>
       <Text style={styles.value}>{new Date(request.createdAt).toLocaleString()}</Text>
 
-      {request.scheduledAt !== undefined && (
-        <>
-          <Text style={styles.label}>Preferred time</Text>
-          <Text style={styles.value}>{new Date(request.scheduledAt).toLocaleString()}</Text>
-        </>
+      {scheduleView.visible && (
+        <View style={styles.schedule} accessibilityLabel="Visit time">
+          <Text style={styles.label}>Visit time</Text>
+          <Text style={styles.value}>{scheduleView.summary}</Text>
+
+          {scheduleView.canConfirm && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.confirmVisitButton,
+                pressed && styles.confirmVisitButtonPressed,
+              ]}
+              onPress={() => {
+                void confirmVisit();
+              }}
+              disabled={scheduling}
+              accessibilityRole="button"
+              accessibilityLabel="Confirm this time"
+            >
+              <Text style={styles.confirmVisitButtonText}>Confirm this time</Text>
+            </Pressable>
+          )}
+
+          {scheduleView.canPropose && (
+            <>
+              <TextInput
+                style={styles.paymentInput}
+                value={scheduleText}
+                onChangeText={setScheduleText}
+                placeholder="YYYY-MM-DD HH:MM (e.g. 2026-08-01 14:30)"
+                autoCapitalize="none"
+                accessibilityLabel="Proposed visit time"
+              />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.proposeVisitButton,
+                  pressed && styles.proposeVisitButtonPressed,
+                ]}
+                onPress={() => {
+                  void proposeVisit();
+                }}
+                disabled={scheduling}
+                accessibilityRole="button"
+                accessibilityLabel={scheduleView.proposeLabel}
+              >
+                <Text style={styles.proposeVisitButtonText}>{scheduleView.proposeLabel}</Text>
+              </Pressable>
+            </>
+          )}
+
+          {scheduleError !== null && <Text style={styles.error}>{scheduleError}</Text>}
+        </View>
       )}
 
       {!isOwner && (
@@ -1368,6 +1460,37 @@ const styles = StyleSheet.create({
   methodChipSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
   methodChipText: { fontSize: 14, fontWeight: '700', color: colors.ink },
   methodChipTextSelected: { color: colors.white },
+  schedule: {
+    marginTop: 12,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.medium,
+    backgroundColor: colors.canvas,
+  },
+  confirmVisitButton: {
+    marginTop: 12,
+    backgroundColor: colors.brand,
+    borderRadius: radii.medium,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  confirmVisitButtonPressed: { backgroundColor: colors.brandPressed },
+  confirmVisitButtonText: { color: colors.white, fontSize: 15, fontWeight: '700' },
+  proposeVisitButton: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.brand,
+    borderRadius: radii.medium,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  proposeVisitButtonPressed: { backgroundColor: colors.canvas },
+  proposeVisitButtonText: { color: colors.brand, fontSize: 15, fontWeight: '700' },
   payButton: {
     marginTop: 12,
     backgroundColor: colors.brand,
