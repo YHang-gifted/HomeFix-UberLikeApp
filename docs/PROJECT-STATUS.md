@@ -205,10 +205,10 @@ real test users could exercise":
    Structured 5xx error logging and a Prometheus `/metrics` endpoint exist.
 4. **Payments go-live (operator step, not code).** The code is complete and
    config-gated; going live means supplying keys and pointing the providers'
-   dashboard webhooks at us, following the runbooks. `docs/stripe-go-live.md` and
-   `docs/paypal-go-live.md` exist; **a Connect payouts runbook is still to be
-   written** (onboarding, the `account.updated` webhook, `STRIPE_CONNECT_WEBHOOK_SECRET`,
-   a test-mode dry run, rollback).
+   dashboard webhooks at us, following the runbooks — all three now exist:
+   `docs/stripe-go-live.md`, `docs/paypal-go-live.md`, and `docs/connect-go-live.md`
+   (payouts). **Nothing in CI exercises a real provider**, so the test-mode dry runs in
+   those runbooks are the only proof the integrations actually work.
 
 ## 4. How far to a testable v1
 
@@ -240,10 +240,8 @@ test-mode payments dry run, then an E2E/device pass.
    (guard native-only push/location/map calls behind `Platform.OS`). Remember
    `EXPO_PUBLIC_*` values are inlined at **build** time, so changing one needs a
    rebuild, and the API base URL must be a full origin with `https://`.
-2. **Connect payouts go-live runbook** (`docs/connect-go-live.md`) — the last missing
-   payments doc, mirroring `stripe-go-live.md` / `paypal-go-live.md`: worker onboarding,
-   the `account.updated` webhook + `STRIPE_CONNECT_WEBHOOK_SECRET`, a test-mode dry run,
-   and rollback.
+2. ~~**Connect payouts go-live runbook**~~ **Done (173)** — `docs/connect-go-live.md`
+   completes the set of three payments runbooks.
 3. **Payments test-mode dry run** (operator) — with the frontend hosted, run the full
    loop end-to-end on `sk_test_…` / PayPal sandbox: pay → settle via webhook → refund →
    worker onboard → payout. This is the real proof the money line works, and nothing in
@@ -955,10 +953,20 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   (`formatCents`) and the quote/payment inputs now say "Amount in USD". The US$1 floor
   (`MIN_AMOUNT_CENTS = 100`) is unchanged and clears Stripe's own US$0.50 minimum.
   `tests/currency.test.mjs` locks it (schemas reject any non-USD currency). server + shared +
-  app + app-expo — _handed off_.
+  app + app-expo — merged.
+- **173** `docs/connect-go-live.md` — the Stripe **Connect payouts** runbook, the last missing
+  payments doc (Stripe and PayPal already had one). Covers what the config switches on
+  (onboard → `account.updated` → `payouts_enabled` → transfer → backfill), the required
+  environment (incl. the **separate** `STRIPE_CONNECT_WEBHOOK_SECRET` and the build-time
+  `EXPO_PUBLIC_CONNECT_PAYOUTS_ENABLED`), the webhook endpoint scoped to **Connected
+  accounts**, a test-mode dry run (including a **backfill check**), go-live, rollback, and the
+  gotchas — the `transfers` capability (171), that `return_url` does **not** mean onboarding is
+  complete, single-use account links, USD settlement, and the refund↔payout interaction
+  (SEC-0007/0008). Docs only — _handed off_. **All three payments runbooks now exist; going
+  live is purely an operator step.**
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **172** (currency → USD), which were handed off.
+(Stripe go-live runbook), and **173** (Connect go-live runbook), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
