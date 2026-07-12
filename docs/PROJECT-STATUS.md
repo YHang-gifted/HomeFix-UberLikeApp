@@ -40,10 +40,13 @@ worker's payout** (SEC-0007/0008); and the worker's net is **really paid out ove
 Stripe Connect**. Every provider is **config-gated and mock-by-default**, so no
 money moves until the operator supplies keys. Requests support **photo upload** and
 an **interactive map picker**, chat threads **update live**, and each user controls
-their **email/push notification preferences**. We are at **internal alpha,
-deployed**, with the main gaps to a real-user test build being **a public frontend
-deploy, a full E2E/device QA pass, and production observability/backups** — not core
-domain logic, payments, notification delivery, or a deploy target.
+their **email/push notification preferences**, and the visit time is a **two-party
+agreement** (propose → the other side confirms → either can reschedule). The **API and
+the web app are both live on Railway, same-origin**. We are at **internal alpha,
+deployed**, and the main gaps to a real-user test build are now **QA and operations,
+not engineering**: a full E2E/device pass (starting with actually opening the deployed
+site in a browser), a test-mode payments dry run, and production
+observability/backups.
 
 ## 2. What is done
 
@@ -181,29 +184,37 @@ users are not seeded in production by default; a `GET /ready` readiness probe th
 checks the database; structured per-request access logging with request-id
 correlation; a dev-dependency-free production image (`tsc` build, no `tsx` at
 runtime); deploy artifacts (`Dockerfile`, `.dockerignore`, `.env.example`,
-deployment guide). **The API is LIVE on Railway** (multi-stage Docker build +
-managed Postgres plugin; `/health` and `/ready` green; migrations applied on
-boot).
+deployment guide). **The API _and the web app_ are LIVE on Railway** (multi-stage
+Docker build + managed Postgres plugin; `/health` and `/ready` green; migrations
+applied on boot). The Docker build has a **`webbuild` stage** that exports the Expo
+web bundle, and the runtime serves it **same-origin** via `WEB_DIST_DIR` (static
+assets + an SPA fallback, mounted _after_ the API routes so it never shadows them).
+Because it is same-origin, `CORS_ALLOWED_ORIGINS` can stay unset.
+`EXPO_PUBLIC_API_BASE_URL` is a **required** build arg — the image build fails fast
+without it, and because Expo inlines `EXPO_PUBLIC_*` at build time, changing it needs
+a full rebuild, not a restart.
 
 ## 3. What a testable v1 still needs
 
 These are the gaps between "deployed, feature-rich internal build" and "a build
 real test users could exercise":
 
-1. **Public frontend deploy.** The API is live, but the Expo app is not yet hosted
-   as a public web app. The web build/export pipeline is merged (slice 99 —
-   `app-expo` builds a static `dist/` pointing at the Railway API); it still needs
-   the `dist/` hosted (e.g. Netlify) and the backend `CORS_ALLOWED_ORIGINS`
-   pointed at that origin. Web runtime guards for native-only modules
-   (push/location) to be confirmed once hosted. **This is the single biggest blocker
-   to putting the product in front of real testers.**
-2. **End-to-end + device QA.** Unit/integration coverage is strong (and a QA
+> ~~**Public frontend deploy.**~~ **Not a gap — this was stale and has been removed.**
+> The web app is already built into the image (`webbuild` stage) and served
+> **same-origin** by the API via `WEB_DIST_DIR`; the deployment is live. It does not
+> need separate hosting, and `CORS_ALLOWED_ORIGINS` can stay unset. (This entry
+> survived the slice-170 refresh by mistake and was corrected in 176.)
+
+1. **End-to-end + device QA.** Unit/integration coverage is strong (and a QA
    checklist exists at `docs/qa-checklist.md`); there is no full E2E run on a real
-   device/build, nor accessibility/performance passes.
-3. **Production observability & backups.** Managed Postgres is provisioned on
+   device/build, nor accessibility/performance passes. **Includes actually opening the
+   deployed web app in a browser and checking the console** — CI only proves the bundle
+   is _produced_, never that it _renders_ (a zod 3-vs-4 mismatch once blanked the whole
+   page for several slices before anyone looked).
+2. **Production observability & backups.** Managed Postgres is provisioned on
    Railway; log shipping/observability and a backup policy are not yet set up.
    Structured 5xx error logging and a Prometheus `/metrics` endpoint exist.
-4. **Payments go-live (operator step, not code).** The code is complete and
+3. **Payments go-live (operator step, not code).** The code is complete and
    config-gated; going live means supplying keys and pointing the providers'
    dashboard webhooks at us, following the runbooks — all three now exist:
    `docs/stripe-go-live.md`, `docs/paypal-go-live.md`, and `docs/connect-go-live.md`
@@ -213,42 +224,42 @@ real test users could exercise":
 ## 4. How far to a testable v1
 
 - **Internal alpha, deployed (reached).** Sign-up, full three-role loop, category
-  matching, quoting, map picker, real (config-gated) notification delivery, ops
-  hardening, and a **live API on Railway** — the team can exercise every flow against
-  the hosted backend.
+  matching, quoting, map picker, visit scheduling, real (config-gated) notification
+  delivery, ops hardening, and a **live API + web app on Railway** (same-origin) — the
+  team can exercise every flow against the hosted build, in a browser, today.
 - **Payments-enabled (reached, in code).** Real Stripe + PayPal checkout, real
   refunds, and real Stripe Connect payouts are all built, tested, and reconciled
   (SEC-0007/0008). They are **mock-by-default**; flipping them on is an operator step
   with the go-live runbooks — no further engineering required.
-- **Closed test (friendly users) — the next milestone.** Needs the **frontend hosted**
-  publicly with `CORS_ALLOWED_ORIGINS` pointed at it, then a **test-mode payments dry
-  run** end-to-end against the hosted build.
-- **Production-hardened.** API is deployed with managed Postgres; remaining:
-  observability/backups and an E2E/device QA pass.
+- **Closed test (friendly users) — the next milestone.** The build is already
+  reachable. What it needs is **proof it works**: an E2E/device QA pass (starting with
+  opening the deployed site and reading the console) and a **test-mode payments dry
+  run**.
+- **Production-hardened.** API + web deployed with managed Postgres; remaining:
+  observability/backups.
 
 **Bottom line:** the hardest, riskiest parts — the domain model, authorization, the
 state machine, concurrency, persistence, **real payments/refunds/payouts and their
-integrity**, the three-role app loop, notification delivery, and a live deployment —
-are **done, tested, and hardened**. What stands between here and a genuinely testable
-v1 is now mostly **deployment and QA, not engineering**: host the frontend, do a
-test-mode payments dry run, then an E2E/device pass.
+integrity**, the three-role app loop, notification delivery, and a live same-origin
+deployment — are **done, tested, and hardened**. What stands between here and a
+genuinely testable v1 is now **QA and operations, not engineering**: verify the
+deployed app in a browser, run a test-mode payments dry run, then a device/E2E pass.
 
 ## 5. Recommended next slices (in order)
 
-1. **Host the frontend web app** — deploy the merged `app-expo/dist`, set
-   `CORS_ALLOWED_ORIGINS` to the frontend origin, and verify the login loop on web
-   (guard native-only push/location/map calls behind `Platform.OS`). Remember
-   `EXPO_PUBLIC_*` values are inlined at **build** time, so changing one needs a
-   rebuild, and the API base URL must be a full origin with `https://`.
-2. ~~**Connect payouts go-live runbook**~~ **Done (173)** — `docs/connect-go-live.md`
-   completes the set of three payments runbooks.
-3. **Payments test-mode dry run** (operator) — with the frontend hosted, run the full
-   loop end-to-end on `sk_test_…` / PayPal sandbox: pay → settle via webhook → refund →
-   worker onboard → payout. This is the real proof the money line works, and nothing in
-   CI exercises it.
-4. A full **E2E / device QA** pass against `docs/qa-checklist.md` (no run on a real
+1. **Verify the deployed web app in a browser** (and read the console). CI proves the
+   bundle is _produced_, never that it _renders_ — a zod 3-vs-4 mismatch once blanked
+   the entire page and went unnoticed for several slices. Check the login loop on web,
+   and that native-only calls (push/location/map) are guarded behind `Platform.OS`.
+   Reminder: `EXPO_PUBLIC_*` is inlined at **build** time (a change needs a rebuild, not
+   a restart) and the API base URL must be a full origin with `https://`.
+2. **Payments test-mode dry run** (operator) — run the full loop on `sk_test_…` /
+   PayPal sandbox: pay → settle via webhook → refund → worker onboard → payout. This is
+   the real proof the money line works, and **nothing in CI exercises it**. Follow
+   `docs/stripe-go-live.md`, `docs/paypal-go-live.md`, `docs/connect-go-live.md`.
+3. A full **E2E / device QA** pass against `docs/qa-checklist.md` (no run on a real
    device/build yet; no accessibility or performance pass).
-5. **Backups & log shipping** for the Railway deployment (managed Postgres backup
+4. **Backups & log shipping** for the Railway deployment (managed Postgres backup
    policy; ship the structured logs somewhere queryable). Structured 5xx error logging
    and a Prometheus `/metrics` endpoint already exist.
 
@@ -996,11 +1007,22 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   Hermes ≠ V8 — and rejects malformed/impossible dates locally, so an obvious mistake never
   round-trips. Tests: `tests/schedule-view.test.mjs` (pure) and a new
   `RequestDetailScreen.schedule.test.tsx` (kept separate — the main screen test is already
-  ~1000 lines). app + app-expo — _handed off_. **Visit scheduling is now usable end-to-end.**
+  ~1000 lines). app + app-expo — merged. **Visit scheduling is now usable end-to-end.**
+- **176** status-doc correction — **the "public frontend deploy" gap was a ghost.** The
+  web app has been built into the image (`webbuild` stage → `app-expo/dist`) and served
+  **same-origin** by the API via `WEB_DIST_DIR` since 123/124, and `docs/deployment.md`
+  documents it; `/ready` on the Railway deployment is green. The gap entry was stale and
+  **survived the slice-170 refresh by mistake** (the same failure mode 170 was supposed
+  to fix — I re-listed it without verifying). Corrected §1, §2 (deploy), §3, §4 and §5.
+  The remaining gaps are now honestly stated as **QA and operations, not engineering**,
+  and §3/§5 now call out the one thing CI can never prove: **that the deployed web app
+  actually renders in a browser** (a zod 3-vs-4 mismatch once blanked it for several
+  slices). Docs only — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **175** (visit scheduling UI), which were handed off.
-The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
+(Stripe go-live runbook), and **176** (status-doc correction), which were handed off.
+The API **and the web app** are deployed and ACTIVE on Railway (same-origin), in mock
+mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);
