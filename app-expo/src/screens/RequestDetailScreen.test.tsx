@@ -415,15 +415,23 @@ describe('RequestDetailScreen', () => {
     getByLabelText('Cancel request');
   });
 
-  it('shows the preferred time when the request has one', async () => {
-    const request = makeRequest({ scheduledAt: '2026-07-01T09:00:00.000Z' });
+  it('shows the visit time the customer proposed (awaiting a worker to confirm it)', async () => {
+    // A time given at creation is the customer's proposal — not an agreement (slice 174).
+    // This request has no worker yet, so there is nobody to confirm it: read-only.
+    const request = makeRequest({
+      scheduledAt: '2030-07-01T09:00:00.000Z',
+      scheduleStatus: 'proposed',
+      scheduleProposedBy: 'customer',
+    });
     const client = clientWith({ getServiceRequest: jest.fn().mockResolvedValue(request) });
 
-    const { findByText } = await render(
+    const { findByText, queryByLabelText } = await render(
       <RequestDetailScreen requestId={request.id} client={client} />,
     );
 
-    await findByText('Preferred time');
+    await findByText('Visit time');
+    await findByText(/You proposed/);
+    expect(queryByLabelText('Confirm this time')).toBeNull();
   });
 
   it('shows photos when the request has photo URLs', async () => {
