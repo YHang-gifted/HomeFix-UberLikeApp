@@ -19,7 +19,7 @@ function makePayment(overrides = {}) {
     customerId: CUSTOMER_ID,
     workerId: WORKER_ID,
     amountCents: 150000,
-    currency: 'TWD',
+    currency: 'USD',
     status: 'pending',
     createdAt: '2026-06-22T00:00:00.000Z',
     ...overrides,
@@ -78,7 +78,7 @@ describe('PostgresPaymentRepository (PGlite)', () => {
     await repo.save(makePayment());
     const found = await repo.findByRequest(REQUEST_ID);
     assert.equal(found?.amountCents, 150000);
-    assert.equal(found?.currency, 'TWD');
+    assert.equal(found?.currency, 'USD');
     assert.equal(found?.status, 'pending');
     assert.equal(found?.paidAt, undefined);
   });

@@ -36,10 +36,10 @@ describe('AdminStatsScreen', () => {
     await findByText('Total');
     getByText('7'); // total requests
     getByText('In progress'); // status label with underscore replaced
-    getByText('NT$2,000.00'); // paid total
+    getByText('$2,000.00'); // paid total
     getByText('Payouts'); // payouts section
-    getByText('NT$1,700.00'); // owed to workers (pending payout amount)
-    getByText('NT$850.00'); // paid out total
+    getByText('$1,700.00'); // owed to workers (pending payout amount)
+    getByText('$850.00'); // paid out total
   });
 
   it('shows an error message when loading fails', async () => {

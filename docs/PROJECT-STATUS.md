@@ -93,7 +93,7 @@ request's Location.
 
 **Quoting & payments.** The assigned worker proposes a price **quote** (amount +
 note); the owning customer accepts or declines; payment is **gated server-side**
-on an accepted quote of the matching amount. A NT$1 minimum is enforced on quotes
+on an accepted quote of the matching amount. A US$1 minimum is enforced on quotes
 and payments. Customers and workers each have a **payment history** view
 (paid/received), and a **receipt** is derivable once a payment is paid.
 
@@ -168,7 +168,8 @@ boot-time scan of legacy rows). Later migrations add `users.token_version` (0022
 `platform_fee_cents` split (0025), the `refunded` payment status (0026), the
 `payouts` table (0027), per-user `users.notify_email/notify_push` preferences (0028),
 and the real-money columns: `payment.provider` (0033), `payment.capture_ref` (0034),
-`users.stripe_account_id` (0035), and `users.stripe_payouts_enabled` (0036).
+`users.stripe_account_id` (0035), `users.stripe_payouts_enabled` (0036), and the USD
+re-denomination of every money row (0037).
 
 **Apps.** Full three-role Expo React Native app: registration, login/session
 persistence (SecureStore on native, localStorage on web), and role-specific
@@ -940,12 +941,24 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   and requesting `card_payments` would demand more onboarding data. Regression test in
   `tests/connect-onboarding.test.mjs` locks the params (the real `accounts.create` needs the
   network, so it is exercised only in the go-live dry run, never in CI). Backend only —
-  _handed off_. **Note:** a related go-live blocker is still open — payments and payouts
-  hard-code `currency: 'TWD'` while the target market is the US; a Stripe transfer must match
-  the platform's settlement currency, so this needs a currency slice before real payouts.
+  merged. (The currency blocker it flagged is fixed in **172**.)
+- **172** platform currency **TWD → USD** (US market). The second go-live blocker: a Stripe
+  transfer to a worker's connected account must be in the platform's **settlement currency**,
+  so a US platform paying out in `twd` would simply fail. Introduced one source of truth —
+  `PLATFORM_CURRENCY` + `currencySchema` in `shared/schemas.ts` — and pointed the four money
+  schemas (payment, quote, payout, receipt) and the three services (`paymentService`,
+  `quoteService`, `payoutService`) at it. Migration **`0037`** re-denominates existing rows:
+  this is **mandatory, not cosmetic**, because the Postgres repositories parse rows through
+  those schemas (`paymentSchema.parse`), so a leftover `'TWD'` row would **throw on read**.
+  Safe as a plain relabel — no real money has ever moved (mock mode), and the integer
+  minor-unit amounts carry over unchanged. App money display moves from `NT$…` to `$…`
+  (`formatCents`) and the quote/payment inputs now say "Amount in USD". The US$1 floor
+  (`MIN_AMOUNT_CENTS = 100`) is unchanged and clears Stripe's own US$0.50 minimum.
+  `tests/currency.test.mjs` locks it (schemas reject any non-USD currency). server + shared +
+  app + app-expo — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **171** (Connect transfers capability), which were handed off.
+(Stripe go-live runbook), and **172** (currency → USD), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

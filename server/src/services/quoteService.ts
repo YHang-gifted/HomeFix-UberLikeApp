@@ -6,6 +6,7 @@ import type {
   Quote,
   ServiceRequest,
 } from '../../../shared/schemas.ts';
+import { PLATFORM_CURRENCY } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { quoteRepository } from '../repositories/quoteRepository.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
@@ -58,7 +59,7 @@ export async function createQuote(
     customerId: request.customerId,
     workerId: request.workerId,
     amountCents: input.amountCents,
-    currency: 'TWD',
+    currency: PLATFORM_CURRENCY,
     ...(input.note !== undefined && input.note !== '' ? { note: input.note } : {}),
     status: 'pending',
     createdAt: new Date().toISOString(),

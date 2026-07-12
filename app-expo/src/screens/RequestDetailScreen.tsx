@@ -705,7 +705,7 @@ export function RequestDetailScreen({
                 style={styles.paymentInput}
                 value={quoteAmountText}
                 onChangeText={setQuoteAmountText}
-                placeholder="Amount in NT$ (e.g. 2500)"
+                placeholder="Amount in USD (e.g. 2500)"
                 keyboardType="numbers-and-punctuation"
                 accessibilityLabel="Quote amount"
                 editable={!quoteBusy}
@@ -908,7 +908,7 @@ export function RequestDetailScreen({
                 style={styles.paymentInput}
                 value={paymentAmountValue}
                 onChangeText={setAmountText}
-                placeholder="Amount in NT$ (e.g. 1500)"
+                placeholder="Amount in USD (e.g. 1500)"
                 keyboardType="numbers-and-punctuation"
                 accessibilityLabel="Payment amount"
                 editable={!paymentBusy}

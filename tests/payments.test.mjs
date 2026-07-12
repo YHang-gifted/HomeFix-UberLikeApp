@@ -99,7 +99,7 @@ describe('request payments (mock)', () => {
     assert.equal(res.status, 201);
     const payment = await res.json();
     assert.equal(payment.amountCents, 150000);
-    assert.equal(payment.currency, 'TWD');
+    assert.equal(payment.currency, 'USD');
     assert.equal(payment.status, 'pending');
     assert.equal(payment.workerId, WORKER_ID);
     // Marketplace split at the default 15%: platform keeps 22500, worker nets 127500.

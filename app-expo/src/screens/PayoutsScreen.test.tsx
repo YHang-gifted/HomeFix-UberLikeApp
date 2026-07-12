@@ -10,7 +10,7 @@ function makePayout(overrides: Partial<Payout> = {}): Payout {
     paymentId: '623e4567-e89b-12d3-a456-426614174000',
     workerId: '423e4567-e89b-12d3-a456-426614174000',
     amountCents: 127500,
-    currency: 'TWD',
+    currency: 'USD',
     status: 'paid',
     createdAt: '2026-06-22T00:00:00.000Z',
     paidAt: '2026-06-22T02:00:00.000Z',
@@ -25,7 +25,7 @@ describe('PayoutsScreen', () => {
 
     const { findByText } = await render(<PayoutsScreen client={client} />);
 
-    await findByText('NT$1,275.00');
+    await findByText('$1,275.00');
     await findByText('Paid out');
   });
 
@@ -61,9 +61,9 @@ describe('PayoutsScreen', () => {
 
     const { findByText } = await render(<PayoutsScreen client={client} />);
 
-    await findByText('NT$5,000.00');
+    await findByText('$5,000.00');
     await findByText('2 payout(s)');
-    await findByText('NT$2,000.00');
+    await findByText('$2,000.00');
     await findByText('3 scheduled');
   });
 

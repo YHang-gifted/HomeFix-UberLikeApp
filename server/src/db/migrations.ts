@@ -474,4 +474,20 @@ export const migrations: Migration[] = [
     id: '0036_user_stripe_payouts_enabled',
     sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_payouts_enabled boolean NOT NULL DEFAULT false`,
   },
+  {
+    // The platform moved to the US market, so the settlement currency is USD
+    // (`PLATFORM_CURRENCY`). This is NOT cosmetic: the repositories parse rows through
+    // `paymentSchema` / `quoteSchema` / `payoutSchema`, whose `currency` is a literal, so a
+    // leftover 'TWD' row would throw on read. Re-denominate every money row.
+    //
+    // Safe to do as a plain relabel: no real money has ever moved (every provider is
+    // config-gated and the deployment runs in mock mode), so these are dev/test rows whose
+    // integer minor-unit amounts carry over unchanged.
+    id: '0037_currency_usd',
+    sql: `
+      UPDATE payments SET currency = 'USD' WHERE currency <> 'USD';
+      UPDATE quotes   SET currency = 'USD' WHERE currency <> 'USD';
+      UPDATE payouts  SET currency = 'USD' WHERE currency <> 'USD'
+    `,
+  },
 ];

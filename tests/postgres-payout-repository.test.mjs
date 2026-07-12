@@ -21,7 +21,7 @@ function makePayout(overrides = {}) {
     paymentId: PAY1,
     workerId: WORKER_ID,
     amountCents: 127500,
-    currency: 'TWD',
+    currency: 'USD',
     status: 'pending',
     createdAt: '2026-06-22T00:00:00.000Z',
     ...overrides,
@@ -54,8 +54,8 @@ describe('PostgresPayoutRepository (PGlite)', () => {
     await q.query(
       `INSERT INTO payments
          (id, request_id, customer_id, worker_id, amount_cents, currency, status, created_at)
-       VALUES ($1, $3, $5, $6, 150000, 'TWD', 'paid', $7),
-              ($2, $4, $5, $6, 150000, 'TWD', 'paid', $7)`,
+       VALUES ($1, $3, $5, $6, 150000, 'USD', 'paid', $7),
+              ($2, $4, $5, $6, 150000, 'USD', 'paid', $7)`,
       [PAY1, PAY2, REQ1, REQ2, CUSTOMER_ID, WORKER_ID, '2026-06-22T00:00:00.000Z'],
     );
   });

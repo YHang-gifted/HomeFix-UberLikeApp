@@ -18,7 +18,7 @@ function makeQuote(overrides = {}) {
     customerId: CUSTOMER_ID,
     workerId: WORKER_ID,
     amountCents: 250000,
-    currency: 'TWD',
+    currency: 'USD',
     note: 'Includes parts and labor',
     status: 'pending',
     createdAt: '2026-06-22T00:00:00.000Z',
@@ -64,7 +64,7 @@ describe('PostgresQuoteRepository (PGlite)', () => {
     await repo.save(makeQuote());
     const found = await repo.findByRequest(REQUEST_ID);
     assert.equal(found?.amountCents, 250000);
-    assert.equal(found?.currency, 'TWD');
+    assert.equal(found?.currency, 'USD');
     assert.equal(found?.note, 'Includes parts and labor');
     assert.equal(found?.status, 'pending');
     assert.equal(found?.respondedAt, undefined);

@@ -27,7 +27,7 @@ function insertRequest(q, { id = randomUUID(), customerId, workerId }) {
 function insertQuote(q, { requestId }) {
   return q.query(
     `INSERT INTO quotes (id, request_id, customer_id, worker_id, amount_cents, currency, status, created_at)
-     VALUES ($1, $2, $3, $4, 150000, 'TWD', 'pending', $5)`,
+     VALUES ($1, $2, $3, $4, 150000, 'USD', 'pending', $5)`,
     [randomUUID(), requestId, CUSTOMER, WORKER, NOW],
   );
 }
@@ -35,7 +35,7 @@ function insertQuote(q, { requestId }) {
 function insertPayment(q, { requestId }) {
   return q.query(
     `INSERT INTO payments (id, request_id, customer_id, worker_id, amount_cents, currency, status, created_at)
-     VALUES ($1, $2, $3, $4, 150000, 'TWD', 'pending', $5)`,
+     VALUES ($1, $2, $3, $4, 150000, 'USD', 'pending', $5)`,
     [randomUUID(), requestId, CUSTOMER, WORKER, NOW],
   );
 }

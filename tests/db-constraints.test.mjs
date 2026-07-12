@@ -72,14 +72,14 @@ describe('schema CHECK constraints (PGlite)', () => {
   const insertQuote = async (amountCents) =>
     q.query(
       `INSERT INTO quotes (id, request_id, customer_id, worker_id, amount_cents, currency, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, 'TWD', 'pending', $6)`,
+       VALUES ($1, $2, $3, $4, $5, 'USD', 'pending', $6)`,
       [randomUUID(), await seedRequest(), CUSTOMER, WORKER, amountCents, NOW],
     );
 
   const insertPayment = async (status) =>
     q.query(
       `INSERT INTO payments (id, request_id, customer_id, worker_id, amount_cents, currency, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, 'TWD', $6, $7)`,
+       VALUES ($1, $2, $3, $4, $5, 'USD', $6, $7)`,
       [randomUUID(), await seedRequest(), CUSTOMER, WORKER, 150000, status, NOW],
     );
 

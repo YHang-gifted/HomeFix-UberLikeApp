@@ -415,13 +415,29 @@ export type PaymentProviderId = z.infer<typeof paymentProviderIdSchema>;
 export const paymentMethodSchema = z.enum(['card', 'paypal']);
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 
+/**
+ * The platform's settlement currency — the single source of truth. The marketplace runs in
+ * the **US**, and a Stripe transfer to a worker's connected account must be in the
+ * platform's settlement currency, so quotes, payments, and payouts are all denominated
+ * here. Amounts are always stored as an integer of the currency's **minor unit**
+ * (`amountCents`), i.e. US cents.
+ *
+ * Changing this is not just a label: it must match the Stripe account's settlement
+ * currency, and existing rows must be re-denominated (see migration `0037`) because
+ * `paymentSchema.parse` rejects any other value.
+ */
+export const PLATFORM_CURRENCY = 'USD';
+
+/** Every money-carrying record is in {@link PLATFORM_CURRENCY}. */
+export const currencySchema = z.literal(PLATFORM_CURRENCY);
+
 export const paymentSchema = z.object({
   id: z.uuid(),
   requestId: z.uuid(),
   customerId: z.uuid(),
   workerId: z.uuid(),
   amountCents: z.number().int().positive(),
-  currency: z.literal('TWD'),
+  currency: currencySchema,
   status: paymentStatusSchema,
   createdAt: z.iso.datetime(),
   paidAt: z.iso.datetime().optional(),
@@ -469,7 +485,7 @@ export const receiptSchema = z.object({
   requestId: z.uuid(),
   // When the payment was settled (the payment's paidAt).
   issuedAt: z.iso.datetime(),
-  currency: z.literal('TWD'),
+  currency: currencySchema,
   amountCents: z.number().int().positive(),
   platformFeeCents: z.number().int().nonnegative(),
   workerNetCents: z.number().int().nonnegative(),
@@ -526,8 +542,9 @@ export const reviewCertificationInputSchema = z.object({
 });
 export type ReviewCertificationInput = z.infer<typeof reviewCertificationInputSchema>;
 
-// Minimum chargeable amount, NT$1.00. Guards against zero/near-zero quotes and
-// payments that are almost certainly mistakes.
+// Minimum chargeable amount, US$1.00 (100 cents). Guards against zero/near-zero quotes
+// and payments that are almost certainly mistakes. Note it also clears Stripe's own
+// minimum charge (US$0.50).
 export const MIN_AMOUNT_CENTS = 100;
 
 // Default platform commission, in basis points (1500 = 15%). Overridable per
@@ -579,7 +596,7 @@ export const payoutSchema = z.object({
   paymentId: z.uuid(),
   workerId: z.uuid(),
   amountCents: z.number().int().positive(),
-  currency: z.literal('TWD'),
+  currency: currencySchema,
   status: payoutStatusSchema,
   createdAt: z.iso.datetime(),
   paidAt: z.iso.datetime().optional(),
@@ -629,7 +646,7 @@ export const quoteSchema = z.object({
   customerId: z.uuid(),
   workerId: z.uuid(),
   amountCents: z.number().int().positive(),
-  currency: z.literal('TWD'),
+  currency: currencySchema,
   note: z.string().max(500).optional(),
   status: quoteStatusSchema,
   createdAt: z.iso.datetime(),
