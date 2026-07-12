@@ -62,7 +62,15 @@ export async function createServiceRequest(
     status: 'pending',
     createdAt: new Date().toISOString(),
     photoUrls: input.photoUrls ?? [],
-    ...(input.scheduledAt !== undefined ? { scheduledAt: input.scheduledAt } : {}),
+    // A time given at creation is the customer's *proposal* — it becomes an agreement only
+    // once the assigned worker confirms it (see scheduleService).
+    ...(input.scheduledAt !== undefined
+      ? {
+          scheduledAt: input.scheduledAt,
+          scheduleStatus: 'proposed' as const,
+          scheduleProposedBy: 'customer' as const,
+        }
+      : { scheduleStatus: 'unset' as const }),
   };
   await serviceRequestRepository.save(request);
   await recordAuditEvent({

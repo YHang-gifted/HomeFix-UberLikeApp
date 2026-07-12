@@ -490,4 +490,24 @@ export const migrations: Migration[] = [
       UPDATE payouts  SET currency = 'USD' WHERE currency <> 'USD'
     `,
   },
+  {
+    // The visit time is now a two-party agreement, not a one-way wish: `schedule_status`
+    // tracks whether the time on `scheduled_at` is merely proposed or actually confirmed, and
+    // `schedule_proposed_by` records who put it there (only the OTHER party may confirm).
+    // Backfill: an existing row with a time was the customer's proposal, never confirmed.
+    id: '0038_service_request_schedule',
+    sql: `
+      ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS schedule_status text NOT NULL DEFAULT 'unset';
+      ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS schedule_proposed_by text;
+      UPDATE service_requests
+         SET schedule_status = 'proposed', schedule_proposed_by = 'customer'
+       WHERE scheduled_at IS NOT NULL AND schedule_status = 'unset';
+      ALTER TABLE service_requests DROP CONSTRAINT IF EXISTS chk_service_requests_schedule_status;
+      ALTER TABLE service_requests ADD CONSTRAINT chk_service_requests_schedule_status
+        CHECK (schedule_status IN ('unset', 'proposed', 'confirmed'));
+      ALTER TABLE service_requests DROP CONSTRAINT IF EXISTS chk_service_requests_schedule_proposed_by;
+      ALTER TABLE service_requests ADD CONSTRAINT chk_service_requests_schedule_proposed_by
+        CHECK (schedule_proposed_by IS NULL OR schedule_proposed_by IN ('customer', 'worker'))
+    `,
+  },
 ];
