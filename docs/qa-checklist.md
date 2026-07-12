@@ -125,7 +125,7 @@ native-module coverage that automation can't._
 - [ ] A worker cannot propose a quote for a request they're not assigned to.
 - [ ] Payment requires an **accepted quote of the matching amount** (a mismatched
       or missing quote is rejected).
-- [ ] Quote and payment amounts below NT$1 are rejected.
+- [ ] Quote and payment amounts below $1 are rejected.
 - [ ] Invalid ids return a 422 "Invalid … id"; unauthenticated calls return 401.
 - [ ] Rapid repeated login/register attempts get rate-limited (429).
 
@@ -177,7 +177,7 @@ native-module coverage that automation can't._
 
 - [ ] Creating a payment records a **commission split**: the customer sees the
       gross amount, and the "Worker net · Platform fee" line shows the 15% split
-      (e.g. NT$1,500 → worker NT$1,275, platform NT$225). Legacy/zero-fee
+      (e.g. $1,500 → worker $1,275, platform $225). Legacy/zero-fee
       payments show no split line.
 - [ ] "Pay now" marks the payment **paid** (mock — no real charge) and the worker
       is notified.

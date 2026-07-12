@@ -18,7 +18,7 @@ function quote(overrides = {}) {
     customerId: CUSTOMER,
     workerId: WORKER,
     amountCents: 250000,
-    currency: 'TWD',
+    currency: 'USD',
     status: 'pending',
     createdAt: '2026-06-22T00:00:00.000Z',
     ...overrides,

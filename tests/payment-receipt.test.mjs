@@ -103,7 +103,7 @@ describe('GET /service-requests/:id/payment/receipt', () => {
     assert.equal(receipt.amountCents, QUOTE_CENTS);
     assert.equal(receipt.workerNetCents, EXPECTED_WORKER_NET_CENTS);
     assert.equal(receipt.platformFeeCents, 22500);
-    assert.equal(receipt.currency, 'TWD');
+    assert.equal(receipt.currency, 'USD');
     assert.equal(receipt.category, 'plumbing');
     assert.match(receipt.receiptNumber, /^HF-\d{8}-[0-9A-F]{8}$/);
     assert.equal(typeof receipt.customerName, 'string');

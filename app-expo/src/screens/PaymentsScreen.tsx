@@ -8,7 +8,7 @@ import type { Payment } from '../../../shared/schemas';
 import { apiClient } from '../api';
 import { colors, radii, shadow, spacing } from '../theme';
 
-/** "Worker net NT$1,275.00 · Platform fee NT$225.00" for a payment with a fee. */
+/** "Worker net $1,275.00 · Platform fee $225.00" for a payment with a fee. */
 function splitLine(payment: Payment): string {
   const split = paymentSplit(payment);
   return `Worker net ${formatCents(split.workerNetCents)} · Platform fee ${formatCents(split.platformFeeCents)}`;

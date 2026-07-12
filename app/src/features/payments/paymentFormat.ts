@@ -1,5 +1,5 @@
 /**
- * Parse a user-entered TWD amount (in dollars, e.g. "1500" or "1500.50") into an
+ * Parse a user-entered USD amount (in dollars, e.g. "1500" or "1500.50") into an
  * integer number of cents. Returns null when the input is not a positive amount,
  * so the caller can show a validation error instead of sending a bad request.
  */
@@ -24,11 +24,11 @@ export function centsToDollars(cents: number): string {
     .replace(/(\.\d)0$/, '$1');
 }
 
-/** Format an integer number of cents as a TWD amount string, e.g. "NT$1,500.00". */
+/** Format an integer number of cents as a USD amount string, e.g. "$1,500.00". */
 export function formatCents(cents: number): string {
   const dollars = (cents / 100).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  return `NT$${dollars}`;
+  return `$${dollars}`;
 }

@@ -74,7 +74,7 @@ describe('ApiClient.getPaymentReceipt (against in-process server)', () => {
     assert.equal(receipt.paymentId, payment.id);
     assert.equal(receipt.requestId, request.id);
     assert.equal(receipt.amountCents, 150000);
-    assert.equal(receipt.currency, 'TWD');
+    assert.equal(receipt.currency, 'USD');
     assert.match(receipt.receiptNumber, /^HF-\d{8}-[0-9A-F]{8}$/);
   });
 });

@@ -11,7 +11,7 @@ function makePayment(overrides: Partial<Payment> = {}): Payment {
     customerId: '123e4567-e89b-12d3-a456-426614174000',
     workerId: '423e4567-e89b-12d3-a456-426614174000',
     amountCents: 150000,
-    currency: 'TWD',
+    currency: 'USD',
     status: 'paid',
     createdAt: '2026-06-22T00:00:00.000Z',
     paidAt: '2026-06-22T01:00:00.000Z',
@@ -26,7 +26,7 @@ describe('PaymentsScreen', () => {
 
     const { findByText } = await render(<PaymentsScreen client={client} />);
 
-    await findByText('NT$1,500.00');
+    await findByText('$1,500.00');
     await findByText('paid');
   });
 
@@ -40,7 +40,7 @@ describe('PaymentsScreen', () => {
 
     const { findByText } = await render(<PaymentsScreen client={client} />);
 
-    await findByText(/Worker net NT\$1,275\.00 · Platform fee NT\$225\.00/);
+    await findByText(/Worker net \$1,275\.00 · Platform fee \$225\.00/);
   });
 
   it('omits the split line for a payment without a platform fee', async () => {
@@ -49,7 +49,7 @@ describe('PaymentsScreen', () => {
 
     const { findByText, queryByText } = await render(<PaymentsScreen client={client} />);
 
-    await findByText('NT$1,500.00');
+    await findByText('$1,500.00');
     expect(queryByText(/Platform fee/)).toBeNull();
   });
 
@@ -71,8 +71,8 @@ describe('PaymentsScreen', () => {
     const { findByText, getByLabelText } = await render(
       <PaymentsScreen client={client} onSelectRequest={onSelectRequest} />,
     );
-    await findByText('NT$1,500.00');
-    await fireEvent.press(getByLabelText('Payment NT$1,500.00, paid'));
+    await findByText('$1,500.00');
+    await fireEvent.press(getByLabelText('Payment $1,500.00, paid'));
 
     await waitFor(() => {
       expect(onSelectRequest).toHaveBeenCalledWith(payment.requestId);

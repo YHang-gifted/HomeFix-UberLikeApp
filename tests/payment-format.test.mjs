@@ -27,10 +27,10 @@ describe('dollarsToCents', () => {
 });
 
 describe('formatCents', () => {
-  it('formats cents as a TWD amount with thousands separators', () => {
-    assert.equal(formatCents(150000), 'NT$1,500.00');
-    assert.equal(formatCents(1230), 'NT$12.30');
-    assert.equal(formatCents(0), 'NT$0.00');
+  it('formats cents as a USD amount with thousands separators', () => {
+    assert.equal(formatCents(150000), '$1,500.00');
+    assert.equal(formatCents(1230), '$12.30');
+    assert.equal(formatCents(0), '$0.00');
   });
 });
 

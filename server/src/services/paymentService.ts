@@ -7,7 +7,7 @@ import type {
   Receipt,
   ServiceRequest,
 } from '../../../shared/schemas.ts';
-import { splitPaymentAmount } from '../../../shared/schemas.ts';
+import { PLATFORM_CURRENCY, splitPaymentAmount } from '../../../shared/schemas.ts';
 import { loadEnv } from '../config/env.ts';
 import { AppError } from '../errors/appError.ts';
 import { paymentRepository } from '../repositories/paymentRepository.ts';
@@ -194,7 +194,7 @@ export async function buildPaymentReceipt(
     paymentId: payment.id,
     requestId,
     issuedAt: payment.paidAt,
-    currency: 'TWD',
+    currency: PLATFORM_CURRENCY,
     amountCents: payment.amountCents,
     platformFeeCents,
     workerNetCents,
@@ -265,7 +265,7 @@ export async function createPayment(
     paymentId: id,
     requestId,
     amountCents: input.amountCents,
-    currency: 'TWD',
+    currency: PLATFORM_CURRENCY,
   });
   const payment: Payment = {
     id,
@@ -273,7 +273,7 @@ export async function createPayment(
     customerId: request.customerId,
     workerId: request.workerId,
     amountCents: input.amountCents,
-    currency: 'TWD',
+    currency: PLATFORM_CURRENCY,
     status: 'pending',
     createdAt: new Date().toISOString(),
     platformFeeCents,

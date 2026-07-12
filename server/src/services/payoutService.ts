@@ -7,6 +7,7 @@ import type {
   PayoutWebhookEvent,
   Principal,
 } from '../../../shared/schemas.ts';
+import { PLATFORM_CURRENCY } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { payoutRepository } from '../repositories/payoutRepository.ts';
 import { userRepository } from '../repositories/userRepository.ts';
@@ -89,7 +90,7 @@ export async function createPayoutForPayment(payment: Payment): Promise<Payout> 
     paymentId: payment.id,
     workerId: payment.workerId,
     amountCents: workerNetOf(payment),
-    currency: 'TWD',
+    currency: PLATFORM_CURRENCY,
     status: 'pending',
     createdAt: new Date().toISOString(),
   };

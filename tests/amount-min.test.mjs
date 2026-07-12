@@ -8,7 +8,7 @@ import {
 } from '../shared/schemas.ts';
 
 describe('minimum chargeable amount', () => {
-  it('exposes a NT$1.00 floor', () => {
+  it('exposes a $1.00 floor', () => {
     assert.equal(MIN_AMOUNT_CENTS, 100);
   });
 

@@ -93,7 +93,7 @@ describe('request quotes', () => {
     assert.equal(res.status, 201);
     const quote = await res.json();
     assert.equal(quote.amountCents, 250000);
-    assert.equal(quote.currency, 'TWD');
+    assert.equal(quote.currency, 'USD');
     assert.equal(quote.note, 'Includes parts and labor');
     assert.equal(quote.status, 'pending');
     assert.equal(quote.workerId, WORKER_ID);

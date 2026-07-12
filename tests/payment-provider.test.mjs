@@ -29,7 +29,7 @@ describe('mockPaymentProvider', () => {
       paymentId: '623e4567-e89b-12d3-a456-426614174000',
       requestId: '523e4567-e89b-12d3-a456-426614174000',
       amountCents: 150000,
-      currency: 'TWD',
+      currency: 'USD',
     });
     assert.match(result.providerRef, /^mock_/);
     assert.equal(result.clientSecret, undefined);
@@ -40,13 +40,13 @@ describe('mockPaymentProvider', () => {
       paymentId: '1',
       requestId: 'r',
       amountCents: 100,
-      currency: 'TWD',
+      currency: 'USD',
     });
     const b = await mockPaymentProvider.createCharge({
       paymentId: '2',
       requestId: 'r',
       amountCents: 100,
-      currency: 'TWD',
+      currency: 'USD',
     });
     assert.notEqual(a.providerRef, b.providerRef);
   });
@@ -82,7 +82,7 @@ describe('createStripePaymentProvider', () => {
     paymentId: '623e4567-e89b-12d3-a456-426614174000',
     requestId: '523e4567-e89b-12d3-a456-426614174000',
     amountCents: 150000,
-    currency: 'TWD',
+    currency: 'USD',
   };
 
   it('opens a Checkout Session and maps its URL + PaymentIntent id (no network)', async () => {
@@ -104,7 +104,7 @@ describe('createStripePaymentProvider', () => {
     assert.equal(result.clientSecret, undefined);
     // Amount in minor units, lowercase currency, our ids in metadata.
     assert.equal(calls[0].params.amountCents, 150000);
-    assert.equal(calls[0].params.currency, 'twd');
+    assert.equal(calls[0].params.currency, 'usd');
     assert.equal(calls[0].params.metadata.paymentId, input.paymentId);
     assert.equal(calls[0].params.metadata.requestId, input.requestId);
     // Idempotent per payment: a retry can't open a second session.
@@ -150,7 +150,7 @@ describe('createPaypalPaymentProvider', () => {
     paymentId: '623e4567-e89b-12d3-a456-426614174000',
     requestId: '523e4567-e89b-12d3-a456-426614174000',
     amountCents: 150000,
-    currency: 'TWD',
+    currency: 'USD',
   };
 
   it('opens an order and returns its approval URL + id (no network)', async () => {

@@ -34,7 +34,7 @@ function makePayment(overrides = {}) {
     customerId: CUSTOMER_ID,
     workerId: WORKER_ID,
     amountCents: 150000,
-    currency: 'TWD',
+    currency: 'USD',
     status: 'pending',
     createdAt: '2026-06-22T00:00:00.000Z',
     ...overrides,
@@ -48,7 +48,7 @@ function makeQuote(overrides = {}) {
     customerId: CUSTOMER_ID,
     workerId: WORKER_ID,
     amountCents: 250000,
-    currency: 'TWD',
+    currency: 'USD',
     status: 'pending',
     createdAt: '2026-06-22T00:00:00.000Z',
     ...overrides,
@@ -79,7 +79,7 @@ describe('RequestDetailScreen payments', () => {
     await waitFor(() => {
       expect(createPayment).toHaveBeenCalledWith(request.id, 150000);
     });
-    await findByText('NT$1,500.00');
+    await findByText('$1,500.00');
 
     await fireEvent.press(await findByLabelText('Pay now'));
     await waitFor(() => {
@@ -108,7 +108,7 @@ describe('RequestDetailScreen payments', () => {
 
     await fireEvent.changeText(await findByLabelText('Payment amount'), '1500');
     await fireEvent.press(await findByLabelText('Set up payment'));
-    await findByText('NT$1,500.00');
+    await findByText('$1,500.00');
 
     await fireEvent.press(await findByLabelText('Pay now'));
     await waitFor(() => {
@@ -138,7 +138,7 @@ describe('RequestDetailScreen payments', () => {
 
     await fireEvent.changeText(await findByLabelText('Payment amount'), '1500');
     await fireEvent.press(await findByLabelText('Set up payment'));
-    await findByText('NT$1,500.00');
+    await findByText('$1,500.00');
 
     await fireEvent.press(await findByLabelText('Pay now'));
     await findByText('Could not open the payment page.');
@@ -152,7 +152,7 @@ describe('RequestDetailScreen payments', () => {
       paymentId: paidPayment.id,
       requestId: request.id,
       issuedAt: '2026-06-22T01:00:00.000Z',
-      currency: 'TWD',
+      currency: 'USD',
       amountCents: 150000,
       platformFeeCents: 22500,
       workerNetCents: 127500,
@@ -278,7 +278,7 @@ describe('RequestDetailScreen payments', () => {
       <RequestDetailScreen requestId={request.id} client={client} />,
     );
 
-    await findByText('NT$1,500.00');
+    await findByText('$1,500.00');
     await findByText('Paid');
     expect(queryByLabelText('Pay now')).toBeNull();
     expect(queryByLabelText('Set up payment')).toBeNull();
@@ -858,7 +858,7 @@ describe('RequestDetailScreen quotes', () => {
         note: 'Parts and labor',
       });
     });
-    await findByText('NT$2,500.00');
+    await findByText('$2,500.00');
     await findByText('Pending');
   });
 
