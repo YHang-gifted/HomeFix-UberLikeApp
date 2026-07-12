@@ -980,10 +980,26 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   releasing/resetting a job now also drops the schedule** — the appointment was an agreement
   with _that_ worker, so the next one must not inherit a confirmed time they never agreed to
   (same reasoning as SEC-0005's stale-quote clearing). `tests/schedule.test.mjs`. Backend +
-  shared + `AuditLogScreen` — _handed off_. **Next: the app UI (175).**
+  shared + `AuditLogScreen` — merged.
+- **175** visit scheduling — **app UI**. `apiClient.proposeSchedule(id, iso)` /
+  `confirmSchedule(id)`. The negotiation is rendered from a **pure** `deriveScheduleView`
+  (`app/src/features/schedule/scheduleView.ts`, the same approach as `deriveQuoteView`), so the
+  screen stays dumb: it returns the summary line written for whoever is looking ("You proposed
+  … waiting for the worker" vs "The customer proposed … confirm it, or suggest another"), plus
+  `canConfirm` / `canPropose` / `proposeLabel`. It **mirrors the server's guards** (party-only,
+  worker assigned, job open) so the UI never offers an action that would 422, and an admin sees
+  the time **read-only** — they are not a party to the appointment. RequestDetailScreen gains a
+  **Visit time** section: a Confirm button only when the OTHER side has a proposal outstanding,
+  and a time field + Propose / **Propose a new time** (reschedule). `parseLocalDateTime`
+  (`scheduleFormat.ts`) converts the typed `YYYY-MM-DD HH:MM` to an ISO instant **by
+  constructing the Date from parts** — parsing a bare `"2026-08-01 14:30"` is unspecified and
+  Hermes ≠ V8 — and rejects malformed/impossible dates locally, so an obvious mistake never
+  round-trips. Tests: `tests/schedule-view.test.mjs` (pure) and a new
+  `RequestDetailScreen.schedule.test.tsx` (kept separate — the main screen test is already
+  ~1000 lines). app + app-expo — _handed off_. **Visit scheduling is now usable end-to-end.**
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **174** (visit scheduling backend), which were handed off.
+(Stripe go-live runbook), and **175** (visit scheduling UI), which were handed off.
 The service is deployed and ACTIVE on Railway in mock mode (no Stripe key)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /

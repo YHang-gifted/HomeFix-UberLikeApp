@@ -499,6 +499,26 @@ export class ApiClient {
   }
 
   /**
+   * Put a visit time on the table (or ask to reschedule an agreed one). Either party may
+   * call this; the request comes back `proposed`, awaiting the OTHER party's confirmation.
+   */
+  public async proposeSchedule(id: string, scheduledAt: string): Promise<ServiceRequest> {
+    const data = await this.send('POST', `/service-requests/${id}/schedule`, { scheduledAt }, true);
+    return serviceRequestSchema.parse(data);
+  }
+
+  /** Confirm the time the OTHER party proposed. Confirming your own is refused (409). */
+  public async confirmSchedule(id: string): Promise<ServiceRequest> {
+    const data = await this.send(
+      'POST',
+      `/service-requests/${id}/schedule/confirm`,
+      undefined,
+      true,
+    );
+    return serviceRequestSchema.parse(data);
+  }
+
+  /**
    * Admin-only: cancel a request, refunding a paid payment and reversing the
    * worker's pending payout first. The counterpart to the paid-cancel guard.
    */
