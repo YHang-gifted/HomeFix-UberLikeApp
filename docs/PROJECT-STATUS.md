@@ -1018,9 +1018,20 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   and §3/§5 now call out the one thing CI can never prove: **that the deployed web app
   actually renders in a browser** (a zod 3-vs-4 mismatch once blanked it for several
   slices). Docs only — _handed off_.
+- **177** payments runbooks: **the Stripe dashboard steps were stale**. Found the moment the
+  runbook was used for real: `stripe-go-live.md` said _"stay in **Test mode** (toggle, top
+  right)"_ and _"**Developers → Webhooks → Add endpoint**"_. Stripe has since replaced the
+  Test-mode toggle with **Sandboxes** and moved webhooks into **Workbench → Webhooks →
+  Create new destination** — the old path no longer exists, so the runbook sent the operator
+  looking for a menu that isn't there. Rewrote §1/§2 and the go-live step against the current
+  UI (verified against Stripe's docs), and applied the same correction to
+  `connect-go-live.md`. Also added the **pre-flight check** to `stripe-go-live.md` — a
+  `curl -X POST /webhooks/stripe` that must return **400** (armed) and not **404** (config
+  never reached the server), so a misconfiguration is caught _before_ a payment is attempted
+  rather than debugged mid-flow. Docs only — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **176** (status-doc correction), which were handed off.
+(Stripe go-live runbook), and **177** (runbook dashboard steps), which were handed off.
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin), in mock
 mode (no Stripe key)._
 

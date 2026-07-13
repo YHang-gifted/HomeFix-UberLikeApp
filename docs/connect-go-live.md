@@ -63,15 +63,16 @@ App build (Expo, **build-time**):
 
 ### 1. Enable Connect and create the webhook (test mode)
 
-1. Stay in **Test mode**. Dashboard → **Connect** → enable it (platform profile, business
-   details).
-2. Create a webhook endpoint whose scope is **Connected accounts** (Workbench → Webhooks →
-   Add endpoint → _Events from:_ **Connected accounts**; on older dashboards this is
-   Developers → Webhooks → "Listen to events on Connected accounts"). This is a **separate
-   endpoint** from your payments webhook and gets its **own signing secret**.
+1. Work inside the same **Sandbox** you used for payments (Stripe replaced the old
+   _Test mode_ toggle with Sandboxes). Dashboard → **Connect** → enable it (platform
+   profile, business details).
+2. **Workbench** → **Webhooks** tab → **Create new destination**, with
+   **Events from: Connected accounts**. This is a **separate destination** from your
+   payments webhook and gets its **own signing secret** — using the payments one here
+   gives a 401 on every delivery.
    - Endpoint URL: `https://<your-host>/webhooks/connect`
-   - Events to send: **`account.updated`** (only that one is needed)
-3. Copy the endpoint's **Signing secret** (`whsec_…`) → `STRIPE_CONNECT_WEBHOOK_SECRET`.
+   - Event types: **`account.updated`** (only that one is needed)
+3. Copy the destination's **Signing secret** (`whsec_…`) → `STRIPE_CONNECT_WEBHOOK_SECRET`.
 
 ### 2. Set the variables and redeploy
 

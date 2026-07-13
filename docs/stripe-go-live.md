@@ -42,17 +42,28 @@ back in the app after paying (e.g.
 
 ## Procedure
 
-### 1. Stripe account + test-mode keys
+> **Dashboard note (verified 2026-07-12).** Stripe has replaced the old _Test mode_
+> toggle with **Sandboxes**, and moved webhooks out of _Developers → Webhooks_ into
+> **Workbench**. The steps below use the current UI. If you are following an older guide
+> that says "Developers → Webhooks → Add endpoint", that path no longer exists.
 
-1. Create/log in to the Stripe dashboard and stay in **Test mode** (toggle, top right).
-2. Copy the **test** secret key (`sk_test_…`) from Developers → API keys.
+### 1. Sandbox + test keys
 
-### 2. Create the webhook endpoint (test mode)
+1. In the Stripe Dashboard, open (or create) a **Sandbox** — this replaces the old
+   Test-mode toggle. Everything below happens inside it; its keys are `sk_test_…`.
+2. Copy the sandbox's **Secret key** (`sk_test_…`) from **Developers → API keys**.
 
-1. Developers → **Webhooks** → **Add endpoint**.
-2. Endpoint URL: `https://<your-host>/webhooks/stripe`.
-3. Events to send: **`checkout.session.completed`** (only that one is needed).
-4. Save, then copy the endpoint's **Signing secret** (`whsec_…`).
+### 2. Create the webhook destination (in the sandbox)
+
+1. Open **Workbench** → the **Webhooks** tab → **Create new destination**.
+2. **Events from:** choose **Your account**. (**Not** _Connected accounts_ — that is a
+   separate destination with its own secret, used only for Connect payouts; see
+   `docs/connect-go-live.md`.)
+3. **Event types:** select **`checkout.session.completed`** only. Nothing else is needed,
+   and extra events are just noise.
+4. **Destination type:** **Webhook** (an HTTPS endpoint).
+5. **Endpoint URL:** `https://<your-host>/webhooks/stripe`
+6. **Create destination**, then reveal and copy its **Signing secret** (`whsec_…`).
 
 ### 3. Set the variables (test mode) and redeploy
 
@@ -68,6 +79,16 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 
 On boot, confirm the server started (missing return URLs fail fast) and that
 `GET /ready` is 200.
+
+**Then check the webhook endpoint is actually live — before you touch any money:**
+
+```bash
+curl -i -X POST https://<your-host>/webhooks/stripe
+```
+
+- **400** (`Missing Stripe signature`) → the config landed and the endpoint is armed. ✅
+- **404** → `STRIPE_SECRET_KEY` and/or `STRIPE_WEBHOOK_SECRET` did not reach the server.
+  Stop here and fix that; do not go hunting for the problem mid-payment.
 
 ### 4. Test-mode dry run (do this before live)
 
@@ -88,9 +109,10 @@ On boot, confirm the server started (missing return URLs fail fast) and that
 
 ### 5. Go live
 
-1. Only after the test-mode dry run passes end-to-end: switch the dashboard to **Live
-   mode**, create a **live** webhook endpoint the same way (new `whsec_…`), and copy the
-   **live** secret key (`sk_live_…`).
+1. Only after the sandbox dry run passes end-to-end: leave the sandbox for your **live**
+   account, create the webhook destination again the same way (Workbench → Webhooks →
+   Create new destination — it gets a **new** `whsec_…`), and copy the **live** secret
+   key (`sk_live_…`).
 2. Update `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` to the live values; keep the
    same return URLs. Redeploy.
 3. Do one **small real** transaction end-to-end and confirm settlement + payout, then
