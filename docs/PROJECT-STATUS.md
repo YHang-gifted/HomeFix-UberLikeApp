@@ -203,6 +203,10 @@ a full rebuild, not a restart.
 
 ## 3. What a testable v1 still needs
 
+> **`docs/go-live-checklist.md` is the operational list** — everything that must become true
+> before a real user touches the app, with the blockers first. This section is the summary;
+> that file is the one to work from.
+
 These are the gaps between "deployed, feature-rich internal build" and "a build
 real test users could exercise":
 
@@ -223,19 +227,25 @@ real test users could exercise":
 1. **End-to-end + device QA.** Unit/integration coverage is strong (and a QA
    checklist exists at `docs/qa-checklist.md`); there is no full E2E run on a real
    device/build, nor accessibility/performance passes.
-2. **Production observability & backups — narrower than it used to read.** A **backup
-   policy already exists** (`docs/backups.md`: restore procedure, verification drill,
-   retention) along with `scripts/backup-db.mjs` (`npm run backup:db`) — the earlier "no
-   backup policy" gap was **stale**. What is genuinely missing is **automation**: nothing
-   schedules that script, nothing ships a dump off-site, and Railway's managed backups are
-   an _instruction to an operator_, not something verified in-repo. Log shipping is
-   documented (`docs/deployment.md`) but not switched on. Structured 5xx logging and a
-   Prometheus `/metrics` endpoint exist — **note `/metrics` is world-readable unless
-   `METRICS_TOKEN` is set**, which `env.ts` does not require in production.
-3. **PayPal sandbox dry run.** Stripe is now proven live; PayPal is not. The same class of
+2. **Backups: the production database has no recovery story.** The runbook and the script
+   are good (`docs/backups.md`, `scripts/backup-db.mjs`) — the earlier "no backup policy"
+   gap was stale — but **nothing is switched on**, because the current Railway plan does
+   not offer snapshots or PITR. Blocked, tracked in `docs/go-live-checklist.md`, and to be
+   done **before any real user data lands in the database**. PITR first: its window is not
+   retroactive, so enabling it the day it is needed is enabling it too late.
+3. **Password reset silently does nothing.** `EMAIL_API_URL` is unset, so the email channel
+   falls back to the inert sender and `POST /auth/forgot-password` sends no mail — and since
+   SEC-0009 it no longer logs the token either (rightly). A real user who forgets their
+   password has no way back into their account. Arguably the most user-facing gap in the
+   product, and it is pure configuration.
+4. **Observability.** The logs are now safe to ship (SEC-0009) and log shipping is
+   documented (`docs/deployment.md`), but no drain is configured and there is no alerting.
+   `/metrics` is **world-readable unless `METRICS_TOKEN` is set**, which `env.ts` does not
+   require in production — it should, using the same `superRefine` pattern as SEC-0004/0009.
+5. **PayPal sandbox dry run.** Stripe is now proven live; PayPal is not. The same class of
    defect the Stripe run exposed (things that only fail against a real provider) is still
    unexercised there. Follow `docs/paypal-go-live.md`.
-4. **Payments go-live (operator step, not code).** The code is complete and
+6. **Payments go-live (operator step, not code).** The code is complete and
    config-gated; going live means supplying keys and pointing the providers'
    dashboard webhooks at us, following the runbooks — all three exist:
    `docs/stripe-go-live.md`, `docs/paypal-go-live.md`, and `docs/connect-go-live.md`
@@ -1117,10 +1127,26 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   rewrote "Verifying a backup" into an actual **restore drill** (the step that is always
   skipped and the only one that proves anything) — safe to run against production precisely
   because a PITR restore leaves the source serving traffic — and made it record the
-  **measured** RTO instead of an aspirational one. Docs only — _handed off_.
+  **measured** RTO instead of an aspirational one. Docs only — merged.
+
+- **181** `docs/go-live-checklist.md` — **none of slice 180 is actually enabled, and the
+  deferrals had nowhere to live.** The current Railway plan offers neither snapshots nor
+  PITR, so **the production database has no recovery story today.** That is a fine trade for
+  an internal alpha holding test data and a bad one the moment a real customer's job,
+  payment, or payout is in it — but "we'll do it at launch" written in a chat log is not a
+  plan. So: one file listing everything that must become true before a real user touches the
+  app, blockers first, each with the reason it is deferred. `docs/backups.md` now opens with
+  the warning, and §3 above points here.
+
+  Writing it surfaced a gap **more urgent than backups**: `EMAIL_API_URL` is unset, so the
+  email channel falls back to the inert sender and **`POST /auth/forgot-password` sends
+  nothing** — and since SEC-0009 it (correctly) no longer logs the token either. A real user
+  who forgets their password has **no way back into their account at all**. No test catches
+  it, because every test injects a sender; it is pure configuration, and it is now the top
+  blocker. Docs only — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **180** (backups runbook), which were handed off.
+(Stripe go-live runbook), and **181** (go-live checklist), which were handed off.
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
 (payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
 entry above; the default remains mock mode (no key set)._
