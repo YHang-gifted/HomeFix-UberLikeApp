@@ -23,11 +23,19 @@ does not log the token either (correctly — it was an account-takeover hole). S
 user who forgets their password has no way back into their account, and there is no
 workaround.
 
-- [ ] Configure a real mail provider (`EMAIL_API_URL`, `EMAIL_API_KEY`, `EMAIL_FROM`).
-- [ ] Add `email` to `NOTIFY_CHANNELS`.
-- [ ] Actually complete a forgot-password → reset → log-in loop against the deploy.
+**No code change is needed** — the sender already matches Resend's API. Follow
+`docs/email-go-live.md`.
 
-This is the single most user-facing gap in the product.
+- [ ] Set `EMAIL_API_URL`, `EMAIL_API_KEY`, `EMAIL_FROM` (all three, or the channel stays
+      silently inert).
+- [ ] Verify a sending domain. Until then you can only send from `onboarding@resend.dev`, to
+      your own address.
+- [ ] **Complete a real forgot-password → reset → log-in loop against the deploy.** Tick this
+      only when you have logged in with the new password — not when the variables are set.
+- [ ] _(Optional, separate decision)_ add `email` to `NOTIFY_CHANNELS` to also mail ordinary
+      notifications. Password reset does **not** need it.
+
+This is the single most user-facing gap in the product, and it is pure configuration.
 
 ### Database backups and recovery — BLOCKED (Railway plan)
 

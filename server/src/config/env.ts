@@ -12,6 +12,18 @@ import { DEFAULT_PLATFORM_FEE_BPS } from '../../../shared/schemas.ts';
  */
 export const DEV_JWT_SECRET = 'dev-insecure-secret-change-me-please';
 
+/**
+ * A sender address, in either of the two forms mail providers accept: a bare address, or the
+ * RFC 5322 display-name form `Name <address>`. Both are valid `From:` values, and the second
+ * is the one provider docs put in their copy-paste example — so rejecting it would fail the
+ * boot on a value the operator had every reason to believe was right.
+ */
+export function isSenderAddress(value: string): boolean {
+  const match = /^[^<>]*<([^<>]+)>$/.exec(value.trim());
+  const address = match?.[1] ?? value.trim();
+  return z.email().safeParse(address).success;
+}
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -83,13 +95,24 @@ const envSchema = z
       .transform((value) => (value === undefined ? undefined : value === 'true')),
     // Email delivery provider. All three must be set for email to actually send;
     // otherwise the email channel falls back to the inert logging sender. Empty
-    // values are treated as unset.
+    // values are treated as unset. Setting these is what makes the password-reset mail
+    // actually go out — see `docs/email-go-live.md`.
     EMAIL_API_URL: z.preprocess((value) => (value === '' ? undefined : value), z.url().optional()),
     EMAIL_API_KEY: z.preprocess(
       (value) => (value === '' ? undefined : value),
       z.string().min(1).optional(),
     ),
-    EMAIL_FROM: z.preprocess((value) => (value === '' ? undefined : value), z.email().optional()),
+    // The sender address. Accepts a bare address (`noreply@homefix.app`) OR the display-name
+    // form (`HomeFix <noreply@homefix.app>`) — the latter because it is what every provider's
+    // documentation hands you to copy, and a bare `z.email()` would reject it and take the
+    // boot down over a value the operator had every reason to think was correct.
+    EMAIL_FROM: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z
+        .string()
+        .refine(isSenderAddress, 'must be an email address, optionally as "Name <a@b>"')
+        .optional(),
+    ),
     // Push delivery endpoint (e.g. the Expo push API). Set it to actually send
     // push (with NOTIFY_CHANNELS including "push"); unset and the push channel
     // logs only. Empty is treated as unset.

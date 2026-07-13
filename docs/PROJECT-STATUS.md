@@ -233,11 +233,13 @@ real test users could exercise":
    not offer snapshots or PITR. Blocked, tracked in `docs/go-live-checklist.md`, and to be
    done **before any real user data lands in the database**. PITR first: its window is not
    retroactive, so enabling it the day it is needed is enabling it too late.
-3. **Password reset silently does nothing.** `EMAIL_API_URL` is unset, so the email channel
-   falls back to the inert sender and `POST /auth/forgot-password` sends no mail — and since
-   SEC-0009 it no longer logs the token either (rightly). A real user who forgets their
-   password has no way back into their account. Arguably the most user-facing gap in the
-   product, and it is pure configuration.
+3. **Password reset sends no mail — but it is now purely an operator step.** `EMAIL_*` is
+   unset, so the email channel falls back to the inert sender and a real user who forgets
+   their password has no way back into their account. Slice 182 made this **configuration
+   only**: the sender already matches Resend's API, a failure is now logged with the
+   provider's reason instead of being swallowed, and `EMAIL_FROM` accepts the display-name
+   form. Follow `docs/email-go-live.md`; the loop is not done until you have logged in with
+   the new password.
 4. **Observability.** The logs are now safe to ship (SEC-0009) and log shipping is
    documented (`docs/deployment.md`), but no drain is configured and there is no alerting.
    `/metrics` is **world-readable unless `METRICS_TOKEN` is set**, which `env.ts` does not
@@ -1145,8 +1147,45 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   it, because every test injects a sender; it is pure configuration, and it is now the top
   blocker. Docs only — _handed off_.
 
+- **182** make the **password-reset mail actually send** — the top blocker from 181, and it
+  needed **no adapter**: `createHttpEmailSender` already POSTs
+  `{from,to,subject,text}` with a bearer key, which is **exactly Resend's send API**. So this
+  slice is the three things that would have made "just set the env vars" fail confusingly.
+
+  **(1) The failure was silent.** `requestPasswordReset` swallowed a send failure in a bare
+  `catch {}`. A 403 for an unverified sending domain — the normal day-one failure — produced
+  a cheerful 204 and left **no trace anywhere**: the user waits for a mail that never
+  arrives, cannot get into their account, and nobody finds out. The endpoint must still
+  return 204 (saying otherwise would disclose whether the account exists), so the log is the
+  only possible signal — and there wasn't one. Now logged, with the provider's own reason.
+  Same class as 178: swallowing the error is fine, swallowing the _evidence_ is not.
+
+  **(2) The reason had to be safe to log.** This is the residual SEC-0009 explicitly
+  recorded and deliberately left open: a mail API echoes your request back when it dislikes
+  it, and our request body **is** the plaintext reset token. Enabling a real provider makes
+  that live, so `redactProviderError` now strips our exact recipient and body, then sweeps
+  for anything address- or secret-shaped the provider volunteered. It is applied in
+  `passwordResetService` too, not only in the sender — the sender is injectable, and the
+  function that _owns_ the secret is the one that must guarantee it.
+
+  **(3) `EMAIL_FROM` rejected the value the docs hand you.** It was `z.email()`, so
+  `HomeFix <noreply@…>` — the display-name form in every provider's copy-paste example —
+  **failed the boot**. Both forms are accepted now.
+
+  New `docs/email-go-live.md` (the fourth provider runbook), and `.env.example` corrected:
+  it claimed email needed `NOTIFY_CHANNELS`, which is **false for password reset** —
+  `passwordResetService` resolves its sender straight from `EMAIL_*`. Tests:
+  `tests/email-sender.test.mjs` (redaction + the error body reaching the caller + the
+  display-name sender) and `tests/notification-log-redaction.test.mjs` (a failing provider is
+  logged loudly and leaks nothing). Also **fixed a test that could pass vacuously**: the
+  SEC-0009 end-to-end case registered its user through the test's module graph, which under
+  tsx is not the app's — behind HTTP the account did not exist, and `forgot-password` returns
+  204 for an unknown address, so it would have minted no token and leaked nothing while
+  proving nothing. It now uses a demo-seeded account and asserts a login first. Backend +
+  docs — _handed off_.
+
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **181** (go-live checklist), which were handed off.
+(Stripe go-live runbook), and **182** (password-reset mail), which were handed off.
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
 (payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
 entry above; the default remains mock mode (no key set)._

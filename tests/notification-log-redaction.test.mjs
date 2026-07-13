@@ -10,6 +10,7 @@ import {
   loggingSender,
   notificationLogFields,
 } from '../server/src/services/notificationProvider.ts';
+import { requestPasswordReset } from '../server/src/services/passwordResetService.ts';
 
 // SEC-0009 — regression test. The inert `loggingSender` (the sender EVERY deployment falls back
 // to until EMAIL_API_URL is configured) used to print the recipient and the full message body:
@@ -22,21 +23,26 @@ import {
 //
 // These tests assert the secret never reaches stdout, and that the production guard holds.
 
-/** Run `fn` with stdout captured (and swallowed), returning everything written. */
-async function captureStdout(fn) {
-  const original = process.stdout.write.bind(process.stdout);
+/** Run `fn` with `stream` captured (and swallowed), returning everything written to it. */
+async function captureStream(stream, fn) {
+  const original = stream.write.bind(stream);
   const chunks = [];
-  process.stdout.write = (chunk) => {
+  stream.write = (chunk) => {
     chunks.push(typeof chunk === 'string' ? chunk : String(chunk));
     return true;
   };
   try {
     await fn();
   } finally {
-    process.stdout.write = original;
+    stream.write = original;
   }
   return chunks.join('');
 }
+
+/** `logger.info` goes to stdout. */
+const captureStdout = (fn) => captureStream(process.stdout, fn);
+/** `logger.error` goes to stderr. */
+const captureStderr = (fn) => captureStream(process.stderr, fn);
 
 const RESET_BODY = 'Use this code to reset your password: 0123456789abcdef';
 
@@ -99,6 +105,44 @@ describe('SEC-0009: NOTIFY_LOG_BODY is refused in production', () => {
   });
 });
 
+// slice 182. A failing mail provider must be LOUD (a bare `catch {}` meant a 403 for an
+// unverified sending domain produced a cheerful 204 and no trace anywhere) — but loud without
+// leaking. The sender is injectable, so the guarantee has to hold wherever the error came from.
+describe('a failed password-reset email is logged, without the secret', () => {
+  it('logs the reason but neither the address nor the token', async () => {
+    const email = `sec0009-fail-${randomUUID()}@homefix.test`;
+    await registerUser({
+      email,
+      password: 'orig-pass-123',
+      displayName: 'T',
+      role: 'customer',
+    });
+
+    let sentBody;
+    const written = await captureStderr(() =>
+      requestPasswordReset(email, {
+        sender: (message) => {
+          sentBody = message.body;
+          // A provider that echoes the whole request back in its error — the realistic worst
+          // case, and the one that would have put the token in the log.
+          return Promise.reject(
+            new Error(`422 Unprocessable: {"to":"${message.to}","text":"${message.body}"}`),
+          );
+        },
+      }),
+    );
+
+    // The mail really did carry the token — so the log had something to leak.
+    assert.match(sentBody, /Use this code to reset your password: [0-9a-f]{64}/);
+
+    assert.match(written, /Password-reset email failed to send/);
+    assert.match(written, /422 Unprocessable/); // the operator can act on this
+    assert.doesNotMatch(written, new RegExp(email.replace(/[.@+]/g, '\\$&')));
+    assert.doesNotMatch(written, /[0-9a-f]{64}/);
+    assert.doesNotMatch(written, /Use this code/);
+  });
+});
+
 // The end-to-end proof: the real vulnerability path, with no sender override — exactly what a
 // deployment without EMAIL_API_URL runs today.
 describe('SEC-0009: POST /auth/forgot-password leaks nothing to the log', () => {
@@ -123,25 +167,34 @@ describe('SEC-0009: POST /auth/forgot-password leaks nothing to the log', () => 
     });
   });
 
-  it('writes neither the address nor the reset token to stdout', async () => {
-    const email = `sec0009-${randomUUID()}@homefix.test`;
-    await registerUser({
-      email,
-      password: 'orig-pass-123',
-      displayName: 'T',
-      role: 'customer',
-    });
+  // A DEMO-SEEDED user, deliberately — NOT one created via `registerUser` from this test.
+  // Under tsx the test's module graph and the app's are separate instances, so a user this
+  // file registers directly is invisible to the app's repository behind HTTP. The endpoint
+  // returns 204 for an unknown address too (it must not disclose whether an account exists),
+  // so such a test would pass while doing NOTHING — no token minted, nothing to leak.
+  // A seeded user exists in the app's own graph, and the login below proves it.
+  const EMAIL = 'customer@homefix.test';
 
+  it('the account really exists (so the leak test below is not vacuous)', async () => {
+    const res = await fetch(`${baseUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: EMAIL, password: 'customer-pass' }),
+    });
+    assert.equal(res.status, 200);
+  });
+
+  it('writes neither the address nor the reset token to stdout', async () => {
     const written = await captureStdout(async () => {
       const res = await fetch(`${baseUrl}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: EMAIL }),
       });
       assert.equal(res.status, 204);
     });
 
-    assert.doesNotMatch(written, new RegExp(email.replace(/[.@+]/g, '\\$&')));
+    assert.doesNotMatch(written, /customer@homefix\.test/);
     assert.doesNotMatch(written, /Use this code to reset your password/);
     // The token is 32 random bytes as hex. Any 64-hex run in the log is a leaked token.
     assert.doesNotMatch(written, /[0-9a-f]{64}/);
