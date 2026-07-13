@@ -122,9 +122,9 @@ them by hand:
 
 ## 5. Known product gaps (not blockers — decide, don't drift)
 
-- **Payouts screen** still offers "Set up payouts" after the worker is already onboarded and
-  payouts-enabled; it never reads the account's status back. First thing a real worker would
-  find confusing.
+- ~~**Payouts screen** still offers "Set up payouts" after the worker is already onboarded.~~
+  **Fixed in slice 184** — it now reads the account status and distinguishes three states,
+  including the half-finished one that explains why earnings are being held.
 - **No customer-facing dispute flow.** Refund and clawback exist as admin capabilities only.
 - **Ratings do not feed matching.** Reviews are collected and shown, but do not influence
   ranking.

@@ -5,7 +5,8 @@ import type { ApiClient } from '../../../app/src/services/apiClient';
 import { isApiError } from '../../../app/src/services/apiClient';
 import type { OpenCheckout } from '../../../app/src/features/payments/checkout';
 import { formatCents } from '../../../app/src/features/payments/paymentFormat';
-import type { EarningsSummary, Payout } from '../../../shared/schemas';
+import { derivePayoutSetupView } from '../../../app/src/features/payouts/payoutSetupView';
+import type { EarningsSummary, PayoutAccountStatus, Payout } from '../../../shared/schemas';
 import { apiClient } from '../api';
 
 export interface PayoutsScreenProps {
@@ -32,14 +33,20 @@ export function PayoutsScreen({
 
   const [payouts, setPayouts] = useState<Payout[] | null>(null);
   const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
+  const [status, setStatus] = useState<PayoutAccountStatus | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [onboarding, setOnboarding] = useState(false);
   const [onboardError, setOnboardError] = useState<string | null>(null);
+
+  const setup = derivePayoutSetupView(payoutsEnabled, status);
 
   async function setUpPayouts(): Promise<void> {
     setOnboardError(null);
     setOnboarding(true);
     try {
+      // The same endpoint serves all three states: it reuses the worker's existing connected
+      // account when there is one and just mints a fresh hosted link, so "Finish payout setup"
+      // and "Update payout details" need no separate call.
       const { url } = await activeClient.startConnectOnboarding();
       if (openCheckout !== undefined) {
         await openCheckout(url);
@@ -54,24 +61,35 @@ export function PayoutsScreen({
   }
 
   function setupButton(): ReactElement | null {
-    if (!payoutsEnabled) {
+    if (!setup.visible || setup.actionLabel === null) {
       return null;
     }
+    const quiet = setup.tone === 'done';
     return (
       <View style={styles.setup}>
+        <Text style={[styles.setupTitle, setup.tone === 'waiting' && styles.setupTitleWaiting]}>
+          {setup.title}
+        </Text>
+        <Text style={styles.setupDetail}>{setup.detail}</Text>
         <Pressable
-          style={({ pressed }) => [styles.setupButton, pressed && styles.setupButtonPressed]}
+          style={({ pressed }) => [
+            styles.setupButton,
+            quiet && styles.setupButtonQuiet,
+            pressed && styles.setupButtonPressed,
+          ]}
           onPress={() => {
             void setUpPayouts();
           }}
           disabled={onboarding}
           accessibilityRole="button"
-          accessibilityLabel="Set up payouts"
+          accessibilityLabel={setup.actionLabel}
         >
           {onboarding ? (
             <ActivityIndicator color="#2563eb" />
           ) : (
-            <Text style={styles.setupButtonText}>Set up payouts</Text>
+            <Text style={[styles.setupButtonText, quiet && styles.setupButtonTextQuiet]}>
+              {setup.actionLabel}
+            </Text>
           )}
         </Pressable>
         {onboardError !== null && <Text style={styles.error}>{onboardError}</Text>}
@@ -103,6 +121,17 @@ export function PayoutsScreen({
         }
       } catch {
         // Leave the summary hidden.
+      }
+      // So is the payout status: if we cannot read it, the setup section stays hidden rather
+      // than guessing. Offering "Set up payouts" to someone who has already done it is exactly
+      // the bug being fixed here, so a failure must not fall back to that.
+      try {
+        const me = await activeClient.getMe();
+        if (active) {
+          setStatus(me.payoutAccountStatus);
+        }
+      } catch {
+        // Leave the setup section hidden.
       }
     }
 
@@ -192,6 +221,11 @@ const styles = StyleSheet.create({
   hint: { fontSize: 13, color: '#64748b', padding: 16, paddingBottom: 8 },
   emptyRoot: { flex: 1, backgroundColor: '#ffffff' },
   setup: { padding: 16, paddingBottom: 8 },
+  setupTitle: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 4 },
+  // The half-finished state is the one worth catching the eye: it explains why the money is
+  // sitting still.
+  setupTitleWaiting: { color: '#b45309' },
+  setupDetail: { fontSize: 13, color: '#64748b', marginBottom: 12, lineHeight: 18 },
   setupButton: {
     borderWidth: 1,
     borderColor: '#2563eb',
@@ -203,6 +237,9 @@ const styles = StyleSheet.create({
   },
   setupButtonPressed: { backgroundColor: '#eff6ff' },
   setupButtonText: { color: '#2563eb', fontSize: 15, fontWeight: '600' },
+  // Once payouts work, "Update payout details" is housekeeping — not something to shout about.
+  setupButtonQuiet: { borderColor: '#cbd5e1' },
+  setupButtonTextQuiet: { color: '#475569', fontWeight: '600' },
   summary: {
     flexDirection: 'row',
     gap: 12,

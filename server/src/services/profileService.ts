@@ -1,8 +1,33 @@
-import type { Principal, UpdateProfileInput, UserProfile } from '../../../shared/schemas.ts';
+import type {
+  PayoutAccountStatus,
+  Principal,
+  UpdateProfileInput,
+  UserProfile,
+} from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { userRepository } from '../repositories/userRepository.ts';
 import type { UserRecord } from '../repositories/userRepository.ts';
 import { recordAuditEvent } from './auditService.ts';
+
+/**
+ * Where a worker stands with payout onboarding, derived from the two facts we store.
+ *
+ * The distinction that matters is **`pending`**: having a connected account is not the same as
+ * being able to receive money. Stripe only confirms that through the `account.updated` webhook
+ * (`stripePayoutsEnabled`), and returning from the hosted onboarding flow proves nothing —
+ * verification can still be outstanding. Treating "has an account" as "done" is what let the
+ * app keep offering "Set up payouts" to a worker who had already finished, and say nothing at
+ * all to one who was stuck half-way while their payouts quietly piled up as pending.
+ *
+ * Exported so the mapping is locked by a test rather than re-derived in the UI.
+ */
+export function payoutAccountStatus(user: UserRecord): PayoutAccountStatus {
+  if (user.stripeAccountId === undefined) {
+    return 'none';
+  }
+  const enabled = user.stripePayoutsEnabled ?? false;
+  return enabled ? 'enabled' : 'pending';
+}
 
 function toProfile(user: UserRecord): UserProfile {
   return {
@@ -14,6 +39,8 @@ function toProfile(user: UserRecord): UserProfile {
     ...(user.bio !== undefined ? { bio: user.bio } : {}),
     ...(user.skills !== undefined ? { skills: user.skills } : {}),
     ...(user.availability !== undefined ? { availability: user.availability } : {}),
+    // Workers only — nobody else can be paid out, so the field is meaningless for them.
+    ...(user.role === 'worker' ? { payoutAccountStatus: payoutAccountStatus(user) } : {}),
   };
 }
 
