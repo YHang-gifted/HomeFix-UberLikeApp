@@ -74,3 +74,51 @@ jobs:
       - name: Test app-expo
         working-directory: app-expo
         run: npm run test:ci
+
+  web-e2e:
+    # The one thing nothing else checks: that the exported bundle actually RUNS in a browser.
+    # CI has only ever proved it was produced — a zod 3-vs-4 mismatch once made it throw on
+    # boot and render a blank page for several slices, entirely green.
+    name: Web E2E (browser)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install app-expo dependencies
+        working-directory: app-expo
+        run: npm ci
+
+      # Chromium only: this suite is about "does it boot and work", not cross-browser rendering.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # The real export, built the same way the Docker image builds it. The API base URL must
+      # match the port the test server listens on (see playwright.config.ts) — EXPO_PUBLIC_* is
+      # inlined at BUILD time, so it cannot be fixed later by setting an env var at runtime.
+      - name: Build the web bundle
+        working-directory: app-expo
+        env:
+          EXPO_PUBLIC_API_BASE_URL: http://127.0.0.1:3100
+        run: npm run export:web
+
+      - name: Run browser E2E
+        run: npm run test:e2e
+
+      - name: Upload the report when it fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
