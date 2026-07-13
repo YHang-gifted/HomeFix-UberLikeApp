@@ -1,5 +1,18 @@
 # Database Backups & Restore Runbook
 
+> ## ⚠️ NONE OF THIS IS ENABLED YET
+>
+> As of **2026-07-13**, neither scheduled snapshots nor PITR are switched on: the current
+> Railway plan does not offer them. **The production database has no recovery story.**
+>
+> That is a deliberate, acceptable trade for an internal alpha holding test data. It stops
+> being acceptable the moment a real customer's job, payment, or payout is in there — so it
+> is a **blocker on `docs/go-live-checklist.md`**, to be done when the plan is upgraded.
+>
+> When that happens, do **PITR first**. Its window is **not retroactive**: it begins at the
+> first base backup after you enable it, so enabling it the day you need it is enabling it
+> too late.
+
 HomeFix stores all durable state in a single Postgres database. This runbook
 covers the managed backups the deploy target takes automatically, how to take an
 on-demand logical backup, and how to restore. Backups are not exercised in CI —
