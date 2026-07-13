@@ -3,6 +3,7 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 
 import { createApp } from '../server/src/app.ts';
 import { signToken } from '../server/src/auth/jwt.ts';
+import { AppError } from '../server/src/errors/appError.ts';
 import {
   resetConnectOnboarderForTests,
   setConnectOnboarderForTests,
@@ -95,5 +96,48 @@ describe('POST /me/connect/onboard', () => {
   it('is unavailable (400) when payouts are not configured', async () => {
     // No override and no Connect env → onboarding is off.
     assert.equal((await onboard(WORKER_ID, 'worker')).status, 400);
+  });
+
+  // slice 178: found by the go-live dry run. The Stripe SDK's own error used to reach the
+  // error boundary unmapped, so a provider rejection came back as a bare 500 "Internal Server
+  // Error" — blaming us, and telling the worker nothing. It must map like every other
+  // provider adapter: 502 (the upstream refused) with a message about payout setup.
+  describe('when the provider rejects the request', () => {
+    /** A Stripe SDK error, structurally: an Error carrying `type` / `code` / `requestId`. */
+    function stripeError(message) {
+      return Object.assign(new Error(message), {
+        type: 'StripeInvalidRequestError',
+        code: 'account_invalid',
+        requestId: 'req_123',
+      });
+    }
+
+    it('maps the failure to 502, not 500', async () => {
+      setConnectOnboarderForTests(() =>
+        Promise.reject(
+          stripeError("You can only create new accounts if you've signed up for Connect"),
+        ),
+      );
+
+      const res = await onboard(WORKER_ID, 'worker');
+      assert.equal(res.status, 502);
+
+      const { error } = await res.json();
+      assert.match(error, /payout setup/i);
+      // The provider's wording describes OUR configuration; it is not repeated to the worker.
+      assert.doesNotMatch(error, /Connect/);
+      assert.doesNotMatch(error, /Internal Server Error/i);
+    });
+
+    it('passes an AppError from the provider through unchanged', async () => {
+      // A deliberate, already-mapped failure keeps its own status — it is not flattened to 502.
+      setConnectOnboarderForTests(() =>
+        Promise.reject(new AppError('Payouts are closed in your region', 403)),
+      );
+
+      const res = await onboard(WORKER_ID, 'worker');
+      assert.equal(res.status, 403);
+      assert.equal((await res.json()).error, 'Payouts are closed in your region');
+    });
   });
 });

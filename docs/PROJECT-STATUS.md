@@ -1,22 +1,29 @@
 # HomeFix — Project Status & Road to a Testable v1
 
-_Snapshot as of 2026-07-11 (through slice 169). Compiled against the original vision:
+_Snapshot as of 2026-07-13 (through slice 178). Compiled against the original vision:
 an Uber-like home-repair marketplace with three roles (customer, worker, admin), a
 request lifecycle, worker matching, quoting, payments, reviews, and messaging._
 
-> **Update log (2026-07-11).** The **real-money line is now complete and no longer a
-> mock**: real **Stripe** hosted Checkout and real **PayPal** (Orders v2) coexist as
-> selectable methods, both settling only via signature-verified webhooks; real
-> **refunds** work at both providers; and real **payouts** run over **Stripe Connect**
-> (worker onboarding → `account.updated` gate on `payouts_enabled` → transfer on
-> settle → backfill of payouts scheduled before onboarding finished), with a worker
-> "Set up payouts" button in the app. Every provider is **config-gated and
-> mock-by-default** — no real money moves without operator-supplied keys. A money-flow
-> **security review** closed two payment-integrity holes: **SEC-0007** (a direct admin
-> refund left the worker's payout intact → double-pay) and **SEC-0008** (the same gap
-> on the provider refund webhook), so both refund paths now reconcile the payout.
-> Migrations are `0001`–`0036`. Go-live runbooks exist for Stripe and PayPal; the
-> Connect one is still to be written.
+> **Update log (2026-07-13).** The **Stripe money line has been run for real.** A
+> test-mode dry run against a Stripe sandbox took a payment through hosted Checkout, settled
+> it on the signed webhook, onboarded a worker to a **Connect** account, and **transferred
+> the payouts** — including the backfill, which released three payouts that had been waiting
+> on onboarding the instant the account became payouts-enabled. It also found **three defects
+> that every test we have had passed**, because nothing in CI talks to a provider: the
+> missing `transfers` capability (**171**), a hard-coded TWD currency (**172**), and an
+> unmapped provider error surfacing as a bare 500 (**178**). PayPal is built and unit-tested
+> but has **not** yet met a real provider.
+>
+> The line itself: real **Stripe** hosted Checkout and real **PayPal** (Orders v2) coexist as
+> selectable methods, both settling only via signature-verified webhooks; real **refunds**
+> work at both providers; real **payouts** run over **Stripe Connect** (onboarding →
+> `account.updated` gate on `payouts_enabled` → transfer on settle → backfill). Every
+> provider is **config-gated and mock-by-default** — no money moves without
+> operator-supplied keys. A money-flow **security review** closed two payment-integrity
+> holes: **SEC-0007** (a direct admin refund left the worker's payout intact → double-pay)
+> and **SEC-0008** (the same gap on the provider refund webhook), so both refund paths now
+> reconcile the payout. Migrations are `0001`–`0038`. Go-live runbooks exist for all three:
+> Stripe, PayPal, and Connect.
 >
 > **Note on earlier snapshots.** Sections 3–5 previously listed "a real payment-provider
 > adapter" and "an interactive map picker" as open gaps. Both shipped (payments across
@@ -42,11 +49,11 @@ money moves until the operator supplies keys. Requests support **photo upload** 
 an **interactive map picker**, chat threads **update live**, and each user controls
 their **email/push notification preferences**, and the visit time is a **two-party
 agreement** (propose → the other side confirms → either can reschedule). The **API and
-the web app are both live on Railway, same-origin**. We are at **internal alpha,
-deployed**, and the main gaps to a real-user test build are now **QA and operations,
-not engineering**: a full E2E/device pass (starting with actually opening the deployed
-site in a browser), a test-mode payments dry run, and production
-observability/backups.
+the web app are both live on Railway, same-origin**, and the **Stripe half of the money
+line has been proven against a real sandbox**, payouts included. We are at **internal
+alpha, deployed**, and the main gaps to a real-user test build are now **QA and
+operations, not engineering**: a PayPal sandbox dry run, a full E2E/device pass, and
+production observability/backups.
 
 ## 2. What is done
 
@@ -205,21 +212,29 @@ real test users could exercise":
 > need separate hosting, and `CORS_ALLOWED_ORIGINS` can stay unset. (This entry
 > survived the slice-170 refresh by mistake and was corrected in 176.)
 
+> ~~**Verify the deployed web app renders.**~~ **Done** — the deployed site was opened in a
+> browser and drives the full loop (USD amounts render, login works). Kept out of the gap list
+> for that reason; it stays in the QA checklist as a regression check.
+
+> ~~**Stripe test-mode dry run.**~~ **Done, and it passed** — payments _and_ Connect payouts
+> ran end to end against a Stripe sandbox, including the backfill. See the dry-run entry in
+> §6. It found three defects CI could not (171, 172, 178).
+
 1. **End-to-end + device QA.** Unit/integration coverage is strong (and a QA
    checklist exists at `docs/qa-checklist.md`); there is no full E2E run on a real
-   device/build, nor accessibility/performance passes. **Includes actually opening the
-   deployed web app in a browser and checking the console** — CI only proves the bundle
-   is _produced_, never that it _renders_ (a zod 3-vs-4 mismatch once blanked the whole
-   page for several slices before anyone looked).
+   device/build, nor accessibility/performance passes.
 2. **Production observability & backups.** Managed Postgres is provisioned on
    Railway; log shipping/observability and a backup policy are not yet set up.
    Structured 5xx error logging and a Prometheus `/metrics` endpoint exist.
-3. **Payments go-live (operator step, not code).** The code is complete and
+3. **PayPal sandbox dry run.** Stripe is now proven live; PayPal is not. The same class of
+   defect the Stripe run exposed (things that only fail against a real provider) is still
+   unexercised there. Follow `docs/paypal-go-live.md`.
+4. **Payments go-live (operator step, not code).** The code is complete and
    config-gated; going live means supplying keys and pointing the providers'
-   dashboard webhooks at us, following the runbooks — all three now exist:
+   dashboard webhooks at us, following the runbooks — all three exist:
    `docs/stripe-go-live.md`, `docs/paypal-go-live.md`, and `docs/connect-go-live.md`
-   (payouts). **Nothing in CI exercises a real provider**, so the test-mode dry runs in
-   those runbooks are the only proof the integrations actually work.
+   (payouts). **Nothing in CI exercises a real provider**, which is precisely why the dry
+   runs matter: the Stripe one found three defects that had passed every test we have.
 
 ## 4. How far to a testable v1
 
@@ -227,41 +242,40 @@ real test users could exercise":
   matching, quoting, map picker, visit scheduling, real (config-gated) notification
   delivery, ops hardening, and a **live API + web app on Railway** (same-origin) — the
   team can exercise every flow against the hosted build, in a browser, today.
-- **Payments-enabled (reached, in code).** Real Stripe + PayPal checkout, real
-  refunds, and real Stripe Connect payouts are all built, tested, and reconciled
-  (SEC-0007/0008). They are **mock-by-default**; flipping them on is an operator step
-  with the go-live runbooks — no further engineering required.
-- **Closed test (friendly users) — the next milestone.** The build is already
-  reachable. What it needs is **proof it works**: an E2E/device QA pass (starting with
-  opening the deployed site and reading the console) and a **test-mode payments dry
-  run**.
+- **Payments-enabled (reached — and now _proven_, on Stripe).** Real Stripe + PayPal
+  checkout, real refunds, and real Stripe Connect payouts are all built, tested, and
+  reconciled (SEC-0007/0008). The **Stripe** line — charge, hosted checkout, signed webhook,
+  settle, onboard, transfer, backfill — has been **run end to end against a live sandbox**
+  and works. PayPal is built and unit-tested but has not yet met a real provider. Everything
+  stays **mock-by-default**; flipping it on is an operator step with the runbooks.
+- **Closed test (friendly users) — the next milestone.** The build is reachable and the
+  money line is proven on Stripe. What remains is an **E2E/device QA** pass and the
+  **PayPal sandbox** run.
 - **Production-hardened.** API + web deployed with managed Postgres; remaining:
   observability/backups.
 
 **Bottom line:** the hardest, riskiest parts — the domain model, authorization, the
 state machine, concurrency, persistence, **real payments/refunds/payouts and their
 integrity**, the three-role app loop, notification delivery, and a live same-origin
-deployment — are **done, tested, and hardened**. What stands between here and a
-genuinely testable v1 is now **QA and operations, not engineering**: verify the
-deployed app in a browser, run a test-mode payments dry run, then a device/E2E pass.
+deployment — are **done, tested, and hardened**, and the Stripe money line is now proven
+against a real provider rather than only against our own mocks. What stands between here
+and a genuinely testable v1 is **QA and operations, not engineering**.
 
 ## 5. Recommended next slices (in order)
 
-1. **Verify the deployed web app in a browser** (and read the console). CI proves the
-   bundle is _produced_, never that it _renders_ — a zod 3-vs-4 mismatch once blanked
-   the entire page and went unnoticed for several slices. Check the login loop on web,
-   and that native-only calls (push/location/map) are guarded behind `Platform.OS`.
-   Reminder: `EXPO_PUBLIC_*` is inlined at **build** time (a change needs a rebuild, not
-   a restart) and the API base URL must be a full origin with `https://`.
-2. **Payments test-mode dry run** (operator) — run the full loop on `sk_test_…` /
-   PayPal sandbox: pay → settle via webhook → refund → worker onboard → payout. This is
-   the real proof the money line works, and **nothing in CI exercises it**. Follow
-   `docs/stripe-go-live.md`, `docs/paypal-go-live.md`, `docs/connect-go-live.md`.
-3. A full **E2E / device QA** pass against `docs/qa-checklist.md` (no run on a real
+1. **PayPal sandbox dry run** (operator) — the other half of the money line, still
+   unproven against a real provider: create → approve → capture → settle → refund. The
+   Stripe run found three defects that every test we have had passed, so assume PayPal is
+   hiding some too. Follow `docs/paypal-go-live.md`.
+2. A full **E2E / device QA** pass against `docs/qa-checklist.md` (no run on a real
    device/build yet; no accessibility or performance pass).
-4. **Backups & log shipping** for the Railway deployment (managed Postgres backup
+3. **Backups & log shipping** for the Railway deployment (managed Postgres backup
    policy; ship the structured logs somewhere queryable). Structured 5xx error logging
    and a Prometheus `/metrics` endpoint already exist.
+4. **Payouts screen: reflect the onboarded state.** Once a worker's account is
+   payouts-enabled the screen still offers **"Set up payouts"** as if nothing had happened —
+   it never reads back the account's status. Small, but it is the first thing a real worker
+   would find confusing. Needs `payoutsEnabled` on `/me` and a branch in `PayoutsScreen`.
 
 Beyond a testable v1, the obvious product gaps are **scheduling/booking windows** (requests
 are matched immediately; there is a preferred time but no real calendar), a **customer-facing
@@ -1028,12 +1042,42 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   `connect-go-live.md`. Also added the **pre-flight check** to `stripe-go-live.md` — a
   `curl -X POST /webhooks/stripe` that must return **400** (armed) and not **404** (config
   never reached the server), so a misconfiguration is caught _before_ a payment is attempted
-  rather than debugged mid-flow. Docs only — _handed off_.
+  rather than debugged mid-flow. Docs only — merged.
+- **STRIPE TEST-MODE DRY RUN — PASSED.** The first time any of this touched a real provider.
+  The whole line ran end to end against a Stripe sandbox: charge → hosted Checkout → signed
+  `checkout.session.completed` → settle → Connect onboarding → `account.updated` →
+  `payouts_enabled` → transfer → **backfill**. Three payouts ($425 / $153 / $2,550) that had
+  been sitting `pending` were released together, one second apart, the moment the account
+  became payouts-enabled — **slice 167's backfill, proven live.** It found three defects CI
+  can never catch, because CI never talks to a provider: the missing `transfers` capability
+  (**171**), the hard-coded TWD currency (**172**), and the unmapped onboarding error
+  (**178**). Two operational traps are now in `connect-go-live.md`: the Connect webhook
+  endpoint **must** be created with `connect=true` (an endpoint scoped to "Your account" is
+  never sent a _connected_ account's `account.updated` — it looks perfectly healthy and
+  simply never fires), and the platform's **available** balance must cover the pending
+  payouts or every transfer fails and the payouts stay `pending` **silently**, by design.
+- **178** [BUG] Connect onboarding failed with a bare **500 "Internal Server Error"**. Found by
+  the dry run, and it cost hours: Stripe rejected `accounts.create` because Connect was not yet
+  enabled on the platform, and the worker was told only that _we_ had crashed. Cause:
+  `startConnectOnboarding` let the **Stripe SDK's own error** reach the error boundary, which
+  treats an unrecognized error as a crash (500, generic body). Every other provider adapter
+  already maps its failures — the PayPal ones all raise 502 — this path was the one that did
+  not. `connectService.createOnboarding` now wraps the provider call: **502** (the upstream
+  refused, so it is not the worker's fault and is worth retrying) with a message about payout
+  setup, and an `AppError` from the provider passes through with its own status. The provider's
+  wording is **not** echoed back — a Stripe failure here is platform misconfiguration or a
+  transient outage, neither of which the worker can act on, and the message can name our
+  configuration. Crucially the reason is **logged in `createOnboarding`**, not left to the
+  boundary, which deliberately does not log `AppError`s: mapping the error without that would
+  have traded a misleading status for a lost diagnostic. The log carries the Stripe
+  `type` / `code` / **`requestId`**, which points straight at the call in Stripe's request log.
+  `tests/connect-onboarding.test.mjs`. Backend — _handed off_.
 
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **177** (runbook dashboard steps), which were handed off.
-The API **and the web app** are deployed and ACTIVE on Railway (same-origin), in mock
-mode (no Stripe key)._
+(Stripe go-live runbook), and **178** (Connect onboarding 500), which were handed off.
+The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
+(payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
+entry above; the default remains mock mode (no key set)._
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);

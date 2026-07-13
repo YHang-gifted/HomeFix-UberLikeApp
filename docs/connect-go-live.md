@@ -73,6 +73,19 @@ App build (Expo, **build-time**):
    - Endpoint URL: `https://<your-host>/webhooks/connect`
    - Event types: **`account.updated`** (only that one is needed)
 3. Copy the destination's **Signing secret** (`whsec_…`) → `STRIPE_CONNECT_WEBHOOK_SECRET`.
+4. **Verify the destination is actually Connect-scoped.** This is the single easiest thing to
+   get wrong, and it fails _invisibly_: an endpoint scoped to **Your account** looks completely
+   healthy — right URL, right events, status `enabled`, no errors — and is simply never sent a
+   **connected** account's `account.updated`. There are no failed deliveries to find, because
+   there are no deliveries. The only reliable proof is the `application` field:
+
+   ```bash
+   curl -s https://api.stripe.com/v1/webhook_endpoints -u sk_test_...:
+   ```
+
+   The Connect destination must show a **non-null `"application": "ca_…"`**. If it is
+   `"application": null`, it is account-scoped — delete it and create it again with
+   `connect=true` (or, in the dashboard, **Events from: Connected accounts**).
 
 ### 2. Set the variables and redeploy
 
@@ -88,6 +101,16 @@ Docker build arg — a restart is not enough, the value is inlined at build time
 
 Confirm `GET /ready` is 200 and that a worker now sees the **"Set up payouts"** button.
 
+**Pre-flight the endpoint before you touch the flow:**
+
+```bash
+curl -i -X POST https://<your-host>/webhooks/connect
+```
+
+- **400** — armed. The route is live and rejected the unsigned body. This is what you want.
+- **404** — the route does not exist, i.e. `STRIPE_CONNECT_WEBHOOK_SECRET` never reached the
+  server (the handler is config-gated). Fix this now; every delivery would 404 in silence.
+
 ### 3. Test-mode dry run
 
 1. As a **worker**, tap **"Set up payouts"**. You should be redirected to Stripe's hosted
@@ -100,13 +123,38 @@ Confirm `GET /ready` is 200 and that a worker now sees the **"Set up payouts"** 
 4. In the Stripe dashboard, confirm the **`account.updated`** delivery to `/webhooks/connect`
    shows **200**, and that the connected account shows **Payouts: enabled** (and the
    `transfers` capability **active**).
-5. As a **customer**, drive a request through to a **paid** payment for that worker.
-6. Confirm on the worker's **Payouts** screen that the payout is **Paid out** (not Pending) —
+5. **Fund the platform's available balance first.** A transfer is paid out of the platform's
+   **available** balance, and test-mode card payments land in **pending** for days — so a
+   sandbox platform typically has `available: 0` and **every transfer fails for insufficient
+   funds**. Because payouts are best-effort, they just stay `Pending` and nothing says why.
+   Top up directly, with the test token whose funds skip the pending period:
+
+   ```bash
+   # $4,000 straight into the available balance. Comfortably covers the payouts under test.
+   curl https://api.stripe.com/v1/charges -u sk_test_...: \
+     -d amount=400000 -d currency=usd -d source=tok_bypassPending
+
+   curl -s https://api.stripe.com/v1/balance -u sk_test_...:   # available[0].amount
+   ```
+
+   Do **not** top up by running payments through the app: each one creates a _new_ payout for
+   the worker that is at least as large as the amount charged, so the available balance only
+   grows by the platform fee. You will never catch up.
+
+6. As a **customer**, drive a request through to a **paid** payment for that worker.
+7. Confirm on the worker's **Payouts** screen that the payout is **Paid out** (not Pending) —
    this proves the transfer actually fired. Cross-check in the Stripe dashboard: a **Transfer**
    to the connected account for the worker's net.
-7. **Backfill check:** pay a job for a worker who has _not_ finished onboarding — the payout
+8. **Backfill check:** pay a job for a worker who has _not_ finished onboarding — the payout
    should sit **Pending**. Then finish their onboarding; once `account.updated` arrives, that
    pending payout should flip to **Paid out** on its own.
+
+   If the account is _already_ fully onboarded, Stripe will not send another `account.updated`
+   on its own. Force one by touching the account — the webhook fires, and the backfill runs:
+
+   ```bash
+   curl -s https://api.stripe.com/v1/accounts/acct_... -u sk_test_...: -d "metadata[ping]=1"
+   ```
 
 ### 4. Go live
 
@@ -143,6 +191,15 @@ to fully stop transfers while keeping payments on, unset the key or rebuild the 
   "Set up payouts" again mints a fresh link and reuses the same `acct_…`.
 - **The Connect webhook secret is not the payments webhook secret.** Two endpoints, two
   secrets. Using the wrong one gives a 401 on every delivery.
+- **A wrongly-scoped webhook endpoint fails silently.** Scoped to "Your account" instead of
+  "Connected accounts", the endpoint looks perfectly healthy and is simply never sent the
+  event. Nothing is broken — nothing is delivered. Check `application` is a `ca_…`, not `null`
+  (see step 1.4). This cost hours in the first dry run.
+- **The platform needs an available balance to transfer from.** No balance → the transfer
+  fails → the payout stays `pending`, by design and without complaint. Symptomatically this is
+  indistinguishable from "the webhook never arrived", so rule the balance out first (see step
+  3.5). In production this is normally self-solving (real charges settle into the balance), but
+  watch it if you pay out faster than you settle.
 - **Currency must match settlement.** Transfers are sent in `PLATFORM_CURRENCY` (USD).
 - **Refunds interact with payouts (SEC-0007/0008).** Refunding a payment removes a still-
   pending payout; if the worker was **already paid out**, the admin refund is **blocked (409)**
