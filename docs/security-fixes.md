@@ -27,16 +27,17 @@ Use exactly one of: `authentication`, `authorization`, `input-validation`, `inje
 
 ## Index
 
-| ID       | Date       | Category          | Title                                                                | Status    |
-| -------- | ---------- | ----------------- | -------------------------------------------------------------------- | --------- |
-| SEC-0001 | 2026-06-14 | authorization     | (Example) Missing server-side authz on order PATCH                   | example   |
-| SEC-0002 | 2026-06-22 | data-exposure     | Permissive dev CORS on the API (`Access-Control-Allow-Origin: *`)    | addressed |
-| SEC-0003 | 2026-06-26 | rate-limiting     | No rate limiting on the unauthenticated auth endpoints               | fixed     |
-| SEC-0004 | 2026-06-26 | authentication    | Default JWT signing secret could reach production                    | fixed     |
-| SEC-0005 | 2026-06-28 | payment-integrity | Release/reset left the prior worker's quote & payment on the request | fixed     |
-| SEC-0006 | 2026-07-11 | payment-integrity | A paid service request could still be cancelled (orphaned payment)   | fixed     |
-| SEC-0007 | 2026-07-11 | payment-integrity | Direct admin refund did not reverse the worker's payout (double-pay) | fixed     |
-| SEC-0008 | 2026-07-11 | payment-integrity | Provider refund webhook did not reconcile the worker's payout        | fixed     |
+| ID       | Date       | Category          | Title                                                                                    | Status    |
+| -------- | ---------- | ----------------- | ---------------------------------------------------------------------------------------- | --------- |
+| SEC-0001 | 2026-06-14 | authorization     | (Example) Missing server-side authz on order PATCH                                       | example   |
+| SEC-0002 | 2026-06-22 | data-exposure     | Permissive dev CORS on the API (`Access-Control-Allow-Origin: *`)                        | addressed |
+| SEC-0003 | 2026-06-26 | rate-limiting     | No rate limiting on the unauthenticated auth endpoints                                   | fixed     |
+| SEC-0004 | 2026-06-26 | authentication    | Default JWT signing secret could reach production                                        | fixed     |
+| SEC-0005 | 2026-06-28 | payment-integrity | Release/reset left the prior worker's quote & payment on the request                     | fixed     |
+| SEC-0006 | 2026-07-11 | payment-integrity | A paid service request could still be cancelled (orphaned payment)                       | fixed     |
+| SEC-0007 | 2026-07-11 | payment-integrity | Direct admin refund did not reverse the worker's payout (double-pay)                     | fixed     |
+| SEC-0008 | 2026-07-11 | payment-integrity | Provider refund webhook did not reconcile the worker's payout                            | fixed     |
+| SEC-0009 | 2026-07-13 | secrets-exposure  | Password-reset tokens written to the application log by the notification fallback sender | fixed     |
 
 ## Entry template
 
@@ -164,3 +165,16 @@ Copy this block for every new fix.
 - **Regression test:** `tests/refund-webhook-reverses-payout.test.mjs` (a `payment.refunded` webhook removes a still-pending payout and settles the refund; an already-paid-out payout is left paid while the webhook still returns 200 and records the refund).
 - **Prevention:** This ledger entry + SEC-0007: every refund path (admin action AND provider webhook) must reconcile the payout; webhook settlers reconcile without throwing. Mandatory payments tests per `CLAUDE.md`.
 - **Related:** SEC-0007, SEC-0005, SEC-0006
+
+### SEC-0009 — Password-reset tokens written to the application log
+
+- **Date:** 2026-07-13
+- **Category:** secrets-exposure
+- **Severity:** critical
+- **Affected area:** `server/src/services/notificationProvider.ts` (`loggingSender`), reached from `server/src/services/passwordResetService.ts` (`requestPasswordReset`) and from every notification channel via `ProviderDelivery`.
+- **Vulnerability:** The inert fallback sender logged the message in full: `logger.info(\`[notify:${channel}] to=${message.to} :: ${message.body}\`)`. It is the sender used whenever `EMAIL_API_URL`/`PUSH_API_URL`are unset — i.e. **every deployment that has not yet configured mail, including the live one**. The password-reset mail's body is`Use this code to reset your password: <token>`, so each `POST /auth/forgot-password`wrote the **plaintext reset token next to the email address it unlocks** into stdout. Anyone able to read the logs (any operator, and — decisively — any third-party log drain, which is exactly what those logs were about to be shipped to) could take over an arbitrary account: request a reset for the victim, read the token from the log, call`POST /auth/reset-password`. `resetPassword`also bumps`token_version`, so the legitimate owner is logged out of every session in the process. The token is stored **only as a SHA-256 hash** precisely because the plaintext is the secret; logging it defeated the entire design.
+- **Root cause:** The logging sender was written as a developer convenience (print the message you would have sent) and was never re-examined once it became the **production fallback** rather than a dev-only stub. The class is broader than one line: `OutboundMessage` carried a secret (`body`) and PII (`to`) in fields that nothing marked as unloggable, so "don't log this" was a convention a reviewer had to notice, not a property the code enforced. `docs/deployment.md` had meanwhile promised that logs "never [contain] the request body, headers, or query string" — the guarantee was documented and untrue.
+- **Canonical fix:** **Redact by construction, not by discipline.** Introduce `notificationLogFields(message)` as the _only_ way to log an outbound message; it returns `{ type, channel, userId, bodyChars }` and structurally cannot emit `to` or `body`. `OutboundMessage` gains `userId` (an internal UUID — already the join key in the audit log) so a delivery is still identifiable in a log without revealing how to reach the person; `to` and `body` are documented as never-loggable. The dev need is real (the reset token is unrecoverable from the DB, so a developer could not test forgot-password locally at all) and is met by an explicit `NOTIFY_LOG_BODY` escape hatch — which `env.ts` **refuses at boot in production**, reusing the SEC-0004 `superRefine` production-invariant pattern. Default is `false`: the safe behavior is what you get by doing nothing. Rule for the class: any value that is itself a delivery channel for a secret (reset tokens, OTPs, magic links, invite codes) must be unloggable at the type/API level, and any switch that would expose it must be refused in production at boot rather than trusted to configuration hygiene.
+- **Regression test:** `tests/notification-log-redaction.test.mjs` — captures stdout and asserts (1) `loggingSender` emits neither the recipient nor the body, (2) `notificationLogFields` excludes them by construction (asserted on the _serialized_ fields, so a value smuggled in via nesting also fails), and (3) end-to-end, with **no sender override** — the real vulnerable path — `POST /auth/forgot-password` writes neither the address, nor the reset-mail text, nor any 64-hex token to stdout. Plus: `loadEnv` throws when `NOTIFY_LOG_BODY` is enabled in production.
+- **Prevention:** This ledger entry + the regression test + the boot-time production guard (SEC-0004 pattern). `notificationLogFields` is the single approved way to log a message, so adding a field to it is a visible, reviewable act. Reviewer check for any new logging: **never log a resolved recipient (email / device token / phone) or user-facing message content.** Note the residual, deliberately not fixed here: a _real_ provider's HTTP error text (`notificationDelivery.ts`, `notificationService.ts`) could echo the recipient back in its error message — no such sender is configured yet, and stripping all provider error text would remove the only diagnostic; revisit when a real mail provider is enabled.
+- **Related:** SEC-0004 (same boot-time production-invariant pattern), SEC-0002 (data-exposure via a dev-convenient default left reachable in production)

@@ -223,9 +223,15 @@ real test users could exercise":
 1. **End-to-end + device QA.** Unit/integration coverage is strong (and a QA
    checklist exists at `docs/qa-checklist.md`); there is no full E2E run on a real
    device/build, nor accessibility/performance passes.
-2. **Production observability & backups.** Managed Postgres is provisioned on
-   Railway; log shipping/observability and a backup policy are not yet set up.
-   Structured 5xx error logging and a Prometheus `/metrics` endpoint exist.
+2. **Production observability & backups — narrower than it used to read.** A **backup
+   policy already exists** (`docs/backups.md`: restore procedure, verification drill,
+   retention) along with `scripts/backup-db.mjs` (`npm run backup:db`) — the earlier "no
+   backup policy" gap was **stale**. What is genuinely missing is **automation**: nothing
+   schedules that script, nothing ships a dump off-site, and Railway's managed backups are
+   an _instruction to an operator_, not something verified in-repo. Log shipping is
+   documented (`docs/deployment.md`) but not switched on. Structured 5xx logging and a
+   Prometheus `/metrics` endpoint exist — **note `/metrics` is world-readable unless
+   `METRICS_TOKEN` is set**, which `env.ts` does not require in production.
 3. **PayPal sandbox dry run.** Stripe is now proven live; PayPal is not. The same class of
    defect the Stripe run exposed (things that only fail against a real provider) is still
    unexercised there. Follow `docs/paypal-go-live.md`.
@@ -1073,8 +1079,30 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   `type` / `code` / **`requestId`**, which points straight at the call in Stripe's request log.
   `tests/connect-onboarding.test.mjs`. Backend — _handed off_.
 
+- **179** **SEC-0009 — password-reset tokens were being written to the application log.**
+  Found while auditing the logs _before_ wiring up log shipping, which turned out to be the
+  right order. `loggingSender` — the inert fallback used whenever `EMAIL_API_URL` is unset,
+  **which is the live deployment** — logged every notification in full:
+  `[notify:email] to=victim@example.com :: Use this code to reset your password: 9f3a…`.
+  The reset token is stored **only as a SHA-256 hash** precisely because the plaintext is the
+  secret; it was being printed next to the address it unlocks. Anyone who could read the logs
+  could take over any account (request a reset for the victim → read the token → reset the
+  password; `resetPassword` also bumps `token_version`, logging the real owner out
+  everywhere). **Critical**, and it was about to be shipped to a third-party log drain.
+  Fixed by redacting **by construction, not by discipline**: `notificationLogFields()` is now
+  the only way to log an outbound message and structurally cannot emit `to` or `body`;
+  `OutboundMessage` carries a `userId` so a delivery is still identifiable without revealing
+  how to reach the person. The genuine dev need (the token is unrecoverable from the DB, so
+  forgot-password could not be tested on a laptop at all) is met by an explicit
+  `NOTIFY_LOG_BODY` switch that `env.ts` **refuses at boot in production** — the same
+  `superRefine` production-invariant pattern as SEC-0004. `docs/deployment.md` had already
+  promised logs contain no such thing; the guarantee was documented and untrue, and is now
+  enforced. `tests/notification-log-redaction.test.mjs` locks it end-to-end through
+  `POST /auth/forgot-password` with **no sender override** — the real vulnerable path.
+  Backend + docs — _handed off_.
+
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **178** (Connect onboarding 500), which were handed off.
+(Stripe go-live runbook), and **179** (SEC-0009), which were handed off.
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
 (payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
 entry above; the default remains mock mode (no key set)._
