@@ -8,6 +8,7 @@ import { createCorsMiddleware } from './middlewares/cors.ts';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.ts';
 import { createMetricsMiddleware } from './middlewares/metrics.ts';
 import { createRequestLogger } from './middlewares/requestLogger.ts';
+import { createSecurityHeaders } from './middlewares/securityHeaders.ts';
 import { createWebAppHandlers, isBuiltWebDir } from './middlewares/webApp.ts';
 import { adminRouter } from './routes/admin.ts';
 import { auditRouter } from './routes/audit.ts';
@@ -36,6 +37,9 @@ export function createApp(): Express {
   // sets NODE_ENV=test; `node --test` sets NODE_TEST_CONTEXT in its workers.
   const underTest = env.NODE_ENV === 'test' || process.env['NODE_TEST_CONTEXT'] !== undefined;
   app.use(createRequestLogger(underTest ? () => undefined : undefined));
+  // Referrer-Policy et al. First, so they are set on every response — including the web app,
+  // whose URL can carry a password-reset token (see securityHeaders.ts).
+  app.use(createSecurityHeaders());
   // Record HTTP metrics for every request (before the routes, so all are timed).
   app.use(createMetricsMiddleware());
   app.use(createCorsMiddleware(env.CORS_ALLOWED_ORIGINS));
