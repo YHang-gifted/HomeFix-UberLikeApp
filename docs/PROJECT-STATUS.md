@@ -1184,8 +1184,49 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   proving nothing. It now uses a demo-seeded account and asserts a login first. Backend +
   docs — _handed off_.
 
+- **EMAIL IS LIVE (2026-07-13).** Resend wired up, and the password-reset mail **arrives**. The
+  top blocker from 181 is down to one remaining step: verify a sending domain (until then
+  Resend will only deliver to the account owner's own address). The diagnostic added in 182
+  paid for itself immediately — the first failed attempt logged
+  `notification not sent (no provider configured)`, which said in one line that the `EMAIL_*`
+  variables had never reached the server. Before 182 that was a silent 204.
+- **183** password-reset **magic link** — the emailed code is 64 hex characters, and a person
+  was being asked to copy it out of a mail client and into a form by hand. That is not a
+  cosmetic problem; it is how people abandon a reset and lose the account.
+
+  **The tempting fix — a friendly 6-digit code — would have been a security regression**, and
+  the reasoning is now written into `docs/email-go-live.md` so nobody re-proposes it:
+  `resetPassword` looks a token up **by the token alone** (`findByTokenHash`), with no email to
+  scope the lookup. So an attacker need not target anyone — they guess, and a hit resets
+  _whichever_ account had a reset pending. A million possibilities, and **the odds improve as
+  the userbase grows**. Short codes are only safe when bound to one account and killed after a
+  few wrong guesses; this flow does neither.
+
+  So the entropy stays and the typing goes: the mail leads with a link
+  (`APP_PUBLIC_BASE_URL` + `/?reset=<token>`), the app reads the code out of the URL, and the
+  user goes straight to the new-password step. The code is **still printed underneath** — mail
+  clients strip links, and people read mail on a device that isn't the one running the app.
+
+  Two consequences of putting a secret in a URL, both handled rather than hand-waved:
+  **(1)** the app strips the token from the address bar the instant it reads it
+  (`replaceState`, so Back cannot restore it) — otherwise it lives on in history, session
+  restore, and whatever gets pasted when someone shares "the page I'm on"; **(2)** new
+  `securityHeaders` middleware sends **`Referrer-Policy: no-referrer`** (plus `nosniff` and
+  `X-Frame-Options: DENY`) — without it the **Google Maps SDK on that very page** would have
+  received the full URL, token and all, as a `Referer`. The secret we work hard to keep out of
+  our own logs would have gone straight into someone else's.
+
+  Notable: **nothing in the app had ever read a query string.** `?payment=success` and
+  `?payouts=done` have been configured at the providers for many slices and were silently
+  dropped on arrival. `app/src/features/auth/resetLink.ts` (pure: `readResetCode` /
+  `urlWithoutResetCode`) is the first, and the mechanism the others could now reuse. Tests:
+  `tests/password-reset-link.test.mjs` (mail body, round-trip, URL stripping, and that the
+  token is still redacted from provider errors now that it lives inside a URL — SEC-0009),
+  `tests/security-headers.test.mjs`, and `ForgotPasswordScreen.test.tsx` (arriving by link
+  shows neither the email step nor a code field). server + app + app-expo — _handed off_.
+
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **182** (password-reset mail), which were handed off.
+(Stripe go-live runbook), and **183** (reset magic link), which were handed off.
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
 (payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
 entry above; the default remains mock mode (no key set)._

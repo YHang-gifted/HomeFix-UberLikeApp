@@ -26,10 +26,12 @@ workaround.
 **No code change is needed** — the sender already matches Resend's API. Follow
 `docs/email-go-live.md`.
 
-- [ ] Set `EMAIL_API_URL`, `EMAIL_API_KEY`, `EMAIL_FROM` (all three, or the channel stays
-      silently inert).
+- [x] Set `EMAIL_API_URL`, `EMAIL_API_KEY`, `EMAIL_FROM` (all three, or the channel stays
+      silently inert). **Done 2026-07-13 — the mail arrives.**
+- [ ] Set `APP_PUBLIC_BASE_URL` so the mail carries a **clickable link** instead of a
+      64-character code to copy by hand (slice 183).
 - [ ] Verify a sending domain. Until then you can only send from `onboarding@resend.dev`, to
-      your own address.
+      your own address — which is fine for testing and **not enough to ship**.
 - [ ] **Complete a real forgot-password → reset → log-in loop against the deploy.** Tick this
       only when you have logged in with the new password — not when the variables are set.
 - [ ] _(Optional, separate decision)_ add `email` to `NOTIFY_CHANNELS` to also mail ordinary

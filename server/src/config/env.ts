@@ -252,6 +252,14 @@ const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.string().min(1).optional(),
     ),
+    // The app's own public origin, e.g. `https://homefix.example`. Used to build the
+    // password-reset LINK in the mail (`?reset=<token>`), so the user never has to copy a
+    // 64-character code by hand. Leave unset (dev/test) and the mail degrades to the
+    // code-only form — the flow still works, it is just tedious. See docs/email-go-live.md.
+    APP_PUBLIC_BASE_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.url().optional(),
+    ),
     // Absolute path to the built web bundle (the Expo web export, `app-expo/dist`).
     // Set it to serve the web app same-origin with the API (static assets + an SPA
     // fallback); leave unset (dev/test) and only the API is served. Empty = unset.

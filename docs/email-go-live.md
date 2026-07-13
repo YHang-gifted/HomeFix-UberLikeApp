@@ -57,7 +57,12 @@ a sender in `server/src/services/` alongside `emailSender.ts`.
 EMAIL_API_URL=https://api.resend.com/emails
 EMAIL_API_KEY=re_...
 EMAIL_FROM=HomeFix <noreply@your-verified-domain>
+APP_PUBLIC_BASE_URL=https://<your-host>
 ```
+
+`APP_PUBLIC_BASE_URL` is what turns the mail into a **clickable link** (`/?reset=<token>`)
+instead of a 64-character code the user has to copy by hand. Leave it unset and the flow still
+works — it is just tedious enough that people give up and lose the account. Set it.
 
 `EMAIL_FROM` accepts a bare address (`noreply@homefix.app`) or the display-name form
 (`HomeFix <noreply@homefix.app>`). Before testing, use Resend's shared sender:
@@ -72,13 +77,39 @@ Never commit the key. It lives in the platform's variables only.
 
 Not "the variables are set" — **the mail arrived and the password changed**:
 
-1. `POST /auth/forgot-password` with your own address (or use the app's Forgot password link).
-2. The mail arrives. It contains a 64-character code.
-3. `POST /auth/reset-password` with that code and a new password.
+1. Use the app's **Forgot password** link with your own address.
+2. The mail arrives. **Click the link in it.** The app opens on the new-password step with the
+   code already applied — you should never have to type it.
+3. Set a new password.
 4. **Log in with the new password.** Old sessions are gone — `resetPassword` bumps
    `token_version`, so every existing session for that user is revoked. That is intended.
 
 Tick the checklist item only after step 4.
+
+## Why the code is 64 characters, and why it is not a 6-digit number
+
+The obvious "improvement" is a friendly 6-digit code. It would be a **security regression**,
+and the reason is worth writing down so nobody re-proposes it.
+
+`resetPassword` looks a token up **by the token alone** (`findByTokenHash`) — there is no email
+alongside it to scope the lookup. So an attacker does not have to target anyone: they guess
+codes, and a hit resets **whichever account happened to have that reset pending**. With a
+6-digit code there are only a million possibilities, and every additional user with a pending
+reset _improves_ the attacker's odds. A short code is only safe when it is bound to one account
+and killed after a handful of wrong guesses — and this flow does neither.
+
+So the entropy stays, and the burden is removed the other way: the mail leads with a **link**,
+and the app takes the code out of the URL for you. Full entropy, zero typing. That is the same
+trade every mature product landed on.
+
+Two consequences, both handled:
+
+- The URL is now a secret. The app **strips it from the address bar** the moment it reads it
+  (`replaceState`, so Back cannot restore it), and the server sends **`Referrer-Policy:
+no-referrer`** — otherwise the Google Maps SDK on the page would receive the whole URL,
+  token included, as a `Referer`.
+- The code is **still printed** under the link. Mail clients strip links, and people read mail
+  on a device that is not the one running the app. A reset flow with no fallback strands people.
 
 ### 4. Optional: email for ordinary notifications
 

@@ -9,6 +9,7 @@ import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 
 import { clearSession, persistSession, restoreSession } from '../app/src/auth/session';
 import { registerForPush } from '../app/src/features/notifications/pushRegistration';
+import { readResetCode, urlWithoutResetCode } from '../app/src/features/auth/resetLink';
 import { apiClient } from './src/api';
 import { deviceOpenCheckout } from './src/checkout';
 import { deviceImagePicker } from './src/imagePicker';
@@ -43,7 +44,8 @@ import { WorkerJobsScreen } from './src/screens/WorkerJobsScreen';
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
-  ForgotPassword: undefined;
+  /** `token` is set when the user arrived from the emailed reset link (`/?reset=…`). */
+  ForgotPassword: { token?: string } | undefined;
   ServiceRequests: undefined;
   CreateRequest: undefined;
   RequestDetail: { id: string };
@@ -110,15 +112,48 @@ function LoginRoute({
 
 function ForgotPasswordRoute({
   navigation,
+  route,
 }: NativeStackScreenProps<RootStackParamList, 'ForgotPassword'>): ReactElement {
+  const token = route.params?.token;
   return (
     <ForgotPasswordScreen
       client={apiClient}
+      {...(token !== undefined ? { initialToken: token } : {})}
       onDone={() => {
         navigation.navigate('Login');
       }}
     />
   );
+}
+
+/**
+ * The reset token from the emailed magic link (`/?reset=…`), read once at startup.
+ *
+ * Web only: on native there is no `window.location`, and the code printed in the mail is the
+ * fallback for that. Guarded the same way `checkout.ts` guards its web/native split.
+ *
+ * Read at module scope so it is available before the navigator picks its initial route — but
+ * deliberately NOT stripped here (see below), because the URL is the only copy we have and it
+ * must not be destroyed on a path that cannot use it.
+ */
+const linkResetCode: string | undefined =
+  Platform.OS === 'web' ? readResetCode(globalThis.window.location.search) : undefined;
+
+/**
+ * Remove the token from the address bar, once it has actually been handed to the reset screen.
+ *
+ * The token is a live credential. Left in the URL it lands in browser history and session
+ * restore, it is what gets copied when someone shares "the page I'm on", and it sits in the
+ * tab long after the reset is done. `replaceState` rewrites in place, so Back cannot bring it
+ * back. (`Referrer-Policy: no-referrer` on the server covers the other half — otherwise the
+ * Google Maps SDK on the page would send the whole URL, token and all, as a `Referer`.)
+ */
+function stripResetCodeFromUrl(): void {
+  if (Platform.OS !== 'web') {
+    return;
+  }
+  const { history, location } = globalThis.window;
+  history.replaceState(null, '', urlWithoutResetCode(location.href));
 }
 
 function RegisterRoute({
@@ -467,6 +502,18 @@ export default function App(): ReactElement {
     void registerForPush(devicePushTokenProvider, (token) => apiClient.registerDeviceToken(token));
   }, [signedIn]);
 
+  // The reset screen only exists in the signed-out stack, so only take the token once we know
+  // it can actually reach it. Stripping the URL unconditionally would destroy the code for a
+  // signed-in user who opened the link — the URL is the only copy we hold — leaving them with
+  // nothing but the fallback code printed in the mail.
+  const resetToken = !booting && !signedIn ? linkResetCode : undefined;
+  const usingResetLink = resetToken !== undefined;
+  useEffect(() => {
+    if (usingResetLink) {
+      stripResetCodeFromUrl();
+    }
+  }, [usingResetLink]);
+
   const actions: AuthActions = {
     signIn: (token) => {
       void persistSession(tokenStore, apiClient, token).then(() => {
@@ -496,6 +543,9 @@ export default function App(): ReactElement {
         <StatusBar style="dark" />
         <MapPickerHost />
         <Stack.Navigator
+          // Arriving from the reset link opens straight on the reset screen, rather than the
+          // login form the user cannot get past — that is the entire point of the link.
+          {...(usingResetLink ? { initialRouteName: 'ForgotPassword' as const } : {})}
           screenOptions={{
             headerStyle: { backgroundColor: colors.surface },
             headerTintColor: colors.ink,
@@ -516,6 +566,7 @@ export default function App(): ReactElement {
                 name="ForgotPassword"
                 component={ForgotPasswordRoute}
                 options={{ title: 'Reset password' }}
+                {...(resetToken !== undefined ? { initialParams: { token: resetToken } } : {})}
               />
             </>
           )}

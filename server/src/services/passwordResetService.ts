@@ -15,12 +15,52 @@ import { loggingSender, type MessageSender, type OutboundMessage } from './notif
 
 const TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
+/** The query parameter the reset link carries. Read by the app at boot; see `resetLink.ts`. */
+export const RESET_QUERY_PARAM = 'reset';
+
 /** The configured email sender, or the inert logging sender when EMAIL_* is unset. */
 const defaultEmailSender: MessageSender = selectSenders(loadEnv())['email'] ?? loggingSender;
 
 /** SHA-256 of the reset token. The plaintext is emailed; only the hash is stored. */
 export function hashResetToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
+}
+
+/**
+ * The reset mail. When the app's public URL is known, lead with a **link** — the token is 64
+ * hex characters, and asking a person to copy that out of an email and into a form by hand is
+ * a UX failure serious enough that they will give up and lose the account.
+ *
+ * The length is not negotiable, though, and shortening it to a friendly 6-digit code would be
+ * a security regression, not a UX win: `resetPassword` looks a token up **by the token alone**
+ * (`findByTokenHash`), with no email to scope it, so a short code would let an attacker guess
+ * their way into *whichever* account happened to have a matching reset pending — and the odds
+ * would improve as the userbase grew. A link keeps the full entropy and costs the user
+ * nothing, which is why this is the shape every mature product converged on.
+ *
+ * The code is still printed underneath: some mail clients strip links, some people read mail
+ * on a device that is not the one with the app, and a reset flow with no fallback is a reset
+ * flow that strands people.
+ *
+ * With no base URL configured (dev/test), it degrades to the code-only mail.
+ */
+export function passwordResetMailBody(token: string, appBaseUrl: string | undefined): string {
+  const expiry = 'It expires in 1 hour and can only be used once.';
+  const ignore = 'If you did not request this, you can ignore this email.';
+  if (appBaseUrl === undefined) {
+    return `Use this code to reset your password: ${token}\n${expiry} ${ignore}`;
+  }
+  const url = new URL(appBaseUrl);
+  url.searchParams.set(RESET_QUERY_PARAM, token);
+  return [
+    'Reset your HomeFix password by opening this link:',
+    '',
+    url.toString(),
+    '',
+    `${expiry} ${ignore}`,
+    '',
+    `If the link does not open, choose "Forgot password" in the app and enter this code: ${token}`,
+  ].join('\n');
 }
 
 interface ResetOptions {
@@ -70,7 +110,7 @@ export async function requestPasswordReset(
     userId: user.id,
     to: user.email,
     subject: 'Reset your HomeFix password',
-    body: `Use this code to reset your password: ${token}\nIt expires in 1 hour. If you did not request this, you can ignore this email.`,
+    body: passwordResetMailBody(token, loadEnv().APP_PUBLIC_BASE_URL),
   };
 
   try {
