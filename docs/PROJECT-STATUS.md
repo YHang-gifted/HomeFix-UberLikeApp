@@ -1101,8 +1101,26 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   `POST /auth/forgot-password` with **no sender override** — the real vulnerable path.
   Backend + docs — _handed off_.
 
+- **180** `docs/backups.md` — **the managed-backup section was vague and out of date.** It
+  said Railway "takes automated backups on the plan's schedule" and left the operator to
+  work the rest out. Railway actually offers **two independent mechanisms** with different
+  guarantees, and the difference is the whole point: scheduled **volume snapshots** (Daily
+  is kept only **6 days**; restoring one **deletes every newer backup**; wiping a volume
+  deletes all of them; they only restore into the same project+environment) and
+  **Point-in-Time Recovery** (continuous WAL archiving via pgBackRest; restore to any
+  timestamp; the restore provisions a **new sibling service** and never touches the
+  source). Rewrote the section against the current Railway docs, with the footguns stated.
+  **PITR is the one that matters here**: HomeFix runs its SQL migrations **automatically on
+  boot**, so a faulty migration mutates production the moment a deploy lands — snapshots
+  only rewind to last night, PITR rewinds to the minute before it ran. And **the PITR
+  window is not retroactive**, so it has to be switched on before it is needed. Also
+  rewrote "Verifying a backup" into an actual **restore drill** (the step that is always
+  skipped and the only one that proves anything) — safe to run against production precisely
+  because a PITR restore leaves the source serving traffic — and made it record the
+  **measured** RTO instead of an aspirational one. Docs only — _handed off_.
+
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **179** (SEC-0009), which were handed off.
+(Stripe go-live runbook), and **180** (backups runbook), which were handed off.
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
 (payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
 entry above; the default remains mock mode (no key set)._
