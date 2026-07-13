@@ -8,8 +8,10 @@ import {
   type PasswordResetToken,
 } from '../repositories/passwordResetRepository.ts';
 import { userRepository } from '../repositories/userRepository.ts';
+import { logger } from '../utils/logger.ts';
+import { redactProviderError } from './emailSender.ts';
 import { selectSenders } from './notificationDelivery.ts';
-import { loggingSender, type MessageSender } from './notificationProvider.ts';
+import { loggingSender, type MessageSender, type OutboundMessage } from './notificationProvider.ts';
 
 const TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -55,22 +57,43 @@ export async function requestPasswordReset(
   };
   await passwordResetRepository.create(record);
 
-  // Delivery is best-effort: a provider failure must not fail (or leak from) the request.
+  // Delivery is best-effort: a provider failure must not fail (or leak from) the request. The
+  // response stays 204 either way — telling the caller the mail bounced would tell them the
+  // account exists, which is the disclosure this endpoint is built to avoid.
   //
   // SEC-0009: `body` carries the PLAINTEXT reset token — the one secret this whole flow is
   // built to keep (only its SHA-256 hash is stored). It goes to the sender and nowhere else;
   // no sender may log it. When EMAIL_* is unset this is `loggingSender`, which used to print
   // the token and the address together into the application log.
+  const mail: OutboundMessage = {
+    channel: 'email',
+    userId: user.id,
+    to: user.email,
+    subject: 'Reset your HomeFix password',
+    body: `Use this code to reset your password: ${token}\nIt expires in 1 hour. If you did not request this, you can ignore this email.`,
+  };
+
   try {
-    await sender({
+    await sender(mail);
+  } catch (failure) {
+    // Best-effort, but NOT silent. This used to be a bare `catch {}`: a misconfigured mail
+    // provider — a 403 for an unverified sending domain is the normal way this fails on day
+    // one — produced a cheerful 204 and left no trace anywhere. The user waits for a mail
+    // that never arrives and cannot get into their account, and nobody finds out. Swallowing
+    // the error is right; swallowing the *evidence* is not.
+    //
+    // The reason is redacted HERE, not just in the sender: `sender` is injectable, so a
+    // future one could throw an error carrying the token, and this function is the one that
+    // knows the token is a secret. Guarantee it where the secret lives (SEC-0009).
+    logger.error('Password-reset email failed to send', {
+      type: 'notify',
       channel: 'email',
       userId: user.id,
-      to: user.email,
-      subject: 'Reset your HomeFix password',
-      body: `Use this code to reset your password: ${token}\nIt expires in 1 hour. If you did not request this, you can ignore this email.`,
+      reason: redactProviderError(
+        failure instanceof Error ? failure.message : 'Unknown error',
+        mail,
+      ),
     });
-  } catch {
-    // swallow — best-effort
   }
 }
 
