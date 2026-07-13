@@ -1252,8 +1252,33 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   over HTTP — the tsx module-identity trap makes a direct repository import useless here), and
   `PayoutsScreen.test.tsx`. server + shared + app + app-expo — _handed off_.
 
+- **185** **browser E2E** — the one thing CI has never checked: that the exported web bundle
+  actually **runs**. `npm test` proves the API works and jest proves the components work, but
+  the web build was only ever verified to have _produced_ files. That gap has already cost us
+  once: a **zod 3-vs-4** mismatch made the bundle throw on boot and render a blank white page,
+  and it shipped that way **for several slices with CI fully green**, because nothing ever
+  loaded it. The same class of failure — a bad bundle, a broken import, an unhandled rejection
+  on the login path — remains invisible to every test we have.
+
+  New `Web E2E` CI job: build the real export (the same `export:web` the Docker image runs),
+  serve it from the real server on an in-memory store with the demo users seeded, and drive it
+  with Chromium. Three specs, deliberately few — the API tests are faster at everything else:
+  **(1)** the bundle boots without throwing and the login form renders (this alone would have
+  caught the zod bug); **(2)** a customer signs in, posts a request, and it comes back from the
+  API — proving the token round-trip and the authenticated client work _from a browser_;
+  **(3)** a rejected login surfaces as a message rather than an unhandled rejection (the
+  `isApiError` structural guard exists because cross-module `instanceof` has failed on exactly
+  this path before).
+
+  Every spec fails on **any uncaught `pageerror`**, and the boot spec also fails on console
+  errors outside a short, justified allow-list. Selectors are the app's own
+  `accessibilityLabel`s (react-native-web renders them as `aria-label`), so the tests break if
+  the accessibility contract breaks — the right coupling. `docs/qa-checklist.md` updated: the
+  web smoke and login/create paths no longer need re-testing by hand; **native, device,
+  accessibility and performance still do.** _handed off_.
+
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **184** (payout status on the Payouts screen), which were handed off.
+(Stripe go-live runbook), and **185** (browser E2E), which were handed off.
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
 (payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
 entry above; the default remains mock mode (no key set)._

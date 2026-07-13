@@ -4,6 +4,14 @@
     "lib": ["ES2022", "DOM"],
     "jsx": "react-native"
   },
-  "include": ["app/**/*.ts", "app/**/*.tsx", "server/**/*.ts", "shared/**/*.ts", "tests/**/*.ts"],
+  "include": [
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "server/**/*.ts",
+    "shared/**/*.ts",
+    "tests/**/*.ts",
+    "e2e/**/*.ts",
+    "playwright.config.ts"
+  ],
   "exclude": ["node_modules", "dist", "build", "coverage"]
 }

@@ -13,6 +13,14 @@ rules — credential-gated matching (§16), the paid-cancel guard, and admin can
 refund (§11) — have their own automated tests too. This checklist adds the device- and
 native-module coverage that automation can't._
 
+_**The web build is now checked in a real browser** (slice 185): the `Web E2E` CI job serves
+the actual export and drives Chromium through boot, sign-in, and posting a request, failing on
+any uncaught exception or console error. That closes the hole that let a zod 3-vs-4 mismatch
+render a blank page for several slices with CI green — so **§1 Smoke and the web login/create
+path no longer need to be re-tested by hand on every build**. What still does: everything
+native (push, camera, geolocation, maps), everything on a physical device, and accessibility
+and performance._
+
 ## 0. Prerequisites & environment
 
 - [ ] Backend running with a real Postgres (`DATABASE_URL` set); all migrations

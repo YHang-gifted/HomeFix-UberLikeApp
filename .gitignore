@@ -11,6 +11,12 @@ build/
 coverage/
 *.tsbuildinfo
 
+# Playwright (browser e2e): reports, traces, and the downloaded browsers.
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
 .expo/
 ios/Pods/
 ios/build/
