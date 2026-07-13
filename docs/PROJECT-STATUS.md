@@ -287,13 +287,15 @@ and a genuinely testable v1 is **QA and operations, not engineering**.
    hiding some too. Follow `docs/paypal-go-live.md`.
 2. A full **E2E / device QA** pass against `docs/qa-checklist.md` (no run on a real
    device/build yet; no accessibility or performance pass).
-3. **Backups & log shipping** for the Railway deployment (managed Postgres backup
-   policy; ship the structured logs somewhere queryable). Structured 5xx error logging
-   and a Prometheus `/metrics` endpoint already exist.
-4. **Payouts screen: reflect the onboarded state.** Once a worker's account is
-   payouts-enabled the screen still offers **"Set up payouts"** as if nothing had happened —
-   it never reads back the account's status. Small, but it is the first thing a real worker
-   would find confusing. Needs `payoutsEnabled` on `/me` and a branch in `PayoutsScreen`.
+3. **Backups & log shipping** for the Railway deployment — backups are **blocked on the
+   Railway plan** (`docs/go-live-checklist.md`); log shipping is unblocked since SEC-0009 but
+   not switched on. Structured 5xx logging and a Prometheus `/metrics` endpoint already exist,
+   though `/metrics` is world-readable until `METRICS_TOKEN` is set.
+4. **Report the provider configuration at boot.** Finding out that `EMAIL_*` had never been
+   set took a registration, a log hunt and a dashboard screenshot — because nothing says which
+   providers are live. One line on startup (`email: inert (EMAIL_API_URL, EMAIL_API_KEY,
+EMAIL_FROM unset)`, `stripe: live`, `connect: live`, …) would have made it instant, and the
+   same class of problem is waiting for PayPal and storage.
 
 Beyond a testable v1, the obvious product gaps are **scheduling/booking windows** (requests
 are matched immediately; there is a preferred time but no real calendar), a **customer-facing
@@ -1225,8 +1227,33 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   `tests/security-headers.test.mjs`, and `ForgotPasswordScreen.test.tsx` (arriving by link
   shows neither the email step nor a code field). server + app + app-expo — _handed off_.
 
+- **184** Payouts screen: **reflect the worker's actual payout status**. The screen keyed off
+  nothing but the build-time feature flag, so it offered **"Set up payouts"** to every worker
+  for ever — including one who had already finished. `GET /me` now carries a read-only
+  `payoutAccountStatus` (workers only), derived in `profileService.payoutAccountStatus`.
+
+  **Three states, not two**, and the middle one is the point. `pending` — a connected account
+  exists but Stripe has **not** confirmed it can receive money — is a real, common state:
+  returning from the hosted onboarding proves nothing (`docs/connect-go-live.md` has said so
+  since 173), only the `account.updated` webhook does. That worker was the badly served one:
+  their payouts sit `Pending` **by design** (`tryTransferPayout` will not send to an account
+  Stripe has not cleared) and the screen offered no hint as to why — which is exactly what the
+  Stripe dry run felt like from the worker's side. It now says so, and says it resolves itself:
+  slice 167's backfill releases everything the moment the webhook lands. Collapsing `pending`
+  into either neighbour reintroduces one of the two bugs, so the enum is deliberate.
+
+  The three states share one endpoint: `startConnectOnboarding` reuses an existing connected
+  account and just mints a fresh hosted link, so "Set up payouts" / "Finish payout setup" /
+  "Update payout details" are the same call. When the status **cannot be read**, the section
+  is hidden rather than defaulting to "Set up payouts" — guessing there is the original bug.
+  Pure `derivePayoutSetupView` (`app/src/features/payouts/payoutSetupView.ts`, the
+  `deriveScheduleView` pattern) keeps the copy and the state machine testable without a
+  renderer. `tests/payout-setup-view.test.mjs`, `tests/profile-payout-status.test.mjs` (driven
+  over HTTP — the tsx module-identity trap makes a direct repository import useless here), and
+  `PayoutsScreen.test.tsx`. server + shared + app + app-expo — _handed off_.
+
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **183** (reset magic link), which were handed off.
+(Stripe go-live runbook), and **184** (payout status on the Payouts screen), which were handed off.
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
 (payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
 entry above; the default remains mock mode (no key set)._

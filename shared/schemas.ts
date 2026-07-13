@@ -139,6 +139,26 @@ export type AdminStats = z.infer<typeof adminStatsSchema>;
 export const connectOnboardingSchema = z.object({ url: z.url() });
 export type ConnectOnboarding = z.infer<typeof connectOnboardingSchema>;
 
+/**
+ * Where a worker stands with payout onboarding. **Three states, not two** — the middle one is
+ * the whole reason this exists.
+ *
+ * - `none`     — no connected account yet. They have never started.
+ * - `pending`  — an account exists, but Stripe has NOT confirmed it can receive payouts.
+ *                Returning from the hosted onboarding does **not** mean it is finished (see
+ *                `docs/connect-go-live.md`): Stripe may still be verifying, or be waiting on
+ *                details the worker did not supply. Payouts are held (`tryTransferPayout`
+ *                gates on `stripePayoutsEnabled`) and will flush by themselves once the
+ *                `account.updated` webhook says the account is ready.
+ * - `enabled`  — Stripe confirmed it. Money can actually move.
+ *
+ * Collapsing `pending` into either neighbour is what produced the bug this replaces: a worker
+ * who had finished onboarding was still shown "Set up payouts", and a worker who was stuck
+ * mid-verification was told nothing at all while their payouts silently sat pending.
+ */
+export const payoutAccountStatusSchema = z.enum(['none', 'pending', 'enabled']);
+export type PayoutAccountStatus = z.infer<typeof payoutAccountStatusSchema>;
+
 // A worker's own earnings summary (Model B payouts): what has been paid out vs. what is
 // still scheduled (pending). Amounts are the worker's net, in minor units.
 export const earningsSummarySchema = z.object({
@@ -350,6 +370,12 @@ export const userProfileSchema = z.object({
   bio: workerBioSchema.optional(),
   skills: workerSkillsSchema.optional(),
   availability: workerAvailabilitySchema.optional(),
+  /**
+   * Payout onboarding state. Present for **workers only** — nobody else can be paid out.
+   * Read-only: it is derived from the connected account (and the `account.updated` webhook),
+   * never set by the client, so it is absent from `updateProfileInputSchema`.
+   */
+  payoutAccountStatus: payoutAccountStatusSchema.optional(),
 });
 export type UserProfile = z.infer<typeof userProfileSchema>;
 
