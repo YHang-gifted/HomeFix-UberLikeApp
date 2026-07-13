@@ -253,6 +253,27 @@ message, stack) — both correlated by `requestId`. Only that whitelist is ever
 logged: never the request body, headers, or query string, so bearer tokens and
 other secrets can't leak into the logs.
 
+### What must never be logged (SEC-0009)
+
+**Assume everything on stdout is disclosed** — to every operator, and to whichever
+third party the drain below forwards it to. Two values are therefore never written:
+
+- **The recipient of a notification** (`to` — an email address or a push device token).
+- **The body of a notification.** The body is not just content, it is the _secret
+  channel_: the password-reset mail carries the **plaintext reset token**, and only its
+  SHA-256 hash is stored. Logging it would put working account-takeover credentials into
+  the log next to the address they unlock.
+
+Notification deliveries log `type:"notify"` with `channel`, `userId` (an internal UUID)
+and `bodyChars` — enough to see that a message fired, and to whom, without revealing how
+to reach them or what it said. `notificationLogFields()` in
+`server/src/services/notificationProvider.ts` is the only approved way to log one.
+
+`NOTIFY_LOG_BODY=true` turns the full recipient and body back on. It is a **local
+development** switch — the reset token is otherwise unrecoverable on a laptop — and the
+server **refuses to boot in production** with it set. Never set it on a deployed
+environment.
+
 To ship the logs somewhere queryable, point your platform's log drain at stdout:
 
 - **Railway**: add a Log Drain (Project → Settings → Log Drains) targeting your

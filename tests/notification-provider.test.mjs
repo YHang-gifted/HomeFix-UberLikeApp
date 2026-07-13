@@ -19,10 +19,13 @@ function makeNotification(overrides = {}) {
 }
 
 describe('formatOutboundMessage', () => {
-  it('builds a channel/recipient/subject/body message', () => {
+  it('builds a channel/recipient/subject/body message, carrying the user id', () => {
     const msg = formatOutboundMessage('email', 'user@example.com', makeNotification());
     assert.deepEqual(msg, {
       channel: 'email',
+      // SEC-0009: the user id travels with the message so a sender can identify the delivery
+      // in a log without writing down `to` (PII) or `body` (which can carry a secret).
+      userId: 'u1',
       to: 'user@example.com',
       subject: 'HomeFix notification',
       body: 'A worker has accepted your request.',
@@ -81,9 +84,13 @@ describe('loggingSender', () => {
   it('resolves without throwing (inert, no provider contacted)', async () => {
     await loggingSender({
       channel: 'email',
+      userId: 'u1',
       to: 'user@example.com',
       subject: 'HomeFix notification',
       body: 'hi',
     });
   });
+
+  // What it must NOT write is the point of SEC-0009 — locked in
+  // `tests/notification-log-redaction.test.mjs`.
 });

@@ -32,6 +32,20 @@ const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.enum(['json', 'pretty']).default('json'),
     ),
+    // SEC-0009. Log the full recipient and body of a notification the inert sender did not
+    // actually send. **A local-development escape hatch, and refused in production** (see the
+    // superRefine below) — the body is the secret channel itself: the password-reset mail
+    // carries the plaintext reset token, and the recipient is the address it unlocks.
+    //
+    // It exists because the reset token is stored only as a SHA-256 hash, so with no mail
+    // provider configured and nothing in the log, a developer could not test forgot-password
+    // locally at all. Defaults to false: the safe behavior is the one you get by doing nothing.
+    NOTIFY_LOG_BODY: z
+      .preprocess(
+        (value) => (value === '' ? undefined : value),
+        z.enum(['true', 'false']).optional(),
+      )
+      .transform((value) => value === 'true'),
     JWT_SECRET: z.string().min(16).default(DEV_JWT_SECRET),
     JWT_EXPIRES_IN: z.coerce.number().int().positive().default(604800),
     // Comma-separated allowlist of web origins permitted to call the API from a
@@ -229,6 +243,18 @@ const envSchema = z
         code: 'custom',
         path: ['JWT_SECRET'],
         message: 'JWT_SECRET must be set to a strong, non-default value in production',
+      });
+    }
+    // SEC-0009. Same shape as the JWT_SECRET guard above (SEC-0004): a setting that is
+    // harmless on a laptop and dangerous in production is refused at boot, rather than
+    // trusted to nobody ever copying it into a deploy. Logging the body would put live
+    // password-reset tokens into the log — and logs get shipped to a drain.
+    if (env.NODE_ENV === 'production' && env.NOTIFY_LOG_BODY) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['NOTIFY_LOG_BODY'],
+        message:
+          'NOTIFY_LOG_BODY must not be enabled in production: it writes password-reset tokens and recipient addresses to the log',
       });
     }
   });

@@ -56,9 +56,15 @@ export async function requestPasswordReset(
   await passwordResetRepository.create(record);
 
   // Delivery is best-effort: a provider failure must not fail (or leak from) the request.
+  //
+  // SEC-0009: `body` carries the PLAINTEXT reset token — the one secret this whole flow is
+  // built to keep (only its SHA-256 hash is stored). It goes to the sender and nowhere else;
+  // no sender may log it. When EMAIL_* is unset this is `loggingSender`, which used to print
+  // the token and the address together into the application log.
   try {
     await sender({
       channel: 'email',
+      userId: user.id,
       to: user.email,
       subject: 'Reset your HomeFix password',
       body: `Use this code to reset your password: ${token}\nIt expires in 1 hour. If you did not request this, you can ignore this email.`,
