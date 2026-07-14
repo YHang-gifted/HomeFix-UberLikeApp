@@ -1,5 +1,6 @@
+import Constants from 'expo-constants';
 import { type ReactElement, useCallback, useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
 import type { DeviceCoordinates } from '../../app/src/features/location/currentLocation';
@@ -21,11 +22,21 @@ export const deviceMapPicker: MapPicker = (initial) => {
 };
 
 /**
- * Native always has a working map picker (react-native-maps). Mirrors the web
- * module's flag so App.tsx can gate the "Pick on map" button uniformly across
- * platforms (on web it is true only when a Maps JavaScript key is configured).
+ * Whether a map will actually render — **per platform**, because the two do not behave alike.
+ *
+ * - **iOS** falls back to Apple Maps, so it needs no key and always works.
+ * - **Android** uses Google Maps and, with no API key, **fails silently**: not an error, not a
+ *   warning, just a **blank grey square with a draggable pin**. A user would drag a marker
+ *   across nothing and submit a location they never saw — worse than having no map button at
+ *   all. So on Android the picker is offered only when the key is configured.
+ *
+ * `androidMapsConfigured` is published by `app.config.ts`, which is where the key is read from
+ * the environment (it must not be committed). This mirrors the web module, which has always
+ * gated on its own key; native was the one that claimed to be unconditionally available.
  */
-export const mapPickerAvailable: boolean = true;
+const androidMapsConfigured = Constants.expoConfig?.extra?.['androidMapsConfigured'] === true;
+
+export const mapPickerAvailable: boolean = Platform.OS === 'ios' ? true : androidMapsConfigured;
 
 /** Mount once at the app root so {@link deviceMapPicker} has a modal to drive. */
 export function MapPickerHost(): ReactElement {

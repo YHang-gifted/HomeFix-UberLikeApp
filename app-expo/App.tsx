@@ -498,8 +498,17 @@ export default function App(): ReactElement {
     if (!signedIn) {
       return;
     }
-    // Best-effort: register this device for push once signed in. Never throws.
-    void registerForPush(devicePushTokenProvider, (token) => apiClient.registerDeviceToken(token));
+    // Best-effort: register this device for push once signed in. Never throws — but no longer
+    // silent. The outcome used to be discarded outright, so a push setup that could not work on
+    // any device (no EAS projectId) failed on every launch with nothing to show for it.
+    void registerForPush(devicePushTokenProvider, (token) =>
+      apiClient.registerDeviceToken(token),
+    ).then((outcome) => {
+      if (!outcome.ok) {
+        // eslint-disable-next-line no-console -- the only channel the device has.
+        console.warn(`[push] not registered (${outcome.reason})`, outcome.detail ?? '');
+      }
+    });
   }, [signedIn]);
 
   // The reset screen only exists in the signed-out stack, so only take the token once we know
