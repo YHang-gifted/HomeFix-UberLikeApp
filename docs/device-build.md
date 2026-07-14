@@ -43,9 +43,11 @@ Still open, and only a real device can settle them:
   the native app never learns. The payment still settles (the webhook does that) and shows as
   paid on the next refresh — degraded, not broken. A proper fix needs a deep link handler for
   the `homefix://` scheme.
-- **New Architecture is on** (SDK 56 default, now set explicitly). `react-native-maps` is the
-  component most likely to object. If the map misbehaves, `"newArchEnabled": false` in
-  `app.json` is the one-line experiment.
+- **New Architecture is on** (the SDK 56 default). We do **not** set `newArchEnabled` in
+  `app.json` — the config schema rejects it as an unknown property (`expo-doctor` fails on it),
+  and it is on by default anyway. `react-native-maps` is the component most likely to object to
+  the new architecture; if the map misbehaves, turn it off via the **`expo-build-properties`**
+  config plugin (`newArchEnabled: false`), not a root field.
 
 ## 1. Install the one new dependency
 
