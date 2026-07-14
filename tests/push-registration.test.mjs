@@ -27,18 +27,36 @@ describe('registerForPush', () => {
     assert.equal(called, false);
   });
 
-  it('reports an error without throwing when the provider fails', async () => {
+  // slice 186: the failure used to be a perfect silence. The token call threw on every device
+  // (no EAS projectId was configured, so it could never succeed), the `catch` discarded the
+  // error, and App.tsx discarded the outcome. Push had never worked once, and nothing anywhere
+  // said so. Swallowing the failure is right — it must not block sign-in — but the reason has
+  // to survive, or the feature stays broken indefinitely.
+  it('reports WHY the provider failed, without throwing', async () => {
     const outcome = await registerForPush(
-      { getToken: () => Promise.reject(new Error('permission denied')) },
+      { getToken: () => Promise.reject(new Error('no EAS projectId')) },
       () => Promise.resolve(),
     );
-    assert.deepEqual(outcome, { ok: false, reason: 'error' });
+    assert.deepEqual(outcome, {
+      ok: false,
+      reason: 'error',
+      detail: 'no EAS projectId',
+    });
   });
 
-  it('reports an error without throwing when registration fails', async () => {
+  it('reports WHY registration failed, without throwing', async () => {
     const outcome = await registerForPush({ getToken: () => Promise.resolve('tok') }, () =>
       Promise.reject(new Error('network')),
     );
-    assert.deepEqual(outcome, { ok: false, reason: 'error' });
+    assert.deepEqual(outcome, { ok: false, reason: 'error', detail: 'network' });
+  });
+
+  it('survives a non-Error rejection', async () => {
+    const outcome = await registerForPush(
+      // eslint-disable-next-line prefer-promise-reject-errors
+      { getToken: () => Promise.reject('a string') },
+      () => Promise.resolve(),
+    );
+    assert.deepEqual(outcome, { ok: false, reason: 'error', detail: 'Unknown error' });
   });
 });

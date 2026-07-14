@@ -1277,8 +1277,42 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   web smoke and login/create paths no longer need re-testing by hand; **native, device,
   accessibility and performance still do.** _handed off_.
 
+- **186** **the app could not be built for a phone at all** — `app-expo/app.json` was still the
+  unmodified `create-expo-app` template. No bundle identifier, no package name, no URL scheme,
+  no EAS project, and `plugins` listed exactly one entry. Auditing it before building (rather
+  than after a 20-minute build failed) found three defects that every test we have was blind to,
+  because the four native adapters have **no tests** and `App.tsx` — the only place the real
+  ones are wired in — is never rendered under test. Green meant nothing here.
+
+  **(1) Push could never have worked, on any device, ever.** `getExpoPushTokenAsync()` was
+  called with no `projectId`, and the config had no `extra` block, so the library found none
+  from any of its three sources and threw every single time. `registerForPush` swallowed the
+  error; `App.tsx` discarded the outcome. A feature that had never once succeeded looked exactly
+  like a feature that worked. Same class as 178 and SEC-0009: swallowing the failure is fine,
+  swallowing the **evidence** is not. Now the id is passed explicitly, its absence says what to
+  run (`eas init`), and the outcome is logged.
+
+  **(2) iOS would have hard-crashed** on the first location or photo call — iOS terminates the
+  process when a protected API is touched with no usage-description string, and `ios` was
+  `{ "supportsTablet": true }` and nothing else. The permission _code_ was correct all along.
+  The `expo-location` / `expo-image-picker` plugins now inject the strings.
+
+  **(3) Android's map picker was a blank grey square.** `mapPickerAvailable` was hard-coded
+  `true` on native, but Google Maps renders empty tiles with no API key — **no error, no
+  warning** — so a user would drag a pin across nothing and submit a location they never saw.
+  Worse than no map at all. Now gated per platform: iOS always (Apple Maps needs no key),
+  Android only when a key is configured. New `app.config.ts` reads the key from the environment
+  (it must never be committed) and publishes `extra.androidMapsConfigured` so the app knows at
+  runtime whether a map will actually appear.
+
+  Also: `eas.json` (development / preview / production), and `docs/device-build.md` — the
+  runbook, including what is **still** open and can only be settled on a device (foreground
+  notifications do not render — there is no `setNotificationHandler`; hosted checkout returns to
+  the _web_ app, so a native payer lands there and the app only learns via the webhook on next
+  refresh). app-expo + app + docs — _handed off_.
+
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **185** (browser E2E), which were handed off.
+(Stripe go-live runbook), and **186** (native build config), which were handed off.
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
 (payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
 entry above; the default remains mock mode (no key set)._
