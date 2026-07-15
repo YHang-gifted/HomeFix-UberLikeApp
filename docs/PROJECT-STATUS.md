@@ -1330,11 +1330,33 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   that also look clipped are **not** a bug — they are intentional horizontal `ScrollView`s.)
   This is exactly the class of thing the device pass exists to catch. app-expo — _handed off_.
 
+- **189** device-QA outcomes recorded (docs). The app **ran on a real device for the first
+  time** (Android emulator). What the pass proved, and what it surfaced:
+
+  - **Works on device:** login against the live API, create-request end-to-end (→ Railway →
+    detail screen), location capture from the emulator's set coordinates, and "Open in Maps"
+    (the external `Linking` deep link).
+  - **Found + fixed:** the admin header overflow (slice 188).
+  - **Push: the diagnostic worked exactly as slice 186 intended.** The old silent failure is
+    gone; the device log now names the cause — `Default FirebaseApp is not initialized ...
+com.homefix.dev`. That **confirms the app code is right** (186's `projectId` fix cleared
+    the first error; we reached the next). The remaining work is external: **FCM credentials**
+    for Android push (Firebase project + `google-services.json` + FCM key to Expo), APNs for
+    iOS. Recorded on `docs/go-live-checklist.md`; not a blocker.
+  - **Deferred, not failed:** the **in-app map picker** (react-native-maps) can't be validated
+    on the dev-server path — `GOOGLE_MAPS_ANDROID_KEY` is an EAS secret, invisible to
+    `npx expo start`, so `androidMapsConfigured` is false and the button is hidden. It needs a
+    `preview` build (or the key exported locally). The **external** maps link is confirmed.
+    Photo upload skipped (an emulator-setup nuisance, and the field is optional).
+
+  `docs/device-build.md` gains a verified "Android emulator on Windows" section (the path
+  actually used) and the FCM finding. Docs only — _handed off_.
+
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **188** (admin header overflow), which were handed off.
+(Stripe go-live runbook), and **189** (device-QA outcomes), which were handed off._
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
 (payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
-entry above; the default remains mock mode (no key set)._
+entry above; the default remains mock mode (no key set).\_
 
 _Prior snapshot (100–110b): SEC-0005 billing consistency; DB hardening (indexes /
 CHECK / foreign keys, migrations 0016–0021); account lifecycle end-to-end (104–108);

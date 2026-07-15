@@ -32,6 +32,49 @@ Fixed in code:
   a location they never saw. The picker is now offered on Android only when a key is configured
   (iOS falls back to Apple Maps and needs no key).
 
+**Confirmed on a real device (Android emulator, 2026-07-14):** login, create-request
+end-to-end against the live API, and location capture all work. Two findings came out of it —
+the admin header overflow (fixed, slice 188) and the push/FCM gap below.
+
+### Android push needs FCM credentials (found on device)
+
+The push diagnostic did its job: instead of the old silent failure, the device log now says
+exactly what is wrong —
+
+```
+[push] not registered (error) Unable to get Firebase Messaging instance ...
+Default FirebaseApp is not initialized in this process com.homefix.dev
+```
+
+This **confirms the app-side code is correct** — slice 186's `projectId` fix cleared the
+first error and we reached the _next_ one. That next one is external setup that was never
+done: Expo delivers Android push through **Firebase Cloud Messaging**, which needs a Firebase
+project (Android app for `com.homefix.dev`), a `google-services.json` referenced from
+`expo.android.googleServicesFile`, and the FCM V1 service-account key uploaded to Expo via
+`eas credentials`. See https://docs.expo.dev/push-notifications/fcm-credentials/. iOS push
+uses APNs, which comes with the Apple Developer account. Tracked on
+`docs/go-live-checklist.md`; not a blocker (the app degrades to no-push cleanly).
+
+### Testing on an Android emulator from Windows (no phone, no Mac)
+
+This is the path that was actually used, so it is written down as verified rather than
+guessed:
+
+1. Android Studio → **Device Manager → Create Device** → pick a Pixel → **system image with
+   the Google Play icon** (a plain AOSP image has no Play services, so push tokens and Google
+   Maps both silently fail — you would blame the app). Start it.
+2. It is a **development** build, so it needs Metro: `npx expo start` in `app-expo/`, then
+   press `a`. (A `preview` build is standalone and needs no Metro — better for handing to a
+   tester.)
+3. **The dev server does not see EAS secrets.** `EXPO_PUBLIC_*` and `GOOGLE_MAPS_ANDROID_KEY`
+   are injected only at `eas build` time; under `npx expo start` they come from the local
+   shell / `.env`. So on the dev-server path the API URL can fall back to `localhost` (set
+   `EXPO_PUBLIC_API_BASE_URL` before starting) and the **in-app map picker is hidden**
+   (`androidMapsConfigured` is false). The map picker is only fully testable in a `preview`
+   build, or by exporting the key into the shell before `npx expo start --clear`.
+4. Getting a test photo into a fresh emulator is fiddly and unrelated to the app — the photo
+   field is optional; skip it, or upload one via Android Studio's **Device Explorer**.
+
 Still open, and only a real device can settle them:
 
 - **Foreground notifications will not render.** There is no `setNotificationHandler` anywhere.
