@@ -311,15 +311,31 @@ export function AdminRequestsScreen({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#ffffff' },
+  // Wraps on a narrow screen instead of clipping. The admin header carries six nav links —
+  // the most of any role — and on a phone they overflowed the right edge, so "Audit log" and
+  // "Log out" were off-screen and unreachable. `flexWrap` + a row gap lets the links flow onto
+  // a second line; `maxWidth` + `alignSelf` keep it from stretching absurdly wide on a tablet
+  // or the web build. This mirrors the header the customer and worker screens already use — the
+  // admin one was simply the outlier that never got it.
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    gap: 12,
+    flexWrap: 'wrap',
+    width: '100%',
+    maxWidth: 1040,
+    alignSelf: 'center',
   },
   heading: { fontSize: 18, fontWeight: '700', color: '#0f172a' },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    flexWrap: 'wrap',
+  },
   auditText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
   profileText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
   logoutText: { color: '#64748b', fontSize: 14, fontWeight: '600' },
