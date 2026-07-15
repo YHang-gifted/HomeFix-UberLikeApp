@@ -91,6 +91,14 @@ payouts, and the backfill). PayPal has not met a real provider at all.
 
 ## 3. Security & operations configuration
 
+- [ ] **Push notification credentials** — push is wired in the app and the code is confirmed
+      correct (slice 186's diagnostic reached the _next_ error on a real device), but no
+      provider credentials exist, so push does not send. Android needs **FCM**: a Firebase
+      project with an Android app for `com.homefix.dev`, a `google-services.json` referenced
+      from the app config, and the FCM V1 key uploaded to Expo
+      (`docs/device-build.md`, https://docs.expo.dev/push-notifications/fcm-credentials/). iOS
+      needs **APNs**, which comes with the Apple Developer account. Not a blocker — the app
+      degrades to no-push cleanly — but email is the only working channel until this is done.
 - [ ] **`METRICS_TOKEN`** — unset today, which leaves `GET /metrics` **world-readable**.
       Aggregate data only (traffic, error rate, latency, RSS), so the blast radius is
       small, but it is unauthenticated telemetry on the public internet. `env.ts` does not
@@ -111,8 +119,14 @@ them by hand:
 
 ## 4. Proof
 
-- [ ] Full **E2E / device QA** pass against `docs/qa-checklist.md`. No run on a real device
-      or build yet; no accessibility or performance pass.
+- [x] **The app runs on a real device** (Android, 2026-07-14). First device run ever: login,
+      create-request end-to-end against the live API, location capture, and "Open in Maps" all
+      work; found and fixed a header that overflowed narrow screens (slice 188); the push
+      diagnostic correctly identified the missing FCM credentials. See `docs/device-build.md`.
+- [ ] Full **E2E / device QA** pass against `docs/qa-checklist.md` — the smoke path is proven;
+      still outstanding: the in-app map **picker** (needs a `preview` build or a local key, not
+      the dev server), push once FCM is set up, photo upload, and an **iOS** run. No
+      accessibility or performance pass yet.
 - [ ] Confirm the deployed **web app renders in a browser** and the console is clean. (Done
       once, 2026-07-13 — keep it as a release check: a zod 3-vs-4 mismatch once blanked the
       whole page for several slices and nothing in CI noticed, because CI proves the bundle
