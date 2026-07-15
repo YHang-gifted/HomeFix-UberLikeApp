@@ -15,6 +15,7 @@ import {
   listMyPayments,
   payPayment,
   refundPayment,
+  startCheckout,
 } from '../services/paymentService.ts';
 import { handlePaymentWebhook, verifyPaymentWebhook } from '../services/paymentWebhookService.ts';
 import {
@@ -136,6 +137,29 @@ export async function postServiceRequestPaymentPay(
 
   try {
     res.status(200).json(await payPayment(id, principal));
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** Open a fresh hosted-checkout session for the pending payment and return its URL (slice 192). */
+export async function postServiceRequestPaymentCheckout(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  const id = parseId(req, next);
+  if (id === undefined) {
+    return;
+  }
+
+  try {
+    res.status(200).json(await startCheckout(id, principal));
   } catch (error) {
     next(error);
   }

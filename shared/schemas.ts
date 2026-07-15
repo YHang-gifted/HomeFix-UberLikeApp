@@ -139,6 +139,11 @@ export type AdminStats = z.infer<typeof adminStatsSchema>;
 export const connectOnboardingSchema = z.object({ url: z.url() });
 export type ConnectOnboarding = z.infer<typeof connectOnboardingSchema>;
 
+// A freshly opened hosted-checkout session for a pending payment (POST …/payment/checkout).
+// Minted on demand so it is never stale — see slice 192.
+export const checkoutSessionSchema = z.object({ checkoutUrl: z.url() });
+export type CheckoutSession = z.infer<typeof checkoutSessionSchema>;
+
 /**
  * Where a worker stands with payout onboarding. **Three states, not two** — the middle one is
  * the whole reason this exists.
@@ -516,7 +521,9 @@ export const paymentSchema = z.object({
   // response so the app can start checkout; never persisted, never on a later GET.
   clientSecret: z.string().optional(),
   // Hosted checkout URL to redirect the customer to (e.g. a Stripe Checkout page).
-  // Ephemeral like `clientSecret`: only on the create-payment response.
+  // Ephemeral like `clientSecret`: it is created fresh each time the customer starts checkout
+  // (POST …/payment/checkout) and never persisted — a Checkout Session expires, so a stored URL
+  // would go stale (see slice 192). Rides only on the response that opened it.
   checkoutUrl: z.url().optional(),
 });
 export type Payment = z.infer<typeof paymentSchema>;

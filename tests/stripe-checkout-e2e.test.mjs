@@ -34,13 +34,18 @@ const EXPECTED_WORKER_NET_CENTS = QUOTE_CENTS - 22500;
 
 const WEBHOOK_SECRET = 'whsec_e2e';
 
-/** A fake provider that behaves like Stripe hosted checkout without any network. */
+/**
+ * A fake provider that behaves like Stripe hosted checkout without any network. Its refs key off
+ * the idempotency key, so each `startCheckout` (fresh key) yields a DISTINCT session + intent —
+ * exactly what lets the reconciliation test below prove `providerRef` follows the paid one.
+ */
 const fakeExternalProvider = {
   usesExternalCheckout: true,
   createCharge(input) {
+    const ref = input.idempotencyKey ?? input.paymentId;
     return Promise.resolve({
-      providerRef: `pi_${input.paymentId}`,
-      checkoutUrl: `https://checkout.stripe.com/pay/cs_${input.paymentId}`,
+      providerRef: `pi_${ref}`,
+      checkoutUrl: `https://checkout.stripe.com/pay/cs_${ref}`,
     });
   },
 };
@@ -126,12 +131,17 @@ describe('end-to-end: Stripe hosted-checkout branch', () => {
     return request.id;
   }
 
-  /** Deliver a signed `checkout.session.completed` for our payment id. */
-  function deliverWebhook(paymentId) {
+  /** Deliver a signed `checkout.session.completed` for our payment id (+ optional paid intent). */
+  function deliverWebhook(paymentId, paymentIntent) {
     const payload = JSON.stringify({
       id: 'evt_e2e',
       type: 'checkout.session.completed',
-      data: { object: { metadata: { paymentId } } },
+      data: {
+        object: {
+          metadata: { paymentId },
+          ...(paymentIntent !== undefined ? { payment_intent: paymentIntent } : {}),
+        },
+      },
     });
     const signature = stripe.webhooks.generateTestHeaderString({
       payload,
@@ -160,6 +170,58 @@ describe('end-to-end: Stripe hosted-checkout branch', () => {
     assert.equal(payment.status, 'pending');
     assert.equal(payment.checkoutUrl, `https://checkout.stripe.com/pay/cs_${payment.id}`);
     assert.equal(payment.clientSecret, undefined);
+  });
+
+  // slice 192: the customer must be able to pay after any delay. `POST …/payment/checkout` opens
+  // a FRESH session on demand, so an expired one is never reused — this is what fixes the
+  // "customer set up the payment, the worker did the job over days, then couldn't pay" dead end.
+  it('opens a fresh checkout session on demand for a pending payment', async () => {
+    const requestId = await acceptedRequest();
+    const created = await (
+      await api(CUSTOMER_ID, 'customer', 'POST', `/service-requests/${requestId}/payment`, {
+        amountCents: QUOTE_CENTS,
+      })
+    ).json();
+
+    const res = await api(
+      CUSTOMER_ID,
+      'customer',
+      'POST',
+      `/service-requests/${requestId}/payment/checkout`,
+    );
+    assert.equal(res.status, 200);
+    const { checkoutUrl } = await res.json();
+    // A real URL, and a DIFFERENT session than the one create returned (fresh, not the stale one).
+    assert.match(checkoutUrl, /^https:\/\/checkout\.stripe\.com\/pay\/cs_/);
+    assert.notEqual(checkoutUrl, created.checkoutUrl);
+  });
+
+  // The SEC-critical half: refunds must target the intent that was actually paid, even though
+  // several sessions/intents may have been opened. The webhook reconciles providerRef to it.
+  it('reconciles providerRef to the intent that actually settled', async () => {
+    const requestId = await acceptedRequest();
+    const created = await (
+      await api(CUSTOMER_ID, 'customer', 'POST', `/service-requests/${requestId}/payment`, {
+        amountCents: QUOTE_CENTS,
+      })
+    ).json();
+
+    // The customer comes back later and opens a fresh session (a new intent).
+    const { checkoutUrl } = await (
+      await api(CUSTOMER_ID, 'customer', 'POST', `/service-requests/${requestId}/payment/checkout`)
+    ).json();
+    const paidIntent = `pi_${checkoutUrl.split('/cs_')[1]}`;
+    assert.notEqual(paidIntent, created.providerRef); // it's a different intent than the first
+
+    // The webhook for THAT session settles the payment and carries the paid intent.
+    assert.equal((await deliverWebhook(created.id, paidIntent)).status, 200);
+
+    const settled = await (
+      await api(CUSTOMER_ID, 'customer', 'GET', `/service-requests/${requestId}/payment`)
+    ).json();
+    assert.equal(settled.status, 'paid');
+    // providerRef now points at the intent that was actually charged — so a refund targets it.
+    assert.equal(settled.providerRef, paidIntent);
   });
 
   it('blocks the mock /pay with 409 while an external provider is active', async () => {

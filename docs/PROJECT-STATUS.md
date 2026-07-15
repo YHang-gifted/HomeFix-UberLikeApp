@@ -1377,8 +1377,34 @@ com.homefix.dev`. That **confirms the app code is right** (186's `projectId` fix
   it). Tests updated: `tests/date-time-picker.test.mjs`, and both screen tests now drive the
   picker via an injected fake. app-expo + app — _handed off_.
 
+- **192** [BUG] **a customer could never actually pay after any delay.** Found on a real device:
+  the customer set up the payment, logged out so the worker could do the job, logged back in to
+  pay — and "Pay now" did nothing. Cause: the hosted `checkoutUrl` rode only on the create
+  response and was never persisted, so after any reload it was gone (re-`createPayment` is a 409,
+  a GET never carried it, `/pay` is 409-locked for a real provider). A dead end for **every**
+  real user — everyone leaves and comes back before paying.
+
+  Persisting the URL was rejected because a Stripe **Checkout Session expires (~24h)**, so a
+  stored URL goes stale exactly when a home-repair job runs over a day. The fix instead mints a
+  **fresh session on demand**: new `POST …/payment/checkout` (`startCheckout`) opens a new
+  session — a **fresh idempotency key** so an expired one is never reused — and returns its URL;
+  the app's "Pay now" calls it every time. It is never stale, regardless of how long the job
+  takes.
+
+  The **refund-integrity half** (the reason regeneration was scary): a fresh session means a
+  fresh PaymentIntent, so the payment's `providerRef` — which refunds target (SEC-0007/0008) —
+  must follow the intent that **actually** settled. The `checkout.session.completed` webhook now
+  carries `payment_intent`, and `confirmPaymentPaid` **reconciles `providerRef` to it** when the
+  payment is marked paid. So no matter how many sessions were opened, a later refund hits the one
+  that was charged. Locked by `tests/stripe-checkout-e2e.test.mjs` (fresh session on demand;
+  providerRef reconciled to the paid intent).
+
+  **This needs an app rebuild** — `payNow` now calls `startCheckout` (server + shared + app).
+  Not a security fix (no `SEC-NNNN`): it hardens the refund path rather than fixing a shipped
+  leak. _handed off._
+
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **191** (date/time picker), which were handed off._
+(Stripe go-live runbook), and **192** (fresh checkout session on demand), which were handed off._
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
 (payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
 entry above; the default remains mock mode (no key set).\_

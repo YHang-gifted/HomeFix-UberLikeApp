@@ -288,14 +288,63 @@ export async function createPayment(
     resourceId: payment.id,
     details: { requestId, amountCents: String(input.amountCents) },
   });
-  // Return the provider's checkout handles (if any) so the app can complete
-  // checkout — a hosted `checkoutUrl` to redirect to, or a `clientSecret`. Neither
-  // is persisted; they ride only on this create response, never a later GET.
+  // Return the provider's checkout handles (if any). Neither is persisted: a `checkoutUrl` is a
+  // Checkout Session that expires, so a stored one would go stale — instead the app re-opens a
+  // FRESH session via `startCheckout` whenever it needs one (slice 192). This create response
+  // just carries the first one so the immediate set-up-then-pay flow needs no extra round-trip.
   return {
     ...payment,
     ...(charge.clientSecret !== undefined ? { clientSecret: charge.clientSecret } : {}),
     ...(charge.checkoutUrl !== undefined ? { checkoutUrl: charge.checkoutUrl } : {}),
   };
+}
+
+/**
+ * Open a **fresh** hosted-checkout session for an existing pending payment and return its URL.
+ *
+ * This is what lets a customer actually pay after any delay. A Checkout Session expires (~24h),
+ * and the create-payment response's URL is never persisted, so once the customer leaves and
+ * comes back — which is the normal flow: set up the payment, the worker does the job over days,
+ * then pay — that first URL is gone or dead. Rather than store a URL that will go stale, we mint
+ * a brand-new session on demand (a fresh idempotency key, so an expired one is never reused).
+ *
+ * The new session carries the same `paymentId` in its metadata, so the webhook still settles
+ * this exact payment, and `confirmPaymentPaid` reconciles `providerRef` to whichever intent is
+ * actually paid — keeping refunds correct even though several sessions may have been opened.
+ *
+ * Owner-only; 409 for a non-pending payment or one that does not use hosted checkout (the mock
+ * provider settles through `/pay`, not a session).
+ */
+export async function startCheckout(
+  requestId: string,
+  principal: Principal,
+): Promise<{ checkoutUrl: string }> {
+  const request = await loadRequest(requestId);
+  if (principal.role !== 'customer' || principal.id !== request.customerId) {
+    throw new AppError('Only the owning customer may start checkout', 403);
+  }
+  const payment = await paymentRepository.findByRequest(requestId);
+  if (!payment) {
+    throw new AppError('No payment for this request', 404);
+  }
+  if (payment.status !== 'pending') {
+    throw new AppError('This payment is no longer awaiting checkout', 409);
+  }
+  const provider = activePaymentProvider(payment.provider === 'paypal' ? 'paypal' : undefined);
+  if (!provider.usesExternalCheckout) {
+    throw new AppError('This payment does not use hosted checkout', 409);
+  }
+  const charge = await provider.createCharge({
+    paymentId: payment.id,
+    requestId,
+    amountCents: payment.amountCents,
+    currency: payment.currency,
+    idempotencyKey: randomUUID(),
+  });
+  if (charge.checkoutUrl === undefined) {
+    throw new AppError('The payment provider did not return a checkout URL', 502);
+  }
+  return { checkoutUrl: charge.checkoutUrl };
 }
 
 /**
@@ -436,7 +485,10 @@ export async function settlePaypalOrderById(orderId: string): Promise<void> {
  * 404 if the referenced payment is unknown. No authorization here — the caller
  * verifies the webhook's authenticity before invoking this.
  */
-export async function confirmPaymentPaid(paymentId: string): Promise<Payment> {
+export async function confirmPaymentPaid(
+  paymentId: string,
+  paidProviderRef?: string,
+): Promise<Payment> {
   const payment = await paymentRepository.findById(paymentId);
   if (!payment) {
     throw new AppError('Payment not found', 404);
@@ -444,7 +496,17 @@ export async function confirmPaymentPaid(paymentId: string): Promise<Payment> {
   if (payment.status === 'paid') {
     return payment;
   }
-  return markPaid(payment);
+  // Reconcile the provider reference to the charge that ACTUALLY settled. With lazy checkout
+  // (slice 192) the customer may pay a session other than the one first opened — each
+  // `startCheckout` mints a fresh Checkout Session, hence a fresh PaymentIntent — so the intent
+  // a refund must target is only known now, from the webhook. Without this a refund could aim at
+  // an unpaid intent (SEC-0007/0008). The reference is only overwritten when the webhook carries
+  // one, so the mock and legacy paths are unaffected.
+  const settled =
+    paidProviderRef !== undefined && paidProviderRef !== payment.providerRef
+      ? { ...payment, providerRef: paidProviderRef }
+      : payment;
+  return markPaid(settled);
 }
 
 /**
