@@ -1352,8 +1352,16 @@ com.homefix.dev`. That **confirms the app code is right** (186's `projectId` fix
   `docs/device-build.md` gains a verified "Android emulator on Windows" section (the path
   actually used) and the FCM finding. Docs only — _handed off_.
 
+- **190** filter chips **wrap instead of scrolling off-screen** — the follow-on to 188, across
+  all three roles. The status and category filters were horizontal `ScrollView`s: on a phone the
+  later options sat past the right edge with no scroll affordance, so they read as "cut off"
+  (device-QA finding). `StatusFilter` and `CategoryFilter` are now wrapping rows
+  (`flexWrap: 'wrap'`), so every option is visible at once — two or three rows on a narrow
+  screen. Shared components, so customer / worker / admin all get it from one change; the
+  existing tests query by `accessibilityLabel` and are unaffected. app-expo — _handed off_.
+
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **189** (device-QA outcomes), which were handed off._
+(Stripe go-live runbook), and **190** (filter chips wrap), which were handed off._
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
 (payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
 entry above; the default remains mock mode (no key set).\_

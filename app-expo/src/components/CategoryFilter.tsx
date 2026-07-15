@@ -1,5 +1,5 @@
 import { type ReactElement } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ServiceCategory } from '../../../shared/schemas';
 import { serviceCategorySchema } from '../../../shared/schemas';
@@ -13,13 +13,11 @@ export interface CategoryFilterProps {
 }
 
 export function CategoryFilter({ value, onChange }: CategoryFilterProps): ReactElement {
+  // Wraps onto as many lines as the width needs, rather than scrolling off the right edge.
+  // A horizontal scroll hid the later categories behind an edge with no affordance; on a phone
+  // that read as "cut off". Wrapping shows every option at once.
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.scroll}
-      contentContainerStyle={styles.row}
-    >
+    <View style={styles.row}>
       <Pressable
         onPress={() => {
           onChange(null);
@@ -43,13 +41,18 @@ export function CategoryFilter({ value, onChange }: CategoryFilterProps): ReactE
           <Text style={[styles.text, value === category && styles.textSelected]}>{category}</Text>
         </Pressable>
       ))}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 0 },
-  row: { paddingHorizontal: 16, paddingBottom: 10, gap: 6 },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    gap: 6,
+  },
   chip: {
     borderWidth: 1,
     borderColor: colors.line,
