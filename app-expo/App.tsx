@@ -12,6 +12,7 @@ import { registerForPush } from '../app/src/features/notifications/pushRegistrat
 import { readResetCode, urlWithoutResetCode } from '../app/src/features/auth/resetLink';
 import { apiClient } from './src/api';
 import { deviceOpenCheckout } from './src/checkout';
+import { DateTimePickerHost, openDeviceDateTimePicker } from './src/dateTimePicker';
 import { deviceImagePicker } from './src/imagePicker';
 import { deviceGeocoder, deviceLocationProvider } from './src/location';
 import { MapPickerHost, deviceMapPicker, mapPickerAvailable } from './src/mapPicker';
@@ -223,6 +224,7 @@ function CreateRequestRoute({
       // Native always has react-native-maps; web has a Google Maps JS picker only
       // when a Maps JavaScript key is configured (`mapPickerAvailable`).
       mapPicker={mapPickerAvailable ? deviceMapPicker : undefined}
+      openDateTimePicker={openDeviceDateTimePicker}
       onCreated={() => {
         navigation.goBack();
       }}
@@ -239,6 +241,7 @@ function RequestDetailRoute({
       client={apiClient}
       requestId={route.params.id}
       openCheckout={deviceOpenCheckout}
+      openDateTimePicker={openDeviceDateTimePicker}
       onCancelled={() => {
         navigation.goBack();
       }}
@@ -551,6 +554,7 @@ export default function App(): ReactElement {
       <NavigationContainer theme={navigationTheme}>
         <StatusBar style="dark" />
         <MapPickerHost />
+        <DateTimePickerHost />
         <Stack.Navigator
           // Arriving from the reset link opens straight on the reset screen, rather than the
           // login form the user cannot get past — that is the entire point of the link.

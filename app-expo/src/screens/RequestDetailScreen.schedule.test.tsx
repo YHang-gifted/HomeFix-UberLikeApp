@@ -1,6 +1,7 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { type ApiClient, ApiError } from '../../../app/src/services/apiClient';
+import type { OpenDateTimePicker } from '../../../app/src/features/schedule/dateTimePicker';
 import type { Principal, ServiceRequest } from '../../../shared/schemas';
 import { RequestDetailScreen } from './RequestDetailScreen';
 
@@ -40,9 +41,18 @@ function clientWith(extra: Record<string, unknown>, principal: Principal) {
   } as unknown as ApiClient;
 }
 
-function screenFor(client: ApiClient) {
+/** The propose field/button only render when a picker is injected — default to an inert one. */
+function screenFor(
+  client: ApiClient,
+  openDateTimePicker: OpenDateTimePicker = () => Promise.resolve(null),
+) {
   return render(
-    <RequestDetailScreen requestId={REQUEST_ID} client={client} mapPreviewUrl={() => null} />,
+    <RequestDetailScreen
+      requestId={REQUEST_ID}
+      client={client}
+      mapPreviewUrl={() => null}
+      openDateTimePicker={openDateTimePicker}
+    />,
   );
 }
 
@@ -89,7 +99,9 @@ describe('RequestDetailScreen visit scheduling', () => {
     expect(queryByLabelText('Propose a time')).not.toBeNull();
   });
 
-  it('proposes a time, sending it to the API as ISO', async () => {
+  // slice 191: the time is chosen from the picker, not typed. The screen sends the picked Date
+  // as ISO. (The old "malformed time" case is gone — the picker cannot produce an invalid time.)
+  it('proposes the picked time, sending it to the API as ISO', async () => {
     const request = makeRequest();
     const proposeSchedule = jest.fn().mockResolvedValue({
       ...request,
@@ -102,38 +114,19 @@ describe('RequestDetailScreen visit scheduling', () => {
       WORKER,
     );
 
-    const { findByLabelText } = await screenFor(client);
+    const chosen = new Date(2030, 7, 1, 14, 30); // 1 Aug 2030, 14:30 local
+    const openDateTimePicker = jest.fn().mockResolvedValue(chosen);
 
-    await fireEvent.changeText(await findByLabelText('Proposed visit time'), '2030-08-01 14:30');
+    const { findByLabelText, findByText } = await screenFor(client, openDateTimePicker);
+
+    await fireEvent.press(await findByLabelText('Proposed visit time'));
+    await findByText(/2030/); // the chosen time now shows on the field
     await fireEvent.press(await findByLabelText('Propose a time'));
 
     await waitFor(() => {
       expect(proposeSchedule).toHaveBeenCalledTimes(1);
     });
-    const [sentId, sentIso] = proposeSchedule.mock.calls[0] as [string, string];
-    expect(sentId).toBe(REQUEST_ID);
-    // Sent as an ISO instant; it round-trips to the local time the user typed.
-    const sent = new Date(sentIso);
-    expect(sent.getFullYear()).toBe(2030);
-    expect(sent.getHours()).toBe(14);
-    expect(sent.getMinutes()).toBe(30);
-  });
-
-  it('rejects a malformed time locally, without calling the API', async () => {
-    const request = makeRequest();
-    const proposeSchedule = jest.fn();
-    const client = clientWith(
-      { getServiceRequest: jest.fn().mockResolvedValue(request), proposeSchedule },
-      WORKER,
-    );
-
-    const { findByLabelText, findByText } = await screenFor(client);
-
-    await fireEvent.changeText(await findByLabelText('Proposed visit time'), 'next tuesday');
-    await fireEvent.press(await findByLabelText('Propose a time'));
-
-    await findByText(/Enter the time as YYYY-MM-DD HH:MM/);
-    expect(proposeSchedule).not.toHaveBeenCalled();
+    expect(proposeSchedule).toHaveBeenCalledWith(REQUEST_ID, chosen.toISOString());
   });
 
   it('offers a reschedule once the time is confirmed', async () => {

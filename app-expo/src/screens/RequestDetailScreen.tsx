@@ -25,7 +25,8 @@ import { mapsUrl } from '../../../app/src/features/location/mapsLink';
 import { staticMapPreviewUrl } from '../staticMap';
 import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
 import { deriveScheduleView } from '../../../app/src/features/schedule/scheduleView';
-import { isFuture, parseLocalDateTime } from '../../../app/src/features/schedule/scheduleFormat';
+import { isFuture } from '../../../app/src/features/schedule/scheduleFormat';
+import type { OpenDateTimePicker } from '../../../app/src/features/schedule/dateTimePicker';
 import type {
   AuditEvent,
   Coordinates,
@@ -37,6 +38,7 @@ import type {
   ServiceRequest,
 } from '../../../shared/schemas';
 import { apiClient } from '../api';
+import { DateTimeField } from '../components/DateTimeField';
 import { StatusBadge } from '../components/StatusBadge';
 import { colors, radii, shadow, spacing } from '../theme';
 
@@ -87,6 +89,11 @@ export interface RequestDetailScreenProps {
    * server. When false, only the default card provider is used (no method picker).
    */
   paypalEnabled?: boolean;
+  /**
+   * Opens the platform date/time picker for proposing a visit time. App.tsx injects the real
+   * one; tests pass a fake. Left undefined the propose field is hidden.
+   */
+  openDateTimePicker?: OpenDateTimePicker;
 }
 
 export function RequestDetailScreen({
@@ -99,12 +106,13 @@ export function RequestDetailScreen({
   openCheckout,
   mapPreviewUrl = staticMapPreviewUrl,
   paypalEnabled = process.env.EXPO_PUBLIC_PAYPAL_ENABLED === 'true',
+  openDateTimePicker,
 }: RequestDetailScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
   const principal = useMemo(() => activeClient.getPrincipal(), [activeClient]);
 
   const [request, setRequest] = useState<ServiceRequest | null>(null);
-  const [scheduleText, setScheduleText] = useState('');
+  const [scheduleAt, setScheduleAt] = useState<Date | null>(null);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -280,13 +288,13 @@ export function RequestDetailScreen({
     }
   }
 
-  /** Put a time on the table. Validated locally first so an obvious mistake never round-trips. */
+  /** Put a time on the table. The picker only yields future times, but re-check before sending. */
   async function proposeVisit(): Promise<void> {
-    const iso = parseLocalDateTime(scheduleText);
-    if (iso === null) {
-      setScheduleError('Enter the time as YYYY-MM-DD HH:MM, e.g. 2026-08-01 14:30.');
+    if (scheduleAt === null) {
+      setScheduleError('Choose a date and time first.');
       return;
     }
+    const iso = scheduleAt.toISOString();
     if (!isFuture(iso)) {
       setScheduleError('Choose a time in the future.');
       return;
@@ -295,7 +303,7 @@ export function RequestDetailScreen({
     setScheduleError(null);
     try {
       setRequest(await activeClient.proposeSchedule(requestId, iso));
-      setScheduleText('');
+      setScheduleAt(null);
     } catch (failure) {
       setScheduleError(
         isApiError(failure) ? failure.message : 'Could not propose that time. Please try again.',
@@ -687,15 +695,15 @@ export function RequestDetailScreen({
             </Pressable>
           )}
 
-          {scheduleView.canPropose && (
+          {scheduleView.canPropose && openDateTimePicker !== undefined && (
             <>
-              <TextInput
-                style={styles.paymentInput}
-                value={scheduleText}
-                onChangeText={setScheduleText}
-                placeholder="YYYY-MM-DD HH:MM (e.g. 2026-08-01 14:30)"
-                autoCapitalize="none"
+              <DateTimeField
+                value={scheduleAt}
+                onChange={setScheduleAt}
+                open={openDateTimePicker}
+                minimumDate={new Date()}
                 accessibilityLabel="Proposed visit time"
+                placeholder="Choose a date & time"
               />
               <Pressable
                 style={({ pressed }) => [

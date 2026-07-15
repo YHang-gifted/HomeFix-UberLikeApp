@@ -161,18 +161,29 @@ describe('CreateRequestScreen', () => {
     await findByText('Location permission denied');
   });
 
-  it('includes a preferred time (scheduledAt) when provided', async () => {
+  // slice 191: the preferred time is now a tap-to-pick DateTimeField, not a text box. The
+  // screen sends the picked Date as ISO. (There is no longer an "unparseable time" case — the
+  // picker cannot produce an invalid value, which is the point of the redesign.)
+  it('includes a preferred time (scheduledAt) when the picker returns one', async () => {
     const created = makeRequest();
     const createServiceRequest = jest.fn().mockResolvedValue(created);
     const getPrincipal = jest.fn().mockReturnValue({ id: CUSTOMER_ID, role: 'customer' });
     const client = { createServiceRequest, getPrincipal } as unknown as ApiClient;
 
-    const { getByLabelText, findByText } = await render(<CreateRequestScreen client={client} />);
+    const chosen = new Date(2030, 6, 1, 9, 0); // a future local time
+    const openDateTimePicker = jest.fn().mockResolvedValue(chosen);
+
+    const { getByLabelText, findByText } = await render(
+      <CreateRequestScreen client={client} openDateTimePicker={openDateTimePicker} />,
+    );
     await fireEvent.press(getByLabelText('Category plumbing'));
     await fireEvent.changeText(getByLabelText('Description'), 'Leaking kitchen sink');
     await fireEvent.changeText(getByLabelText('Latitude'), '25.03');
     await fireEvent.changeText(getByLabelText('Longitude'), '121.56');
-    await fireEvent.changeText(getByLabelText('Preferred time'), '2026-07-01T09:00:00.000Z');
+
+    await fireEvent.press(getByLabelText('Preferred time'));
+    // Wait until the chosen time is reflected on the field before submitting.
+    await findByText(/2030/);
     await fireEvent.press(getByLabelText('Create request'));
 
     await findByText('Request created');
@@ -181,25 +192,8 @@ describe('CreateRequestScreen', () => {
       category: 'plumbing',
       description: 'Leaking kitchen sink',
       location: { latitude: 25.03, longitude: 121.56 },
-      scheduledAt: '2026-07-01T09:00:00.000Z',
+      scheduledAt: chosen.toISOString(),
     });
-  });
-
-  it('flags an unparseable preferred time and does not call the API', async () => {
-    const createServiceRequest = jest.fn();
-    const getPrincipal = jest.fn().mockReturnValue({ id: CUSTOMER_ID, role: 'customer' });
-    const client = { createServiceRequest, getPrincipal } as unknown as ApiClient;
-
-    const { getByLabelText, findByText } = await render(<CreateRequestScreen client={client} />);
-    await fireEvent.press(getByLabelText('Category plumbing'));
-    await fireEvent.changeText(getByLabelText('Description'), 'Leaking kitchen sink');
-    await fireEvent.changeText(getByLabelText('Latitude'), '25.03');
-    await fireEvent.changeText(getByLabelText('Longitude'), '121.56');
-    await fireEvent.changeText(getByLabelText('Preferred time'), 'next tuesday');
-    await fireEvent.press(getByLabelText('Create request'));
-
-    await findByText('Enter a valid date/time (e.g. 2026-07-01T09:00)');
-    expect(createServiceRequest).not.toHaveBeenCalled();
   });
 
   it('hides the location button when no provider is given', async () => {

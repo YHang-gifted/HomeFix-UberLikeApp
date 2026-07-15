@@ -44,7 +44,8 @@
         {
           "photosPermission": "HomeFix needs access to your photos so you can attach pictures of the problem."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "androidMapsConfigured": false,
