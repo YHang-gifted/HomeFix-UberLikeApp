@@ -1311,8 +1311,27 @@ decision, reason?)`. New `AdminCertificationsScreen`: the pending queue, each ca
   the _web_ app, so a native payer lands there and the app only learns via the webhook on next
   refresh). app-expo + app + docs — _handed off_.
 
+- **187** commit the EAS project wiring — the config that `eas init` and the first `eas build`
+  generated (`extra.eas.projectId`, `owner`, `updates.url`, `runtimeVersion`, plus
+  `expo-updates` / `expo-dev-client` / `expo-constants`), so the build is reproducible rather
+  than living only on one laptop. The `projectId` is the specific value whose absence made push
+  impossible in 186, so committing it is what makes that fix real. Also dropped `newArchEnabled`
+  from `app.json` (the config schema rejects it; new arch is the SDK 56 default) and aligned six
+  packages to the SDK's expected versions. **The Android development build then succeeded.**
+  app-expo — merged.
+- **188** **first device-QA finding, fixed.** With 186/187 the app finally ran on a device (an
+  Android emulator), and the very first screen surfaced a real bug that web and jest could never
+  have shown: the **admin "All requests" header overflowed a phone's width.** It packs six nav
+  links (Profile / Dashboard / Users / Certifications / Audit log / Log out) into a
+  non-wrapping, non-scrolling `row`, so on a narrow screen the last two were clipped off the
+  right edge and **unreachable**. The customer and worker headers already had `flexWrap` +
+  `maxWidth` + `alignSelf` and wrapped gracefully; the admin one was simply the outlier that
+  never got the treatment. Brought it in line with the sibling pattern. (The filter chip rows
+  that also look clipped are **not** a bug — they are intentional horizontal `ScrollView`s.)
+  This is exactly the class of thing the device pass exists to catch. app-expo — _handed off_.
+
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **186** (native build config), which were handed off.
+(Stripe go-live runbook), and **188** (admin header overflow), which were handed off.
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
 (payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
 entry above; the default remains mock mode (no key set)._
