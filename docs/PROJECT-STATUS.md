@@ -1360,8 +1360,25 @@ com.homefix.dev`. That **confirms the app code is right** (186's `projectId` fix
   screen. Shared components, so customer / worker / admin all get it from one change; the
   existing tests query by `accessibilityLabel` and are unaffected. app-expo — _handed off_.
 
+- **191** **visit time is now a date/time picker, not hand-typed text.** Both the create-request
+  "Preferred time" and the two-party schedule proposal used a bare `YYYY-MM-DD HH:MM` text box —
+  and in the schedule flow both parties had to type it. Replaced with a tap-to-pick field: the
+  **OS calendar** on a phone (`@react-native-community/datetimepicker` — date then time on
+  Android, an inline modal on iOS), and the browser's native **`datetime-local`** input on web.
+  New shared, injected picker following the app's established seams: pure helpers
+  (`app/src/features/schedule/dateTimePicker.ts` — `toDateTimeLocalValue` /
+  `fromDateTimeLocalValue` / `formatVisitTime`, unit-tested), a presentational `DateTimeField`
+  (+ `.web.tsx`) that imports **no** native module, and the real opener behind an injected
+  `OpenDateTimePicker` (`dateTimePicker.tsx` native / `.web.tsx`), so screens and their jest
+  tests never touch the native module — they inject a fake, exactly like `mapPicker`. The
+  picker only yields valid future times, so the string-parsing and "unparseable time" error
+  paths are gone; `scheduledAt` is sent as `date.toISOString()`. **New native module ⇒ a new
+  `eas build` is required before it runs on device** (the current dev build does not include
+  it). Tests updated: `tests/date-time-picker.test.mjs`, and both screen tests now drive the
+  picker via an injected fake. app-expo + app — _handed off_.
+
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **190** (filter chips wrap), which were handed off._
+(Stripe go-live runbook), and **191** (date/time picker), which were handed off._
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
 (payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
 entry above; the default remains mock mode (no key set).\_

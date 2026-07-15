@@ -15,10 +15,8 @@ import type {
   CreateRequestFieldErrors,
   CreateRequestFormValues,
 } from '../../../app/src/features/serviceRequests/createRequestForm';
-import {
-  parseScheduledTime,
-  validateCreateRequestForm,
-} from '../../../app/src/features/serviceRequests/createRequestForm';
+import { validateCreateRequestForm } from '../../../app/src/features/serviceRequests/createRequestForm';
+import type { OpenDateTimePicker } from '../../../app/src/features/schedule/dateTimePicker';
 import type { LocationProvider } from '../../../app/src/features/location/currentLocation';
 import {
   fetchCurrentLocation,
@@ -36,6 +34,7 @@ import { uploadPickedImage } from '../../../app/src/features/uploads/uploadImage
 import type { ServiceCategory, ServiceRequest } from '../../../shared/schemas';
 import { serviceCategorySchema } from '../../../shared/schemas';
 import { apiClient } from '../api';
+import { DateTimeField } from '../components/DateTimeField';
 
 const CATEGORIES = serviceCategorySchema.options;
 
@@ -67,6 +66,11 @@ export interface CreateRequestScreenProps {
    * react-native-maps picker; left undefined (tests/web) the button is hidden.
    */
   mapPicker?: MapPicker;
+  /**
+   * Opens the platform date/time picker for the preferred-visit field. App.tsx injects the
+   * real one; tests pass a fake. Left undefined the field is a no-op (nothing to pick with).
+   */
+  openDateTimePicker?: OpenDateTimePicker;
 }
 
 export function CreateRequestScreen({
@@ -76,6 +80,7 @@ export function CreateRequestScreen({
   geocoder,
   imagePicker,
   mapPicker,
+  openDateTimePicker,
 }: CreateRequestScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
@@ -90,8 +95,7 @@ export function CreateRequestScreen({
   const [photoUrlsText, setPhotoUrlsText] = useState('');
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const [scheduledText, setScheduledText] = useState('');
-  const [scheduledError, setScheduledError] = useState<string | null>(null);
+  const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [errors, setErrors] = useState<CreateRequestFieldErrors>({});
   const [banner, setBanner] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -188,10 +192,9 @@ export function CreateRequestScreen({
     const fieldErrors = validateCreateRequestForm(values);
     setErrors(fieldErrors);
 
-    const schedule = parseScheduledTime(scheduledText);
-    setScheduledError(schedule.ok ? null : 'Enter a valid date/time (e.g. 2026-07-01T09:00)');
-
-    if (Object.keys(fieldErrors).length > 0 || !schedule.ok) {
+    // The picker only yields valid future times, so there is nothing left to validate here —
+    // the string parsing this used to do is gone.
+    if (Object.keys(fieldErrors).length > 0) {
       return;
     }
 
@@ -215,7 +218,7 @@ export function CreateRequestScreen({
         location: { latitude: Number(latitude), longitude: Number(longitude) },
         ...(address !== null ? { address } : {}),
         ...(photoUrls.length > 0 ? { photoUrls } : {}),
-        ...(schedule.iso !== undefined ? { scheduledAt: schedule.iso } : {}),
+        ...(scheduledAt !== null ? { scheduledAt: scheduledAt.toISOString() } : {}),
       });
       setBanner('Request created');
       onCreated?.(created);
@@ -411,18 +414,18 @@ export function CreateRequestScreen({
       )}
       {photoError !== null && <Text style={styles.error}>{photoError}</Text>}
 
-      <Text style={styles.label}>Preferred time</Text>
-      <TextInput
-        style={styles.input}
-        value={scheduledText}
-        onChangeText={setScheduledText}
-        placeholder="Optional, e.g. 2026-07-01T09:00"
-        accessibilityLabel="Preferred time"
-        autoCapitalize="none"
-        autoCorrect={false}
-        editable={!submitting}
-      />
-      {scheduledError !== null && <Text style={styles.error}>{scheduledError}</Text>}
+      <Text style={styles.label}>Preferred time (optional)</Text>
+      {openDateTimePicker !== undefined && (
+        <DateTimeField
+          value={scheduledAt}
+          onChange={setScheduledAt}
+          open={openDateTimePicker}
+          minimumDate={new Date()}
+          accessibilityLabel="Preferred time"
+          placeholder="Choose a date & time"
+          disabled={submitting}
+        />
+      )}
 
       <Pressable
         style={({ pressed }) => [styles.button, (pressed || submitting) && styles.buttonPressed]}

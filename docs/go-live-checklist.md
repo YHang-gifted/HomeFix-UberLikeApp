@@ -139,6 +139,17 @@ them by hand:
 - ~~**Payouts screen** still offers "Set up payouts" after the worker is already onboarded.~~
   **Fixed in slice 184** — it now reads the account status and distinguishes three states,
   including the half-finished one that explains why earnings are being held.
+- **In-app saved-card payments (Uber-style) — a planned redesign, not yet built.** Today
+  payment redirects to Stripe's **hosted Checkout** (leave the app, pay, come back) — chosen
+  because it keeps card data entirely off our servers, so we stay in the lightest PCI scope
+  (SAQ A). The nicer experience — save a card once, then pay in-app in a tap, and see it on your
+  monthly statement — is achievable **without** taking on card data, using Stripe's native
+  `@stripe/stripe-react-native` **PaymentSheet** + a **Stripe Customer** + **SetupIntent**
+  (save the card → store only the `payment_method` id + last4) + **off-session PaymentIntent**
+  (charge the saved method). It is a real, multi-part slice: a new native module (another EAS
+  build), the Customer/SetupIntent machinery server-side, and the PaymentSheet UI. Requested
+  2026-07-15; not a blocker (hosted Checkout works). **Never collect raw card numbers in our
+  own form** — that is the one line that must not be crossed (PCI liability).
 - **No customer-facing dispute flow.** Refund and clawback exist as admin capabilities only.
 - **Ratings do not feed matching.** Reviews are collected and shown, but do not influence
   ranking.
