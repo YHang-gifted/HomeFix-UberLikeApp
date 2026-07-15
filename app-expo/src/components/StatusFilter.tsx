@@ -1,5 +1,5 @@
 import { type ReactElement } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ServiceRequestStatus } from '../../../shared/schemas';
 import { serviceRequestStatusSchema } from '../../../shared/schemas';
@@ -13,13 +13,10 @@ export interface StatusFilterProps {
 }
 
 export function StatusFilter({ value, onChange }: StatusFilterProps): ReactElement {
+  // Wraps rather than scrolling off the right edge — every status is visible on a phone at once
+  // (there are seven, so on a narrow screen this is two or three rows). See CategoryFilter.
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.scroll}
-      contentContainerStyle={styles.row}
-    >
+    <View style={styles.row}>
       <Pressable
         onPress={() => {
           onChange(null);
@@ -45,13 +42,18 @@ export function StatusFilter({ value, onChange }: StatusFilterProps): ReactEleme
           </Text>
         </Pressable>
       ))}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 0 },
-  row: { paddingHorizontal: 16, paddingBottom: 10, gap: 6 },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    gap: 6,
+  },
   chip: {
     borderWidth: 1,
     borderColor: colors.line,
