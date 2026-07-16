@@ -139,25 +139,30 @@ them by hand:
 - ~~**Payouts screen** still offers "Set up payouts" after the worker is already onboarded.~~
   **Fixed in slice 184** — it now reads the account status and distinguishes three states,
   including the half-finished one that explains why earnings are being held.
-- **In-app saved-card payments (Uber-style) — IN PROGRESS.** Phase 1 (slice 193) wired the
-  `@stripe/stripe-react-native` SDK into the app (a `StripeProvider` at the root, web-split so the
-  web bundle is untouched). Still to come: Phase 2 (save a card — SetupIntent + PaymentSheet +
-  Stripe Customer) and Phase 3 (pay with a saved card — off-session PaymentIntent + SCA
-  fallback). Needs `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` set (in `eas.json` env for builds and
-  `app-expo/.env` for local Metro) — a **publishable** key (`pk_…`), safe to ship. Below is the
-  original rationale, still current:
+- **In-app saved-card payments (Uber-style) — IN PROGRESS (Phase 3 remains).** Approach is
+  **Option B**: the card is saved via a one-time hosted Checkout Session in `mode: 'setup'`
+  (reusing the proven hosted-checkout infra — raw card data never touches us, lightest PCI
+  scope), attached to a per-customer **Stripe Customer**; the saved card is later charged via an
+  **off-session PaymentIntent**. Option B replaces the originally-planned native PaymentSheet +
+  SetupIntent + Ephemeral Key path, whose apiVersion coupling is fragile and untestable in the
+  sandbox. Progress:
 
-  Today
-  payment redirects to Stripe's **hosted Checkout** (leave the app, pay, come back) — chosen
-  because it keeps card data entirely off our servers, so we stay in the lightest PCI scope
-  (SAQ A). The nicer experience — save a card once, then pay in-app in a tap, and see it on your
-  monthly statement — is achievable **without** taking on card data, using Stripe's native
-  `@stripe/stripe-react-native` **PaymentSheet** + a **Stripe Customer** + **SetupIntent**
-  (save the card → store only the `payment_method` id + last4) + **off-session PaymentIntent**
-  (charge the saved method). It is a real, multi-part slice: a new native module (another EAS
-  build), the Customer/SetupIntent machinery server-side, and the PaymentSheet UI. Requested
-  2026-07-15; not a blocker (hosted Checkout works). **Never collect raw card numbers in our
-  own form** — that is the one line that must not be crossed (PCI liability).
+  - **Phase 1 (slice 193, done):** wired the `@stripe/stripe-react-native` SDK (`StripeProvider`
+    at the root, web-split so the web bundle is untouched).
+  - **Phase 2a (server, done):** migration `0039` `users.stripe_customer_id`; get-or-create
+    Stripe Customer; `POST /me/payment-methods/setup` (hosted setup Checkout) + `GET
+/me/payment-methods` (list saved cards, safe fields only). Config-gated, mock-by-default.
+  - **Phase 2b (app, done):** a **Payment methods** screen (reached via "Cards" on the customer
+    home) that lists saved cards and offers "Add a card" → opens the hosted setup URL. Gated on
+    `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY`. **Needs an EAS rebuild to device-test** (new screen is
+    JS-only, but ships in the next build).
+  - **Phase 3 (to come):** pay with a saved card — off-session PaymentIntent, with the SCA
+    `requires_action` fallback handled by the native SDK's `handleNextAction`.
+
+  Config: `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` must be set (in `eas.json` env for builds and
+  `app-expo/.env` for local Metro) — a **publishable** key (`pk_…`), safe to ship. **Never
+  collect raw card numbers in our own form** — the one line that must not be crossed (PCI
+  liability). Not a blocker; hosted Checkout still works for one-off payments.
 
 - **No customer-facing dispute flow.** Refund and clawback exist as admin capabilities only.
 - **Ratings do not feed matching.** Reviews are collected and shown, but do not influence

@@ -37,6 +37,7 @@ import { MessagesScreen } from './src/screens/MessagesScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { RequestDetailScreen } from './src/screens/RequestDetailScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
+import { PaymentMethodsScreen } from './src/screens/PaymentMethodsScreen';
 import { PaymentsScreen } from './src/screens/PaymentsScreen';
 import { PayoutsScreen } from './src/screens/PayoutsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
@@ -63,6 +64,7 @@ export type RootStackParamList = {
   Notifications: undefined;
   Favorites: undefined;
   Payments: undefined;
+  PaymentMethods: undefined;
   Payouts: undefined;
   Messages: { id: string };
 };
@@ -196,6 +198,9 @@ function ServiceRequestsRoute({
       }}
       onViewPayments={() => {
         navigation.navigate('Payments');
+      }}
+      onViewPaymentMethods={() => {
+        navigation.navigate('PaymentMethods');
       }}
       onNewRequest={() => {
         navigation.navigate('CreateRequest');
@@ -426,6 +431,18 @@ function PaymentsRoute({
       onSelectRequest={(id) => {
         navigation.navigate('RequestDetail', { id });
       }}
+    />
+  );
+}
+
+function PaymentMethodsRoute(): ReactElement {
+  const refreshToken = useFocusRefreshToken();
+
+  return (
+    <PaymentMethodsScreen
+      client={apiClient}
+      refreshToken={refreshToken}
+      openCheckout={deviceOpenCheckout}
     />
   );
 }
@@ -723,6 +740,11 @@ export default function App(): ReactElement {
                   name="Payments"
                   component={PaymentsRoute}
                   options={{ title: 'Payments' }}
+                />
+                <Stack.Screen
+                  name="PaymentMethods"
+                  component={PaymentMethodsRoute}
+                  options={{ title: 'Payment methods' }}
                 />
               </>
             )}
