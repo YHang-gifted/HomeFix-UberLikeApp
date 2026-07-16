@@ -2,7 +2,11 @@ import { Buffer } from 'node:buffer';
 
 import type { NextFunction, Request, Response } from 'express';
 
-import { createPaymentInputSchema, paymentWebhookEventSchema } from '../../../shared/schemas.ts';
+import {
+  createPaymentInputSchema,
+  paySavedCardInputSchema,
+  paymentWebhookEventSchema,
+} from '../../../shared/schemas.ts';
 import { loadEnv } from '../config/env.ts';
 import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
@@ -14,6 +18,7 @@ import {
   getPayment,
   listMyPayments,
   payPayment,
+  paySavedCard,
   refundPayment,
   startCheckout,
 } from '../services/paymentService.ts';
@@ -160,6 +165,35 @@ export async function postServiceRequestPaymentCheckout(
 
   try {
     res.status(200).json(await startCheckout(id, principal));
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** Pay a pending card payment with a saved card (off-session); returns succeeded/requires_action. */
+export async function postServiceRequestPaySavedCard(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  const id = parseId(req, next);
+  if (id === undefined) {
+    return;
+  }
+
+  const parsed = paySavedCardInputSchema.safeParse(req.body);
+  if (!parsed.success) {
+    next(new AppError('Invalid saved-card payment payload', 422));
+    return;
+  }
+
+  try {
+    res.status(200).json(await paySavedCard(id, principal, parsed.data));
   } catch (error) {
     next(error);
   }

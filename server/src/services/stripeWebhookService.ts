@@ -11,6 +11,17 @@ import { confirmPaymentPaid } from './paymentService.ts';
 const CHECKOUT_COMPLETED = 'checkout.session.completed';
 
 /**
+ * The event a directly-charged PaymentIntent fires when it settles — the off-session saved-card
+ * path (Phase 3) has no Checkout Session, so this is how those payments settle. Hosted-checkout
+ * intents fire it too (they carry the same `paymentId` metadata), which is harmless: settlement
+ * is idempotent, so whichever event lands first settles and the other is a no-op.
+ */
+const PAYMENT_INTENT_SUCCEEDED = 'payment_intent.succeeded';
+
+/** The event types that settle a payment. */
+const SETTLING_EVENTS = new Set<string>([CHECKOUT_COMPLETED, PAYMENT_INTENT_SUCCEEDED]);
+
+/**
  * The reduced Stripe event we act on: its type and the id of *our* payment, read
  * from the metadata we set when opening the Checkout Session. Using our own id (not
  * Stripe's) as the join key avoids the session-id-vs-PaymentIntent-id ambiguity —
@@ -58,11 +69,17 @@ export function stripeEventConstructor(config: StripeWebhookConfig): ConstructSt
       throw new AppError('Invalid Stripe webhook signature', 401);
     }
     const object = event.data.object as {
+      id?: string;
+      object?: string;
       metadata?: Record<string, string> | null;
       payment_intent?: string | { id?: string } | null;
     };
     const intent = object.payment_intent;
-    const providerRef = typeof intent === 'string' ? intent : (intent?.id ?? null);
+    const intentRef = typeof intent === 'string' ? intent : (intent?.id ?? null);
+    // For a `payment_intent.*` event the object IS the PaymentIntent, so its own id is the
+    // reference; for a Checkout Session it is the nested `payment_intent`.
+    const providerRef =
+      intentRef ?? (object.object === 'payment_intent' ? (object.id ?? null) : null);
     return { type: event.type, paymentId: object.metadata?.['paymentId'] ?? null, providerRef };
   };
 }
@@ -84,13 +101,14 @@ export function selectStripeEventConstructor(
 }
 
 /**
- * Act on a verified Stripe event. A `checkout.session.completed` carrying our
- * payment id settles that payment idempotently (a retried delivery is a no-op).
- * Any other event type — or one without our metadata — is acknowledged with no
- * effect, so unrelated Stripe events never touch a payment or 404.
+ * Act on a verified Stripe event. A settling event (`checkout.session.completed` for hosted
+ * checkout, `payment_intent.succeeded` for an off-session saved-card charge) carrying our payment
+ * id settles that payment idempotently (a retried delivery is a no-op). Any other event type — or
+ * one without our metadata — is acknowledged with no effect, so unrelated Stripe events never
+ * touch a payment or 404.
  */
 export async function handleStripeWebhook(event: StripeWebhookEvent): Promise<void> {
-  if (event.type !== CHECKOUT_COMPLETED || event.paymentId === null) {
+  if (!SETTLING_EVENTS.has(event.type) || event.paymentId === null) {
     return;
   }
   // Pass the settled PaymentIntent so `providerRef` is reconciled to it (lazy checkout may have

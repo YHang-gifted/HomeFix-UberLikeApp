@@ -706,6 +706,119 @@ export function selectSavedCardLister(env: Env = loadEnv()): ListSavedCards | un
   return secretKey === undefined ? undefined : stripeSavedCardLister(secretKey);
 }
 
+/** The outcome of charging a saved card off-session: settled, or needs SCA (with a secret). */
+export interface OffSessionChargeResult {
+  status: 'succeeded' | 'requires_action';
+  /** The PaymentIntent id — stored as our `providerRef`, so a webhook/refund maps back to it. */
+  providerRef: string;
+  /** Present only when `requires_action` — the app completes SCA with it via the native SDK. */
+  clientSecret?: string;
+}
+
+/**
+ * Charges a customer's saved card off-session for a pending payment. Injected so the flow is
+ * unit-testable without a network call; the real one is {@link stripeSavedCardCharger}. Resolves
+ * `succeeded` when the charge clears and `requires_action` (with a client secret) when the card
+ * needs SCA; a hard decline REJECTS (mapped to a 402 by the caller).
+ */
+export type ChargeSavedCard = (params: {
+  amountCents: number;
+  currency: string;
+  customerId: string;
+  paymentMethodId: string;
+  metadata: { paymentId: string; requestId: string };
+}) => Promise<OffSessionChargeResult>;
+
+/** The PaymentIntent fields we depend on — read structurally (see {@link reduceOffSessionIntent}). */
+interface StripePaymentIntentLike {
+  id: string;
+  status: string;
+  client_secret: string | null;
+}
+
+/** Reduce a Stripe PaymentIntent to our result: SCA-needed vs. settled. */
+function reduceOffSessionIntent(intent: StripePaymentIntentLike): OffSessionChargeResult {
+  if (intent.status === 'requires_action') {
+    return {
+      status: 'requires_action',
+      providerRef: intent.id,
+      ...(intent.client_secret !== null ? { clientSecret: intent.client_secret } : {}),
+    };
+  }
+  return { status: 'succeeded', providerRef: intent.id };
+}
+
+/**
+ * Pull a requires-action PaymentIntent out of a thrown Stripe error, if that is what it is. With
+ * `off_session: true` Stripe signals a card that needs SCA by THROWING a `StripeCardError` with
+ * `code === 'authentication_required'`, carrying the intent (awaiting action) on `raw.payment_intent`.
+ * Read structurally — a cross-module `instanceof` against the SDK's error class is exactly what
+ * breaks under tsx. Returns undefined for any other error (a genuine decline), which the caller
+ * rethrows.
+ */
+function extractRequiresActionIntent(err: unknown): StripePaymentIntentLike | undefined {
+  if (typeof err !== 'object' || err === null) {
+    return undefined;
+  }
+  const candidate = err as {
+    code?: unknown;
+    raw?: { payment_intent?: unknown } | null;
+    payment_intent?: unknown;
+  };
+  if (candidate.code !== 'authentication_required') {
+    return undefined;
+  }
+  const pi = candidate.raw?.payment_intent ?? candidate.payment_intent;
+  if (typeof pi !== 'object' || pi === null) {
+    return undefined;
+  }
+  const intent = pi as { id?: unknown; status?: unknown; client_secret?: unknown };
+  if (typeof intent.id !== 'string') {
+    return undefined;
+  }
+  return {
+    id: intent.id,
+    status: typeof intent.status === 'string' ? intent.status : 'requires_action',
+    client_secret: typeof intent.client_secret === 'string' ? intent.client_secret : null,
+  };
+}
+
+/**
+ * The real off-session charger. `off_session: true, confirm: true` attempts the charge at once;
+ * the `metadata.paymentId` rides on the PaymentIntent so the `payment_intent.succeeded` webhook
+ * settles the matching payment. A card that needs SCA is mapped to `requires_action`; any other
+ * failure (a genuine decline) is rethrown for the caller to surface as a 402.
+ */
+export function stripeSavedCardCharger(secretKey: string): ChargeSavedCard {
+  const stripe = new Stripe(secretKey);
+  return async ({ amountCents, currency, customerId, paymentMethodId, metadata }) => {
+    try {
+      const intent = await stripe.paymentIntents.create({
+        amount: amountCents,
+        currency: currency.toLowerCase(),
+        customer: customerId,
+        payment_method: paymentMethodId,
+        off_session: true,
+        confirm: true,
+        metadata,
+      });
+      return reduceOffSessionIntent(intent);
+    } catch (err) {
+      const intent = extractRequiresActionIntent(err);
+      if (intent !== undefined) {
+        return reduceOffSessionIntent(intent);
+      }
+      throw err;
+    }
+  };
+}
+
+/** The configured off-session charger, or undefined when Stripe isn't configured. */
+export function selectSavedCardCharger(env: Env = loadEnv()): ChargeSavedCard | undefined {
+  const secretKey = env.STRIPE_SECRET_KEY;
+  return secretKey === undefined ? undefined : stripeSavedCardCharger(secretKey);
+}
+
 /** The configured PayPal webhook verifier, or undefined when it is not fully configured. */
 export function selectPaypalWebhookVerifier(env: Env = loadEnv()): VerifyPaypalWebhook | undefined {
   const config = paypalConfigFromEnv(env);

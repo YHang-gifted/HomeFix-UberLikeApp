@@ -159,6 +159,21 @@ export type SavedCard = z.infer<typeof savedCardSchema>;
 
 export const savedCardListSchema = z.array(savedCardSchema);
 
+// Paying a pending card payment with one of the customer's saved cards (Uber-style, Phase 3):
+// the app says which saved card to charge, the server confirms an off-session PaymentIntent.
+export const paySavedCardInputSchema = z.object({ paymentMethodId: z.string() });
+export type PaySavedCardInput = z.infer<typeof paySavedCardInputSchema>;
+
+// The outcome of an off-session saved-card charge. `succeeded` → the charge went through and the
+// payment settles via the `payment_intent.succeeded` webhook (never synchronously — the webhook
+// stays the single settlement authority). `requires_action` → the card needs SCA / 3-D Secure;
+// the app completes it natively with `clientSecret`, after which the same webhook settles it.
+export const savedCardPaymentResultSchema = z.object({
+  status: z.enum(['succeeded', 'requires_action']),
+  clientSecret: z.string().optional(),
+});
+export type SavedCardPaymentResult = z.infer<typeof savedCardPaymentResultSchema>;
+
 /**
  * Where a worker stands with payout onboarding. **Three states, not two** — the middle one is
  * the whole reason this exists.

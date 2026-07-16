@@ -59,8 +59,10 @@ back in the app after paying (e.g.
 2. **Events from:** choose **Your account**. (**Not** _Connected accounts_ — that is a
    separate destination with its own secret, used only for Connect payouts; see
    `docs/connect-go-live.md`.)
-3. **Event types:** select **`checkout.session.completed`** only. Nothing else is needed,
-   and extra events are just noise.
+3. **Event types:** select **`checkout.session.completed`** (hosted checkout) **and
+   `payment_intent.succeeded`** (the Uber-style saved-card path, which has no Checkout Session,
+   settles only on this one). Both are required now; nothing else is needed. Settlement is
+   idempotent, so a hosted-checkout payment firing both events is harmless.
 4. **Destination type:** **Webhook** (an HTTPS endpoint).
 5. **Endpoint URL:** `https://<your-host>/webhooks/stripe`
 6. **Create destination**, then reveal and copy its **Signing secret** (`whsec_…`).

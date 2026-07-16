@@ -160,11 +160,21 @@ describe('handleStripeWebhook', () => {
     assert.equal(await paymentStatus(requestId), 'paid');
   });
 
-  it('ignores an event without our payment id and other event types', async () => {
+  it('ignores an event without our payment id and non-settling event types', async () => {
     const { requestId, paymentId } = await pendingPayment();
 
     await handleStripeWebhook({ type: 'checkout.session.completed', paymentId: null });
-    await handleStripeWebhook({ type: 'payment_intent.succeeded', paymentId });
+    // Not a settling event — acknowledged with no effect.
+    await handleStripeWebhook({ type: 'payment_intent.created', paymentId });
     assert.equal(await paymentStatus(requestId), 'pending');
+  });
+
+  // Phase 3: the off-session saved-card path has no Checkout Session, so `payment_intent.succeeded`
+  // is what settles those payments (and, harmlessly and idempotently, hosted-checkout ones too).
+  it('settles the matching payment on payment_intent.succeeded', async () => {
+    const { requestId, paymentId } = await pendingPayment();
+
+    await handleStripeWebhook({ type: 'payment_intent.succeeded', paymentId });
+    assert.equal(await paymentStatus(requestId), 'paid');
   });
 });
