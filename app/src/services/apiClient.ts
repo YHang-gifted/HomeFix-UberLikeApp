@@ -28,6 +28,7 @@ import type {
   RegisterInput,
   RequestContacts,
   Review,
+  SavedCard,
   ServiceCategory,
   ServiceRequest,
   ServiceRequestPage,
@@ -66,6 +67,7 @@ import {
   requestContactsSchema,
   requestHistorySchema,
   reviewSchema,
+  savedCardListSchema,
   serviceRequestPageSchema,
   serviceRequestSchema,
   uploadTargetSchema,
@@ -283,6 +285,21 @@ export class ApiClient {
   public async startConnectOnboarding(): Promise<ConnectOnboarding> {
     const data = await this.send('POST', '/me/connect/onboard', undefined, true);
     return connectOnboardingSchema.parse(data);
+  }
+
+  /** The signed-in customer's saved cards (safe display fields only), for in-app payments. */
+  public async listPaymentMethods(): Promise<SavedCard[]> {
+    const data = await this.send('GET', '/me/payment-methods', undefined, true);
+    return savedCardListSchema.parse(data);
+  }
+
+  /**
+   * Start saving a card: open a one-time hosted setup Checkout session and return its URL to
+   * redirect to. A fresh session each call (it expires), mirroring {@link startCheckout}.
+   */
+  public async startCardSetup(): Promise<CheckoutSession> {
+    const data = await this.send('POST', '/me/payment-methods/setup', undefined, true);
+    return checkoutSessionSchema.parse(data);
   }
 
   /** The signed-in worker's certifications, most-recent-first. */
