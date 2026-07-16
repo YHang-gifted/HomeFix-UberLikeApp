@@ -3,14 +3,18 @@ import { randomUUID } from 'node:crypto';
 import type {
   CreatePaymentInput,
   Payment,
+  PaySavedCardInput,
   Principal,
   Receipt,
+  SavedCardPaymentResult,
   ServiceRequest,
 } from '../../../shared/schemas.ts';
 import { PLATFORM_CURRENCY, splitPaymentAmount } from '../../../shared/schemas.ts';
 import { loadEnv } from '../config/env.ts';
-import { AppError } from '../errors/appError.ts';
+import { AppError, isAppError } from '../errors/appError.ts';
+import { logger } from '../utils/logger.ts';
 import { paymentRepository } from '../repositories/paymentRepository.ts';
+import { userRepository } from '../repositories/userRepository.ts';
 import { quoteRepository } from '../repositories/quoteRepository.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { isRequestParty } from './serviceRequestService.ts';
@@ -27,9 +31,16 @@ import {
   selectPaymentProviderForMethod,
   selectPaypalCapturer,
   selectPaypalRefunder,
+  selectSavedCardCharger,
   selectStripeRefunder,
 } from './paymentProvider.ts';
-import type { CapturePaypalOrder, PaymentProvider, RefundCharge } from './paymentProvider.ts';
+import type {
+  CapturePaypalOrder,
+  ChargeSavedCard,
+  OffSessionChargeResult,
+  PaymentProvider,
+  RefundCharge,
+} from './paymentProvider.ts';
 import type { PaymentMethod } from '../../../shared/schemas.ts';
 
 /**
@@ -121,6 +132,26 @@ export function setPaypalRefunderForTests(refunder: RefundCharge): void {
 
 export function resetPaypalRefunderForTests(): void {
   refunderRegistry()[PAYPAL_REFUNDER_OVERRIDE_KEY] = undefined;
+}
+
+// The off-session saved-card charger has the same globalThis-anchored test override (a fake
+// charger avoids the network while exercising the settle-via-webhook + SCA paths).
+const SAVED_CARD_CHARGER_KEY = '__homefixSavedCardChargerOverride__';
+
+function savedCardChargerRegistry(): Record<string, ChargeSavedCard | undefined> {
+  return globalThis as unknown as Record<string, ChargeSavedCard | undefined>;
+}
+
+function activeSavedCardCharger(): ChargeSavedCard | undefined {
+  return savedCardChargerRegistry()[SAVED_CARD_CHARGER_KEY] ?? selectSavedCardCharger();
+}
+
+export function setSavedCardChargerForTests(charger: ChargeSavedCard): void {
+  savedCardChargerRegistry()[SAVED_CARD_CHARGER_KEY] = charger;
+}
+
+export function resetSavedCardChargerForTests(): void {
+  savedCardChargerRegistry()[SAVED_CARD_CHARGER_KEY] = undefined;
 }
 
 async function loadRequest(requestId: string): Promise<ServiceRequest> {
@@ -345,6 +376,103 @@ export async function startCheckout(
     throw new AppError('The payment provider did not return a checkout URL', 502);
   }
   return { checkoutUrl: charge.checkoutUrl };
+}
+
+/**
+ * Run the off-session charger, mapping a thrown failure to a client error rather than a 500. A
+ * Stripe card decline becomes a 402 (the customer can try another card); anything else becomes a
+ * 502 (upstream/config problem, worth retrying). AppErrors we raise ourselves pass through. The
+ * reason is logged here — the boundary deliberately does not log AppErrors.
+ */
+async function chargeSavedCardOrThrow(
+  charger: ChargeSavedCard,
+  params: {
+    amountCents: number;
+    currency: string;
+    customerId: string;
+    paymentMethodId: string;
+    metadata: { paymentId: string; requestId: string };
+  },
+): Promise<OffSessionChargeResult> {
+  try {
+    return await charger(params);
+  } catch (err) {
+    if (isAppError(err)) {
+      throw err;
+    }
+    const declined =
+      typeof err === 'object' &&
+      err !== null &&
+      (err as { type?: unknown }).type === 'StripeCardError';
+    logger.error('Saved-card charge failed', {
+      type: 'error',
+      declined: String(declined),
+      error: err instanceof Error ? err.name : 'UnknownError',
+      reason: err instanceof Error ? err.message : 'Unknown error',
+    });
+    if (declined) {
+      throw new AppError('Your card was declined. Please try another card.', 402);
+    }
+    throw new AppError('Could not complete the payment. Please try again in a few minutes.', 502);
+  }
+}
+
+/**
+ * Pay a pending card payment with one of the customer's saved cards — the Uber-style in-app
+ * tap-to-pay path (Phase 3), an alternative to hosted checkout for the *same* pending payment.
+ * Charges the saved card off-session; the payment then settles via the verified
+ * `payment_intent.succeeded` webhook (never synchronously here — the webhook stays the single
+ * settlement authority, as for hosted checkout). Returns whether the charge cleared or needs SCA
+ * (with a client secret for the app to complete natively). Owner-only. 400 when saved-card
+ * payments aren't configured; 409 for a non-pending or non-card payment, or when the customer has
+ * no saved card on file; 402 when the card is declined.
+ */
+export async function paySavedCard(
+  requestId: string,
+  principal: Principal,
+  input: PaySavedCardInput,
+): Promise<SavedCardPaymentResult> {
+  const charger = activeSavedCardCharger();
+  if (charger === undefined) {
+    throw new AppError('Saved-card payments are not available', 400);
+  }
+  const request = await loadRequest(requestId);
+  if (principal.role !== 'customer' || principal.id !== request.customerId) {
+    throw new AppError('Only the owning customer may pay', 403);
+  }
+  const payment = await paymentRepository.findByRequest(requestId);
+  if (!payment) {
+    throw new AppError('No payment for this request', 404);
+  }
+  // A PayPal payment settles through PayPal, not a saved card. (A mock payment can't reach here:
+  // the charger is only defined when Stripe is configured, in which case card payments are Stripe.)
+  if (payment.provider === 'paypal') {
+    throw new AppError('This payment is not a card payment', 409);
+  }
+  if (payment.status !== 'pending') {
+    throw new AppError('This payment is no longer awaiting payment', 409);
+  }
+  const customer = await userRepository.findById(principal.id);
+  if (customer?.stripeCustomerId === undefined) {
+    throw new AppError('No saved card on file. Add a card first.', 409);
+  }
+  const result = await chargeSavedCardOrThrow(charger, {
+    amountCents: payment.amountCents,
+    currency: payment.currency,
+    customerId: customer.stripeCustomerId,
+    paymentMethodId: input.paymentMethodId,
+    metadata: { paymentId: payment.id, requestId },
+  });
+  // Persist the PaymentIntent id now so a refund — and the settling webhook's reconciliation —
+  // always targets the exact intent this payment charged, including the requires_action case
+  // where that same intent settles once SCA completes.
+  if (result.providerRef !== payment.providerRef) {
+    await paymentRepository.save({ ...payment, providerRef: result.providerRef });
+  }
+  return {
+    status: result.status,
+    ...(result.clientSecret !== undefined ? { clientSecret: result.clientSecret } : {}),
+  };
 }
 
 /**
