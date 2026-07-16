@@ -18,6 +18,7 @@ import { deviceGeocoder, deviceLocationProvider } from './src/location';
 import { MapPickerHost, deviceMapPicker, mapPickerAvailable } from './src/mapPicker';
 import { deviceConnectMessageStream } from './src/messageStream';
 import { devicePushTokenProvider } from './src/push';
+import { StripeAppProvider } from './src/stripeProvider';
 import { tokenStore } from './src/tokenStore';
 import { useFocusRefreshToken } from './src/hooks/useFocusRefreshToken';
 import { colors } from './src/theme';
@@ -508,7 +509,6 @@ export default function App(): ReactElement {
       apiClient.registerDeviceToken(token),
     ).then((outcome) => {
       if (!outcome.ok) {
-        // eslint-disable-next-line no-console -- the only channel the device has.
         console.warn(`[push] not registered (${outcome.reason})`, outcome.detail ?? '');
       }
     });
@@ -550,184 +550,186 @@ export default function App(): ReactElement {
   const role = apiClient.getPrincipal()?.role;
 
   return (
-    <AuthContext.Provider value={actions}>
-      <NavigationContainer theme={navigationTheme}>
-        <StatusBar style="dark" />
-        <MapPickerHost />
-        <DateTimePickerHost />
-        <Stack.Navigator
-          // Arriving from the reset link opens straight on the reset screen, rather than the
-          // login form the user cannot get past — that is the entire point of the link.
-          {...(usingResetLink ? { initialRouteName: 'ForgotPassword' as const } : {})}
-          screenOptions={{
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.ink,
-            headerTitleStyle: { fontWeight: '700' },
-            headerShadowVisible: false,
-            contentStyle: { backgroundColor: colors.canvas },
-          }}
-        >
-          {!signedIn && (
-            <>
-              <Stack.Screen name="Login" component={LoginRoute} options={{ title: 'HomeFix' }} />
-              <Stack.Screen
-                name="Register"
-                component={RegisterRoute}
-                options={{ title: 'Create account' }}
-              />
-              <Stack.Screen
-                name="ForgotPassword"
-                component={ForgotPasswordRoute}
-                options={{ title: 'Reset password' }}
-                {...(resetToken !== undefined ? { initialParams: { token: resetToken } } : {})}
-              />
-            </>
-          )}
-          {signedIn && role === 'worker' && (
-            <>
-              <Stack.Screen
-                name="WorkerJobs"
-                component={WorkerJobsRoute}
-                options={{ title: 'Assigned jobs' }}
-              />
-              <Stack.Screen
-                name="AvailableJobs"
-                component={AvailableJobsRoute}
-                options={{ title: 'Available jobs' }}
-              />
-              <Stack.Screen
-                name="Certifications"
-                component={CertificationsRoute}
-                options={{ title: 'Certifications' }}
-              />
-              <Stack.Screen
-                name="RequestDetail"
-                component={RequestDetailRoute}
-                options={{ title: 'Request' }}
-              />
-              <Stack.Screen
-                name="Messages"
-                component={MessagesRoute}
-                options={{ title: 'Messages' }}
-              />
-              <Stack.Screen
-                name="Profile"
-                component={ProfileRoute}
-                options={{ title: 'Profile' }}
-              />
-              <Stack.Screen
-                name="Notifications"
-                component={NotificationsRoute}
-                options={{ title: 'Notifications' }}
-              />
-              <Stack.Screen
-                name="Payments"
-                component={PaymentsRoute}
-                options={{ title: 'Payments received' }}
-              />
-              <Stack.Screen
-                name="Payouts"
-                component={PayoutsRoute}
-                options={{ title: 'Payouts' }}
-              />
-            </>
-          )}
-          {signedIn && role === 'admin' && (
-            <>
-              <Stack.Screen
-                name="AdminRequests"
-                component={AdminRequestsRoute}
-                options={{ title: 'All requests' }}
-              />
-              <Stack.Screen
-                name="AdminStats"
-                component={AdminStatsRoute}
-                options={{ title: 'Dashboard' }}
-              />
-              <Stack.Screen
-                name="AdminUsers"
-                component={AdminUsersRoute}
-                options={{ title: 'Users' }}
-              />
-              <Stack.Screen
-                name="AdminCertifications"
-                component={AdminCertificationsRoute}
-                options={{ title: 'Certification review' }}
-              />
-              <Stack.Screen
-                name="AuditLog"
-                component={AuditLogRoute}
-                options={{ title: 'Audit log' }}
-              />
-              <Stack.Screen
-                name="RequestDetail"
-                component={RequestDetailRoute}
-                options={{ title: 'Request' }}
-              />
-              <Stack.Screen
-                name="Messages"
-                component={MessagesRoute}
-                options={{ title: 'Messages' }}
-              />
-              <Stack.Screen
-                name="Profile"
-                component={ProfileRoute}
-                options={{ title: 'Profile' }}
-              />
-              <Stack.Screen
-                name="Notifications"
-                component={NotificationsRoute}
-                options={{ title: 'Notifications' }}
-              />
-            </>
-          )}
-          {signedIn && role !== 'worker' && role !== 'admin' && (
-            <>
-              <Stack.Screen
-                name="ServiceRequests"
-                component={ServiceRequestsRoute}
-                options={{ title: 'Your requests' }}
-              />
-              <Stack.Screen
-                name="CreateRequest"
-                component={CreateRequestRoute}
-                options={{ title: 'New request' }}
-              />
-              <Stack.Screen
-                name="RequestDetail"
-                component={RequestDetailRoute}
-                options={{ title: 'Request' }}
-              />
-              <Stack.Screen
-                name="Messages"
-                component={MessagesRoute}
-                options={{ title: 'Messages' }}
-              />
-              <Stack.Screen
-                name="Profile"
-                component={ProfileRoute}
-                options={{ title: 'Profile' }}
-              />
-              <Stack.Screen
-                name="Notifications"
-                component={NotificationsRoute}
-                options={{ title: 'Notifications' }}
-              />
-              <Stack.Screen
-                name="Favorites"
-                component={FavoritesRoute}
-                options={{ title: 'Favorite workers' }}
-              />
-              <Stack.Screen
-                name="Payments"
-                component={PaymentsRoute}
-                options={{ title: 'Payments' }}
-              />
-            </>
-          )}
-        </Stack.Navigator>
-      </NavigationContainer>
-    </AuthContext.Provider>
+    <StripeAppProvider>
+      <AuthContext.Provider value={actions}>
+        <NavigationContainer theme={navigationTheme}>
+          <StatusBar style="dark" />
+          <MapPickerHost />
+          <DateTimePickerHost />
+          <Stack.Navigator
+            // Arriving from the reset link opens straight on the reset screen, rather than the
+            // login form the user cannot get past — that is the entire point of the link.
+            {...(usingResetLink ? { initialRouteName: 'ForgotPassword' as const } : {})}
+            screenOptions={{
+              headerStyle: { backgroundColor: colors.surface },
+              headerTintColor: colors.ink,
+              headerTitleStyle: { fontWeight: '700' },
+              headerShadowVisible: false,
+              contentStyle: { backgroundColor: colors.canvas },
+            }}
+          >
+            {!signedIn && (
+              <>
+                <Stack.Screen name="Login" component={LoginRoute} options={{ title: 'HomeFix' }} />
+                <Stack.Screen
+                  name="Register"
+                  component={RegisterRoute}
+                  options={{ title: 'Create account' }}
+                />
+                <Stack.Screen
+                  name="ForgotPassword"
+                  component={ForgotPasswordRoute}
+                  options={{ title: 'Reset password' }}
+                  {...(resetToken !== undefined ? { initialParams: { token: resetToken } } : {})}
+                />
+              </>
+            )}
+            {signedIn && role === 'worker' && (
+              <>
+                <Stack.Screen
+                  name="WorkerJobs"
+                  component={WorkerJobsRoute}
+                  options={{ title: 'Assigned jobs' }}
+                />
+                <Stack.Screen
+                  name="AvailableJobs"
+                  component={AvailableJobsRoute}
+                  options={{ title: 'Available jobs' }}
+                />
+                <Stack.Screen
+                  name="Certifications"
+                  component={CertificationsRoute}
+                  options={{ title: 'Certifications' }}
+                />
+                <Stack.Screen
+                  name="RequestDetail"
+                  component={RequestDetailRoute}
+                  options={{ title: 'Request' }}
+                />
+                <Stack.Screen
+                  name="Messages"
+                  component={MessagesRoute}
+                  options={{ title: 'Messages' }}
+                />
+                <Stack.Screen
+                  name="Profile"
+                  component={ProfileRoute}
+                  options={{ title: 'Profile' }}
+                />
+                <Stack.Screen
+                  name="Notifications"
+                  component={NotificationsRoute}
+                  options={{ title: 'Notifications' }}
+                />
+                <Stack.Screen
+                  name="Payments"
+                  component={PaymentsRoute}
+                  options={{ title: 'Payments received' }}
+                />
+                <Stack.Screen
+                  name="Payouts"
+                  component={PayoutsRoute}
+                  options={{ title: 'Payouts' }}
+                />
+              </>
+            )}
+            {signedIn && role === 'admin' && (
+              <>
+                <Stack.Screen
+                  name="AdminRequests"
+                  component={AdminRequestsRoute}
+                  options={{ title: 'All requests' }}
+                />
+                <Stack.Screen
+                  name="AdminStats"
+                  component={AdminStatsRoute}
+                  options={{ title: 'Dashboard' }}
+                />
+                <Stack.Screen
+                  name="AdminUsers"
+                  component={AdminUsersRoute}
+                  options={{ title: 'Users' }}
+                />
+                <Stack.Screen
+                  name="AdminCertifications"
+                  component={AdminCertificationsRoute}
+                  options={{ title: 'Certification review' }}
+                />
+                <Stack.Screen
+                  name="AuditLog"
+                  component={AuditLogRoute}
+                  options={{ title: 'Audit log' }}
+                />
+                <Stack.Screen
+                  name="RequestDetail"
+                  component={RequestDetailRoute}
+                  options={{ title: 'Request' }}
+                />
+                <Stack.Screen
+                  name="Messages"
+                  component={MessagesRoute}
+                  options={{ title: 'Messages' }}
+                />
+                <Stack.Screen
+                  name="Profile"
+                  component={ProfileRoute}
+                  options={{ title: 'Profile' }}
+                />
+                <Stack.Screen
+                  name="Notifications"
+                  component={NotificationsRoute}
+                  options={{ title: 'Notifications' }}
+                />
+              </>
+            )}
+            {signedIn && role !== 'worker' && role !== 'admin' && (
+              <>
+                <Stack.Screen
+                  name="ServiceRequests"
+                  component={ServiceRequestsRoute}
+                  options={{ title: 'Your requests' }}
+                />
+                <Stack.Screen
+                  name="CreateRequest"
+                  component={CreateRequestRoute}
+                  options={{ title: 'New request' }}
+                />
+                <Stack.Screen
+                  name="RequestDetail"
+                  component={RequestDetailRoute}
+                  options={{ title: 'Request' }}
+                />
+                <Stack.Screen
+                  name="Messages"
+                  component={MessagesRoute}
+                  options={{ title: 'Messages' }}
+                />
+                <Stack.Screen
+                  name="Profile"
+                  component={ProfileRoute}
+                  options={{ title: 'Profile' }}
+                />
+                <Stack.Screen
+                  name="Notifications"
+                  component={NotificationsRoute}
+                  options={{ title: 'Notifications' }}
+                />
+                <Stack.Screen
+                  name="Favorites"
+                  component={FavoritesRoute}
+                  options={{ title: 'Favorite workers' }}
+                />
+                <Stack.Screen
+                  name="Payments"
+                  component={PaymentsRoute}
+                  options={{ title: 'Payments' }}
+                />
+              </>
+            )}
+          </Stack.Navigator>
+        </NavigationContainer>
+      </AuthContext.Provider>
+    </StripeAppProvider>
   );
 }
 
