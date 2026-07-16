@@ -416,13 +416,17 @@ export function RequestDetailScreen({
     setPaymentNotice(null);
     setPaymentBusy(true);
     try {
-      const checkoutUrl = payment?.checkoutUrl;
-      if (checkoutUrl !== undefined && openCheckout !== undefined) {
-        // Real provider: send the customer to the hosted checkout page. Nothing here
-        // marks the payment paid — it is settled by the provider's verified webhook.
-        // On web the page navigates away; on native the browser opens and the
-        // customer returns to the app and refreshes to see the updated status.
+      if (payment?.provider === 'stripe' && openCheckout !== undefined) {
+        // Open a FRESH hosted-checkout session every time (slice 192). The URL from
+        // create-payment is not reused — a Checkout Session expires, so after any delay it is
+        // dead; `startCheckout` mints a new one on demand. Nothing here marks the payment paid —
+        // it is settled by the verified webhook; the customer returns and refreshes.
+        const { checkoutUrl } = await activeClient.startCheckout(requestId);
         await openCheckout(checkoutUrl);
+        setPaymentNotice('Complete the payment in the page that opened, then return and refresh.');
+      } else if (payment?.checkoutUrl !== undefined && openCheckout !== undefined) {
+        // Any other external-checkout provider that handed back a URL on create.
+        await openCheckout(payment.checkoutUrl);
         setPaymentNotice('Complete the payment in the page that opened, then return and refresh.');
       } else if (payment?.provider === 'paypal') {
         // Back from PayPal approval (no checkout URL left): capture to settle.

@@ -89,17 +89,23 @@ describe('RequestDetailScreen payments', () => {
     await findByText('Paid');
   });
 
-  it('redirects to the hosted checkout page when the payment carries a checkout URL', async () => {
+  // slice 192: for Stripe, "Pay now" opens a FRESH session via startCheckout every time (the
+  // create-response URL expires), so it redirects to the freshly-minted URL, not a stored one.
+  it('opens a fresh Stripe checkout session on Pay now', async () => {
     const request = makeRequest({ status: 'matched', workerId: WORKER_ID });
     const createPayment = jest
       .fn()
-      .mockResolvedValue(makePayment({ checkoutUrl: 'https://checkout.stripe.com/pay/cs_1' }));
+      .mockResolvedValue(makePayment({ provider: 'stripe', checkoutUrl: 'https://old/cs_stale' }));
+    const startCheckout = jest
+      .fn()
+      .mockResolvedValue({ checkoutUrl: 'https://checkout.stripe.com/pay/cs_fresh' });
     const payPayment = jest.fn();
     const openCheckout = jest.fn().mockResolvedValue(undefined);
     const client = clientWith({
       getServiceRequest: jest.fn().mockResolvedValue(request),
       getPayment: jest.fn().mockRejectedValue(new ApiError(404, 'no payment')),
       createPayment,
+      startCheckout,
       payPayment,
     });
 
@@ -113,9 +119,10 @@ describe('RequestDetailScreen payments', () => {
 
     await fireEvent.press(await findByLabelText('Pay now'));
     await waitFor(() => {
-      expect(openCheckout).toHaveBeenCalledWith('https://checkout.stripe.com/pay/cs_1');
+      expect(startCheckout).toHaveBeenCalledWith(request.id);
     });
-    // The mock /pay is never used in real-provider mode; settlement is via webhook.
+    // Redirects to the FRESH url, never the stale create-response one, and never the mock /pay.
+    expect(openCheckout).toHaveBeenCalledWith('https://checkout.stripe.com/pay/cs_fresh');
     expect(payPayment).not.toHaveBeenCalled();
     await findByText(/Complete the payment in the page that opened/);
   });

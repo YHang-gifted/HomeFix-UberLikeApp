@@ -7,6 +7,7 @@ import {
   postPaymentWebhook,
   postPaypalWebhook,
   postServiceRequestPayment,
+  postServiceRequestPaymentCheckout,
   postServiceRequestPaymentPay,
   postServiceRequestPaymentRefund,
   postServiceRequestPaypalCapture,
@@ -25,6 +26,11 @@ paymentRouter.get(
 );
 paymentRouter.post('/service-requests/:id/payment', authenticate, postServiceRequestPayment);
 paymentRouter.post('/service-requests/:id/payment/pay', authenticate, postServiceRequestPaymentPay);
+paymentRouter.post(
+  '/service-requests/:id/payment/checkout',
+  authenticate,
+  postServiceRequestPaymentCheckout,
+);
 paymentRouter.post(
   '/service-requests/:id/payment/paypal/capture',
   authenticate,

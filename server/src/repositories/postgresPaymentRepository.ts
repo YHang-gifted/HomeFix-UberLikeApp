@@ -7,7 +7,7 @@ const UPSERT = `
   INSERT INTO payments
     (id, request_id, customer_id, worker_id, amount_cents, currency, status, created_at, paid_at, platform_fee_cents, provider_ref, provider, capture_ref)
   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-  ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, paid_at = EXCLUDED.paid_at, capture_ref = EXCLUDED.capture_ref
+  ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, paid_at = EXCLUDED.paid_at, capture_ref = EXCLUDED.capture_ref, provider_ref = EXCLUDED.provider_ref
 `;
 
 interface PaymentRow {

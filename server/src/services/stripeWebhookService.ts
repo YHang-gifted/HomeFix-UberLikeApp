@@ -19,6 +19,13 @@ const CHECKOUT_COMPLETED = 'checkout.session.completed';
 export interface StripeWebhookEvent {
   type: string;
   paymentId: string | null;
+  /**
+   * The PaymentIntent id the completed session actually charged. With lazy checkout (slice 192)
+   * a payment may have several sessions opened over time, each with its own intent, so the one
+   * that settled — the one a refund must target — is known only here. `confirmPaymentPaid`
+   * reconciles the payment's `providerRef` to it.
+   */
+  providerRef: string | null;
 }
 
 /**
@@ -50,8 +57,13 @@ export function stripeEventConstructor(config: StripeWebhookConfig): ConstructSt
     } catch {
       throw new AppError('Invalid Stripe webhook signature', 401);
     }
-    const object = event.data.object as { metadata?: Record<string, string> | null };
-    return { type: event.type, paymentId: object.metadata?.['paymentId'] ?? null };
+    const object = event.data.object as {
+      metadata?: Record<string, string> | null;
+      payment_intent?: string | { id?: string } | null;
+    };
+    const intent = object.payment_intent;
+    const providerRef = typeof intent === 'string' ? intent : (intent?.id ?? null);
+    return { type: event.type, paymentId: object.metadata?.['paymentId'] ?? null, providerRef };
   };
 }
 
@@ -81,5 +93,7 @@ export async function handleStripeWebhook(event: StripeWebhookEvent): Promise<vo
   if (event.type !== CHECKOUT_COMPLETED || event.paymentId === null) {
     return;
   }
-  await confirmPaymentPaid(event.paymentId);
+  // Pass the settled PaymentIntent so `providerRef` is reconciled to it (lazy checkout may have
+  // opened more than one session/intent for this payment; the refund must target the paid one).
+  await confirmPaymentPaid(event.paymentId, event.providerRef ?? undefined);
 }

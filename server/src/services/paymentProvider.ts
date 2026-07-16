@@ -14,6 +14,13 @@ export interface PaymentChargeInput {
   requestId: string;
   amountCents: number;
   currency: string;
+  /**
+   * Idempotency key for the provider call. Defaults to `paymentId`, which makes the FIRST
+   * charge safe to retry (a network retry won't open a second session). Re-opening checkout
+   * later (`startCheckout`) passes a FRESH key on purpose — the old Checkout Session has
+   * expired, so we must get a genuinely new one, not the idempotency-cached original.
+   */
+  idempotencyKey?: string;
 }
 
 /**
@@ -100,7 +107,7 @@ export function createStripePaymentProvider(
           currency: input.currency.toLowerCase(),
           metadata: { paymentId: input.paymentId, requestId: input.requestId },
         },
-        { idempotencyKey: input.paymentId },
+        { idempotencyKey: input.idempotencyKey ?? input.paymentId },
       );
       return {
         // Prefer the PaymentIntent id (what the webhook references); fall back to the

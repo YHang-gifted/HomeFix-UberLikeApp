@@ -6,6 +6,7 @@ import type {
   AuditPage,
   Certification,
   CertificationStatus,
+  CheckoutSession,
   ConnectOnboarding,
   CreateCertificationInput,
   CreateQuoteInput,
@@ -46,6 +47,7 @@ import {
   auditPageSchema,
   certificationListSchema,
   certificationSchema,
+  checkoutSessionSchema,
   connectOnboardingSchema,
   deviceTokenListSchema,
   earningsSummarySchema,
@@ -332,6 +334,20 @@ export class ApiClient {
   public async payPayment(id: string): Promise<Payment> {
     const data = await this.send('POST', `/service-requests/${id}/payment/pay`, undefined, true);
     return paymentSchema.parse(data);
+  }
+
+  /**
+   * Open a fresh hosted-checkout session for the pending payment and return its URL. Called each
+   * time the customer pays, so the session is never stale — a stored URL expires (slice 192).
+   */
+  public async startCheckout(id: string): Promise<CheckoutSession> {
+    const data = await this.send(
+      'POST',
+      `/service-requests/${id}/payment/checkout`,
+      undefined,
+      true,
+    );
+    return checkoutSessionSchema.parse(data);
   }
 
   /** Capture an approved PayPal order to settle the payment (called on return). */
