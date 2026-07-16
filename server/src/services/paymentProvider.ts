@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 
 import Stripe from 'stripe';
 
-import type { PaymentMethod, PaymentProviderId } from '../../../shared/schemas.ts';
+import type { PaymentMethod, PaymentProviderId, SavedCard } from '../../../shared/schemas.ts';
 import { loadEnv } from '../config/env.ts';
 import type { Env } from '../config/env.ts';
 import { AppError } from '../errors/appError.ts';
@@ -600,6 +600,110 @@ export function stripePayoutSender(secretKey: string): SendPayout {
 export function selectPayoutSender(env: Env = loadEnv()): SendPayout | undefined {
   const secretKey = env.STRIPE_SECRET_KEY;
   return secretKey === undefined ? undefined : stripePayoutSender(secretKey);
+}
+
+// --- Stripe saved cards (Uber-style in-app tap-to-pay) --------------------------
+//
+// Option B: the card is saved via a one-time hosted Checkout Session in `mode: 'setup'`
+// (reusing the proven hosted-checkout infra — no raw card data ever touches us, so we stay
+// in the lightest PCI scope), attached to a per-customer Stripe Customer. Listing reads the
+// saved methods back off that Customer. Charging a saved method (off-session PaymentIntent)
+// arrives in a later phase.
+
+/**
+ * Creates a Stripe Customer for one of our users and returns its id (`cus_…`). Injected so
+ * the flow is unit-testable without a network call; the real one is
+ * {@link stripeCustomerCreator}. The get-or-create decision (reuse the stored id) lives in
+ * the service — this seam only ever creates.
+ */
+export type CreateStripeCustomer = (params: { email: string; userId: string }) => Promise<string>;
+
+/** The real creator: opens a Stripe Customer, tagging our user id for dashboard traceability. */
+export function stripeCustomerCreator(secretKey: string): CreateStripeCustomer {
+  const stripe = new Stripe(secretKey);
+  return async ({ email, userId }) =>
+    (await stripe.customers.create({ email, metadata: { userId } })).id;
+}
+
+/** The configured Stripe Customer creator, or undefined when Stripe isn't configured. */
+export function selectStripeCustomerCreator(
+  env: Env = loadEnv(),
+): CreateStripeCustomer | undefined {
+  const secretKey = env.STRIPE_SECRET_KEY;
+  return secretKey === undefined ? undefined : stripeCustomerCreator(secretKey);
+}
+
+/**
+ * Opens a hosted Checkout Session in `mode: 'setup'` — the customer saves a card, no charge —
+ * attaching the saved method to their Stripe Customer, and returns the URL to redirect to.
+ * Injected so the flow is unit-testable without a network call; the real one is
+ * {@link stripeSetupSessionCreator}.
+ */
+export type CreateStripeSetupSession = (
+  params: { customerId: string },
+  options: { idempotencyKey: string },
+) => Promise<{ url: string | null }>;
+
+/** The real setup-session creator (only built when configured). */
+export function stripeSetupSessionCreator(config: StripeConfig): CreateStripeSetupSession {
+  const stripe = new Stripe(config.secretKey);
+  return async ({ customerId }, options) => {
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: 'setup',
+        customer: customerId,
+        payment_method_types: ['card'],
+        success_url: config.successUrl,
+        cancel_url: config.cancelUrl,
+      },
+      options,
+    );
+    return { url: session.url };
+  };
+}
+
+/** The configured setup-session creator, or undefined when Stripe checkout isn't configured. */
+export function selectStripeSetupSessionCreator(
+  env: Env = loadEnv(),
+): CreateStripeSetupSession | undefined {
+  const config = stripeConfigFromEnv(env);
+  return config === undefined ? undefined : stripeSetupSessionCreator(config);
+}
+
+/**
+ * Lists a Stripe Customer's saved cards, reduced to the safe, displayable bits (brand, last4,
+ * expiry) — never anything that could reconstruct the card. Injected so the flow is
+ * unit-testable without a network call; the real one is {@link stripeSavedCardLister}.
+ */
+export type ListSavedCards = (customerId: string) => Promise<SavedCard[]>;
+
+/** The real lister: reads the customer's `card`-type payment methods. */
+export function stripeSavedCardLister(secretKey: string): ListSavedCards {
+  const stripe = new Stripe(secretKey);
+  return async (customerId) => {
+    const list = await stripe.paymentMethods.list({ customer: customerId, type: 'card' });
+    return list.data.flatMap((pm) => {
+      const card = pm.card;
+      if (card === undefined) {
+        return [];
+      }
+      return [
+        {
+          id: pm.id,
+          brand: card.brand,
+          last4: card.last4,
+          expMonth: card.exp_month,
+          expYear: card.exp_year,
+        },
+      ];
+    });
+  };
+}
+
+/** The configured saved-card lister, or undefined when Stripe isn't configured. */
+export function selectSavedCardLister(env: Env = loadEnv()): ListSavedCards | undefined {
+  const secretKey = env.STRIPE_SECRET_KEY;
+  return secretKey === undefined ? undefined : stripeSavedCardLister(secretKey);
 }
 
 /** The configured PayPal webhook verifier, or undefined when it is not fully configured. */

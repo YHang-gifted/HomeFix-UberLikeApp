@@ -34,6 +34,7 @@ interface UserRow {
   notify_push: boolean;
   stripe_account_id: string | null;
   stripe_payouts_enabled: boolean;
+  stripe_customer_id: string | null;
 }
 
 function parseAvailability(value: unknown): WorkerAvailability | undefined {
@@ -71,6 +72,7 @@ function mapRow(row: unknown): UserRecord {
     ...(availability !== undefined ? { availability } : {}),
     ...(r.stripe_account_id !== null ? { stripeAccountId: r.stripe_account_id } : {}),
     ...(r.stripe_payouts_enabled ? { stripePayoutsEnabled: true } : {}),
+    ...(r.stripe_customer_id !== null ? { stripeCustomerId: r.stripe_customer_id } : {}),
   };
 }
 
@@ -179,6 +181,18 @@ export class PostgresUserRepository implements UserRepository {
     return row === undefined ? undefined : mapRow(row);
   }
 
+  public async setStripeCustomerId(
+    id: string,
+    customerId: string,
+  ): Promise<UserRecord | undefined> {
+    const result = await this.db.query(
+      'UPDATE users SET stripe_customer_id = $2 WHERE id = $1 RETURNING *',
+      [id, customerId],
+    );
+    const row = result.rows[0];
+    return row === undefined ? undefined : mapRow(row);
+  }
+
   public async setStripePayoutsEnabled(
     id: string,
     enabled: boolean,
@@ -204,6 +218,7 @@ export class PostgresUserRepository implements UserRepository {
               status = 'deleted',
               stripe_account_id = NULL,
               stripe_payouts_enabled = false,
+              stripe_customer_id = NULL,
               token_version = token_version + 1
         WHERE id = $1
         RETURNING *`,

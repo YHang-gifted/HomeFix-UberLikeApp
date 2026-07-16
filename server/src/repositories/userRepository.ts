@@ -33,6 +33,12 @@ export interface UserRecord {
   /** The worker's Stripe Connect account id (`acct_…`), once they start payout onboarding. */
   stripeAccountId?: string;
   /**
+   * The customer's Stripe Customer id (`cus_…`), created the first time they save a card for
+   * in-app payments. Their saved payment methods live on it. Distinct from `stripeAccountId`
+   * (the worker's *payout* account). Undefined until they save a card.
+   */
+  stripeCustomerId?: string;
+  /**
    * Whether the worker's connected account can receive payouts (Stripe's
    * `payouts_enabled`), tracked from the `account.updated` webhook. Undefined/false until
    * Stripe confirms onboarding is complete; the platform only transfers once it is true.
@@ -59,6 +65,8 @@ export interface UserRepository {
   setStripeAccountId(id: string, accountId: string): Promise<UserRecord | undefined>;
   /** Find a worker by their Stripe Connect account id (for the account.updated webhook). */
   findByStripeAccountId(accountId: string): Promise<UserRecord | undefined>;
+  /** Store the customer's Stripe Customer id, created the first time they save a card. */
+  setStripeCustomerId(id: string, customerId: string): Promise<UserRecord | undefined>;
   /** Record whether the worker's connected account can receive payouts. */
   setStripePayoutsEnabled(id: string, enabled: boolean): Promise<UserRecord | undefined>;
   /**
@@ -179,6 +187,8 @@ export class InMemoryUserRepository implements UserRepository {
       ...(user.stripePayoutsEnabled !== undefined
         ? { stripePayoutsEnabled: user.stripePayoutsEnabled }
         : {}),
+      // The saved-card Customer id isn't a profile field either — carry it through.
+      ...(user.stripeCustomerId !== undefined ? { stripeCustomerId: user.stripeCustomerId } : {}),
     };
     this.users.set(user.email.toLowerCase(), updated);
     return Promise.resolve(updated);
@@ -228,6 +238,16 @@ export class InMemoryUserRepository implements UserRepository {
     return Promise.resolve(
       [...this.users.values()].find((user) => user.stripeAccountId === accountId),
     );
+  }
+
+  public setStripeCustomerId(id: string, customerId: string): Promise<UserRecord | undefined> {
+    const user = [...this.users.values()].find((candidate) => candidate.id === id);
+    if (!user) {
+      return Promise.resolve(undefined);
+    }
+    const updated: UserRecord = { ...user, stripeCustomerId: customerId };
+    this.users.set(user.email.toLowerCase(), updated);
+    return Promise.resolve(updated);
   }
 
   public setStripePayoutsEnabled(id: string, enabled: boolean): Promise<UserRecord | undefined> {

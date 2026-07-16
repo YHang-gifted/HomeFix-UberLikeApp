@@ -510,4 +510,11 @@ export const migrations: Migration[] = [
         CHECK (schedule_proposed_by IS NULL OR schedule_proposed_by IN ('customer', 'worker'))
     `,
   },
+  {
+    // A customer's Stripe Customer id (`cus_…`), created the first time they save a card for
+    // in-app payments (Phase 2). Their saved payment methods live on it. Distinct from
+    // `stripe_account_id`, which is the WORKER's payout (Connect) account.
+    id: '0039_user_stripe_customer_id',
+    sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id text`,
+  },
 ];

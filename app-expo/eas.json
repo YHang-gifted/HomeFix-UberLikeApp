@@ -9,7 +9,8 @@
       "channel": "development",
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://homefix-uberlikeapp-production.up.railway.app",
-        "EXPO_PUBLIC_CONNECT_PAYOUTS_ENABLED": "true"
+        "EXPO_PUBLIC_CONNECT_PAYOUTS_ENABLED": "true",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51TriiIAALHt99kHO1avKCfryO9foUZVDWgbXuW8OXVt1QaAMhjpZPCkQ5MAnbS310D7sUt8JePF4GrJHe1KOfx7P00AqUpLlAk"
       }
     },
     "preview": {
