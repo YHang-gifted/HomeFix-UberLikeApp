@@ -12,6 +12,7 @@ import {
   updateNotificationPreferences,
 } from '../services/notificationPreferenceService.ts';
 import { startConnectOnboarding } from '../services/connectService.ts';
+import { listPaymentMethods, startCardSetup } from '../services/paymentMethodService.ts';
 
 export async function postConnectOnboard(
   req: Request,
@@ -24,6 +25,38 @@ export async function postConnectOnboard(
   }
   try {
     res.status(200).json(await startConnectOnboarding(principal));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function postPaymentMethodSetup(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+  try {
+    res.status(200).json(await startCardSetup(principal));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getPaymentMethods(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+  try {
+    res.status(200).json(await listPaymentMethods(principal));
   } catch (error) {
     next(error);
   }

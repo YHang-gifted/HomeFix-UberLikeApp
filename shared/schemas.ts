@@ -140,9 +140,24 @@ export const connectOnboardingSchema = z.object({ url: z.url() });
 export type ConnectOnboarding = z.infer<typeof connectOnboardingSchema>;
 
 // A freshly opened hosted-checkout session for a pending payment (POST …/payment/checkout).
-// Minted on demand so it is never stale — see slice 192.
+// Minted on demand so it is never stale — see slice 192. Also the shape returned when opening a
+// card-save session (mode: setup) — `startCardSetup` (Phase 2, saved cards).
 export const checkoutSessionSchema = z.object({ checkoutUrl: z.url() });
 export type CheckoutSession = z.infer<typeof checkoutSessionSchema>;
+
+// A card saved on the customer's Stripe Customer for future in-app payments (Phase 2). Only the
+// safe, displayable bits — never the card number; the PAN lives at Stripe. `id` is the Stripe
+// `payment_method` id, used later to charge off-session.
+export const savedCardSchema = z.object({
+  id: z.string(),
+  brand: z.string(),
+  last4: z.string(),
+  expMonth: z.number().int().min(1).max(12),
+  expYear: z.number().int(),
+});
+export type SavedCard = z.infer<typeof savedCardSchema>;
+
+export const savedCardListSchema = z.array(savedCardSchema);
 
 /**
  * Where a worker stands with payout onboarding. **Three states, not two** — the middle one is
