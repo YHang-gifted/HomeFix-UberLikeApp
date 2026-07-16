@@ -1403,8 +1403,21 @@ com.homefix.dev`. That **confirms the app code is right** (186's `projectId` fix
   Not a security fix (no `SEC-NNNN`): it hardens the refund path rather than fixing a shipped
   leak. _handed off._
 
+- **193** in-app **saved-card payments, Phase 1: SDK wiring.** The start of the Uber-style
+  saved-card feature (save a card once, then pay in-app in a tap) — chosen to **coexist** with
+  the proven hosted-checkout flow, not replace it. This phase does only the groundwork so it is
+  verifiable in isolation: `@stripe/stripe-react-native` is installed and a `StripeAppProvider`
+  wraps the app root (`app-expo/src/stripeProvider.tsx`), **web-split** (`.web.tsx` renders
+  children unchanged) so the web bundle never imports the native SDK — the same pattern as
+  `mapPicker`. Gated on `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` (a **publishable** key, safe to
+  ship): unset, the provider renders children directly, so the app boots with no SDK and hosted
+  checkout still works; set, the SDK is available beneath it. **New native module ⇒ a new
+  `eas build`.** No server changes yet — the Stripe **Customer** data model, SetupIntent/
+  PaymentSheet save flow (Phase 2) and off-session charge + SCA fallback (Phase 3) come next.
+  app-expo + docs — _handed off_.
+
 _All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **192** (fresh checkout session on demand), which were handed off._
+(Stripe go-live runbook), and **193** (saved-card Phase 1), which were handed off._
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
 (payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
 entry above; the default remains mock mode (no key set).\_

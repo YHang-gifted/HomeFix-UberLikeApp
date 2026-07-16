@@ -45,7 +45,14 @@
           "photosPermission": "HomeFix needs access to your photos so you can attach pictures of the problem."
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.homefix.dev",
+          "enableGooglePay": true
+        }
+      ]
     ],
     "extra": {
       "androidMapsConfigured": false,

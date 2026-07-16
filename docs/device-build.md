@@ -92,15 +92,22 @@ Still open, and only a real device can settle them:
   the new architecture; if the map misbehaves, turn it off via the **`expo-build-properties`**
   config plugin (`newArchEnabled: false`), not a root field.
 
-## 1. Install the one new dependency
+## 1. Install the native dependencies
 
 ```bash
 cd app-expo
-npx expo install expo-constants
+npx expo install expo-constants @react-native-community/datetimepicker @stripe/stripe-react-native
 ```
 
-`push.ts` and `mapPicker.tsx` read the app config through it. Use `expo install`, not
-`npm install` — it picks the version that matches the SDK.
+Use `expo install`, not `npm install` — it picks the versions that match the SDK. `expo-constants`
+backs `push.ts` / `mapPicker.tsx`; `@react-native-community/datetimepicker` is the visit-time
+picker; `@stripe/stripe-react-native` is the in-app payments SDK (slice 193). **Each of these is
+a native module, so adding or updating one requires a new `eas build`** before it works on device.
+
+`@stripe/stripe-react-native` needs `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` — a **publishable** key
+(`pk_test_…` / `pk_live_…`), which is safe to ship in client code. Set it in `eas.json`'s build
+`env` blocks (for EAS builds) and in `app-expo/.env` (for local `npx expo start`). Unset, the app
+boots fine without the SDK — the saved-card features simply stay off and hosted checkout is used.
 
 ## 2. Create the EAS project
 
