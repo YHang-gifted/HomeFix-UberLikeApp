@@ -4,11 +4,16 @@ import type {
   CreateRefundRequestInput,
   Principal,
   RefundRequest,
+  RefundRequestStatus,
+  ResolveRefundRequestInput,
 } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { paymentRepository } from '../repositories/paymentRepository.ts';
 import { refundRequestRepository } from '../repositories/refundRequestRepository.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
+import { recordAuditEvent } from './auditService.ts';
+import { recordNotification } from './notificationService.ts';
+import { refundPayment } from './paymentService.ts';
 
 /**
  * File a refund request against a request's paid payment. The owning customer only; the payment
@@ -52,6 +57,12 @@ export async function requestRefund(
     createdAt: new Date().toISOString(),
   };
   await refundRequestRepository.save(refundRequest);
+  await recordAuditEvent({
+    actor: principal,
+    action: 'refund_request.created',
+    resourceId: refundRequest.id,
+    details: { requestId, paymentId: payment.id },
+  });
   return refundRequest;
 }
 
@@ -76,6 +87,80 @@ export async function getRefundRequest(
     throw new AppError('No refund request for this request', 404);
   }
   return refundRequest;
+}
+
+/**
+ * The admin refund-request queue, most-recent-first, optionally filtered by status. Admin-only.
+ */
+export async function listRefundRequests(
+  principal: Principal,
+  status?: RefundRequestStatus,
+): Promise<RefundRequest[]> {
+  if (principal.role !== 'admin') {
+    throw new AppError('Only an admin may view refund requests', 403);
+  }
+  const all = await refundRequestRepository.list();
+  return status === undefined ? all : all.filter((r) => r.status === status);
+}
+
+/**
+ * Resolve an open refund request. Admin-only. `approve` runs the existing refund line first
+ * (`refundPayment` — reverses the worker's payout, refunds at the provider, marks the payment
+ * refunded, and audits it); only if that succeeds is the request marked `approved`. So if the
+ * payout was already paid out, `refundPayment` throws 409 and the request stays `open` for a manual
+ * clawback rather than being falsely marked resolved. `reject` needs a note (the customer is told
+ * why). Either way the customer is notified and the resolution is audited. 403/404/409/422.
+ */
+export async function resolveRefundRequest(
+  id: string,
+  input: ResolveRefundRequestInput,
+  principal: Principal,
+): Promise<RefundRequest> {
+  if (principal.role !== 'admin') {
+    throw new AppError('Only an admin may resolve refund requests', 403);
+  }
+  const refundRequest = await refundRequestRepository.findById(id);
+  if (!refundRequest) {
+    throw new AppError('Refund request not found', 404);
+  }
+  if (refundRequest.status !== 'open') {
+    throw new AppError('This refund request has already been resolved', 409);
+  }
+  const note = input.note?.trim();
+  if (input.decision === 'reject' && (note === undefined || note === '')) {
+    throw new AppError('A reason is required to reject a refund request', 422);
+  }
+
+  if (input.decision === 'approve') {
+    // Reuse the proven admin refund. If it throws (e.g. the payout was already sent → 409), the
+    // request is left open and nothing below runs, so it is never falsely marked approved.
+    await refundPayment(refundRequest.requestId, principal);
+  }
+
+  const updated: RefundRequest = {
+    ...refundRequest,
+    status: input.decision === 'approve' ? 'approved' : 'rejected',
+    resolvedAt: new Date().toISOString(),
+    resolvedBy: principal.id,
+    ...(note !== undefined && note !== '' ? { resolutionNote: note } : {}),
+  };
+  await refundRequestRepository.save(updated);
+
+  await recordNotification({
+    userId: refundRequest.customerId,
+    message:
+      input.decision === 'approve'
+        ? 'Your refund request was approved and your payment refunded.'
+        : `Your refund request was declined: ${note ?? ''}`,
+    requestId: refundRequest.requestId,
+  });
+  await recordAuditEvent({
+    actor: principal,
+    action: input.decision === 'approve' ? 'refund_request.approved' : 'refund_request.rejected',
+    resourceId: refundRequest.id,
+    details: { requestId: refundRequest.requestId, paymentId: refundRequest.paymentId },
+  });
+  return updated;
 }
 
 export async function resetRefundRequests(): Promise<void> {
