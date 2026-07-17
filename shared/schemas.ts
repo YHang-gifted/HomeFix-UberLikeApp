@@ -307,6 +307,9 @@ export const auditActionSchema = z.enum([
   'certification.submitted',
   'certification.verified',
   'certification.rejected',
+  'refund_request.created',
+  'refund_request.approved',
+  'refund_request.rejected',
 ]);
 export type AuditAction = z.infer<typeof auditActionSchema>;
 
@@ -782,6 +785,14 @@ export type CreateRefundRequestInput = z.infer<typeof createRefundRequestInputSc
 
 export const refundRequestListSchema = z.object({ items: z.array(refundRequestSchema) });
 export type RefundRequestList = z.infer<typeof refundRequestListSchema>;
+
+// An admin's decision on an open refund request. `note` is required to reject (so the customer is
+// told why) and optional when approving. Approval drives the existing refund line.
+export const resolveRefundRequestInputSchema = z.object({
+  decision: z.enum(['approve', 'reject']),
+  note: z.string().trim().max(1000).optional(),
+});
+export type ResolveRefundRequestInput = z.infer<typeof resolveRefundRequestInputSchema>;
 
 // A device's push-notification token, registered by a signed-in user so push
 // delivery can reach their device(s).

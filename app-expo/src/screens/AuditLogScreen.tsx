@@ -29,6 +29,9 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   'certification.submitted': 'Submitted certification',
   'certification.verified': 'Verified certification',
   'certification.rejected': 'Rejected certification',
+  'refund_request.created': 'Requested refund',
+  'refund_request.approved': 'Approved refund request',
+  'refund_request.rejected': 'Rejected refund request',
 };
 
 function detailsText(details: Record<string, string> | undefined): string | null {
