@@ -164,7 +164,13 @@ them by hand:
   collect raw card numbers in our own form** — the one line that must not be crossed (PCI
   liability). Not a blocker; hosted Checkout still works for one-off payments.
 
-- **No customer-facing dispute flow.** Refund and clawback exist as admin capabilities only.
+- ~~**No customer-facing dispute flow.** Refund and clawback exist as admin capabilities only.~~
+  **Shipped (slices 199–202).** A customer files a refund request on a paid payment; an admin
+  approves it (reusing the existing refund line — payout reversal included) or rejects it with a
+  reason. Both ends have UI (RequestDetailScreen / AdminRefundRequestsScreen), the customer is
+  notified, and every step is audited. Payout note still applies: an approved refund can only be
+  clawed back automatically while the worker's payout is still pending; once paid out it needs a
+  manual clawback (the approval 409s in that case rather than half-refunding).
 - **Ratings do not feed matching.** Reviews are collected and shown, but do not influence
   ranking.
 - **No graceful shutdown**, so in-flight requests are dropped on redeploy.
