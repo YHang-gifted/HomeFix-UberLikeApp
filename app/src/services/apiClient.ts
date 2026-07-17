@@ -26,6 +26,7 @@ import type {
   Quote,
   Receipt,
   RefundRequest,
+  RefundRequestStatus,
   RegisterInput,
   RequestContacts,
   Review,
@@ -66,6 +67,7 @@ import {
   publicUserSchema,
   quoteSchema,
   receiptSchema,
+  refundRequestListSchema,
   refundRequestSchema,
   requestContactsSchema,
   requestHistorySchema,
@@ -419,6 +421,24 @@ export class ApiClient {
   /** The refund request for a request (owning customer or admin), or throws 404 if none. */
   public async getRefundRequest(id: string): Promise<RefundRequest> {
     const data = await this.send('GET', `/service-requests/${id}/refund-request`, undefined, true);
+    return refundRequestSchema.parse(data);
+  }
+
+  /** Admin-only: the refund-request queue, optionally filtered by status. */
+  public async listRefundRequests(status?: RefundRequestStatus): Promise<RefundRequest[]> {
+    const query = status !== undefined ? `?status=${encodeURIComponent(status)}` : '';
+    const data = await this.send('GET', `/admin/refund-requests${query}`, undefined, true);
+    return refundRequestListSchema.parse(data).items;
+  }
+
+  /** Admin-only: approve (→ refund) or reject an open refund request. A reject needs a note. */
+  public async resolveRefundRequest(
+    id: string,
+    decision: 'approve' | 'reject',
+    note?: string,
+  ): Promise<RefundRequest> {
+    const body = note === undefined ? { decision } : { decision, note };
+    const data = await this.send('POST', `/admin/refund-requests/${id}/resolve`, body, true);
     return refundRequestSchema.parse(data);
   }
 

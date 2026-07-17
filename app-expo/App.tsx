@@ -24,6 +24,7 @@ import { tokenStore } from './src/tokenStore';
 import { useFocusRefreshToken } from './src/hooks/useFocusRefreshToken';
 import { colors } from './src/theme';
 import { AdminCertificationsScreen } from './src/screens/AdminCertificationsScreen';
+import { AdminRefundRequestsScreen } from './src/screens/AdminRefundRequestsScreen';
 import { AdminRequestsScreen } from './src/screens/AdminRequestsScreen';
 import { AdminStatsScreen } from './src/screens/AdminStatsScreen';
 import { AdminUsersScreen } from './src/screens/AdminUsersScreen';
@@ -60,6 +61,7 @@ export type RootStackParamList = {
   AdminStats: undefined;
   AdminUsers: undefined;
   AdminCertifications: undefined;
+  AdminRefundRequests: undefined;
   AuditLog: undefined;
   Profile: undefined;
   Notifications: undefined;
@@ -378,6 +380,9 @@ function AdminRequestsRoute({
       onViewCertifications={() => {
         navigation.navigate('AdminCertifications');
       }}
+      onViewRefunds={() => {
+        navigation.navigate('AdminRefundRequests');
+      }}
       onLogout={() => {
         signOut();
       }}
@@ -401,6 +406,12 @@ function AdminCertificationsRoute(): ReactElement {
   const refreshToken = useFocusRefreshToken();
 
   return <AdminCertificationsScreen client={apiClient} refreshToken={refreshToken} />;
+}
+
+function AdminRefundRequestsRoute(): ReactElement {
+  const refreshToken = useFocusRefreshToken();
+
+  return <AdminRefundRequestsScreen client={apiClient} refreshToken={refreshToken} />;
 }
 
 function AuditLogRoute(): ReactElement {
@@ -673,6 +684,11 @@ export default function App(): ReactElement {
                   name="AdminCertifications"
                   component={AdminCertificationsRoute}
                   options={{ title: 'Certification review' }}
+                />
+                <Stack.Screen
+                  name="AdminRefundRequests"
+                  component={AdminRefundRequestsRoute}
+                  options={{ title: 'Refund requests' }}
                 />
                 <Stack.Screen
                   name="AuditLog"
