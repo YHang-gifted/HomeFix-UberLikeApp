@@ -154,6 +154,27 @@ you enable **both** the Maps Static API and the Maps JavaScript API on it. On Ra
 add `EXPO_PUBLIC_GOOGLE_MAPS_JS_KEY` as a service variable (the Dockerfile declares the
 matching `ARG`); changing it needs a rebuild, not just a restart.
 
+### Optional: Uber-style saved cards (web)
+
+The web app can show the saved-card UI ("Payment methods" → **Add a card**, and **Pay with a
+saved card** on a request) — gated by the optional build arg
+`EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY`. Leave it unset and that UI is hidden on web, which falls back
+to hosted checkout only. Set it to your Stripe **publishable** key (`pk_…`):
+
+```bash
+docker build -t homefix-api \
+  --build-arg EXPO_PUBLIC_API_BASE_URL=https://app.homefix.example \
+  --build-arg EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_or_test_... .
+```
+
+A publishable key is meant to be public, so it is safe to bake into the web bundle (the secret
+`sk_…` stays a server variable and is never exposed). On Railway, add
+`EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` as a service variable (the Dockerfile declares the matching
+`ARG`); it is inlined at build time, so changing it needs a rebuild, not just a restart. Saving a
+card and paying with it also require the server's Stripe variables (`STRIPE_SECRET_KEY`,
+`STRIPE_CHECKOUT_SUCCESS_URL`/`_CANCEL_URL`) and the webhook subscribed to
+`payment_intent.succeeded` — see `docs/stripe-go-live.md`.
+
 ## Deploying on Railway
 
 Railway auto-detects the `Dockerfile` and builds the image. Provision a Postgres
