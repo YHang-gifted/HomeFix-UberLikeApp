@@ -1,5 +1,7 @@
-import { StripeProvider } from '@stripe/stripe-react-native';
-import { type ReactElement, type ReactNode } from 'react';
+import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
+import { type ReactElement, type ReactNode, useEffect } from 'react';
+
+import { setNextActionHandler } from './cardAction';
 
 /**
  * Wraps the app so `@stripe/stripe-react-native` (PaymentSheet, saved cards, in-app payments) is
@@ -16,6 +18,22 @@ import { type ReactElement, type ReactNode } from 'react';
  */
 const PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
+/**
+ * Captures the SDK's `handleNextAction` into `cardAction.ts` while mounted, so the saved-card pay
+ * flow (Phase 3b) can drive 3-D Secure without calling a Stripe hook itself. Renders nothing; must
+ * live under `StripeProvider` (that is where `useStripe` is valid).
+ */
+function CardActionBridge(): null {
+  const { handleNextAction } = useStripe();
+  useEffect(() => {
+    setNextActionHandler((clientSecret) => handleNextAction(clientSecret));
+    return () => {
+      setNextActionHandler(undefined);
+    };
+  }, [handleNextAction]);
+  return null;
+}
+
 export function StripeAppProvider({ children }: { children: ReactNode }): ReactElement {
   if (PUBLISHABLE_KEY === undefined || PUBLISHABLE_KEY === '') {
     return <>{children}</>;
@@ -24,7 +42,10 @@ export function StripeAppProvider({ children }: { children: ReactNode }): ReactE
   // fragment to hand it a single element.
   return (
     <StripeProvider publishableKey={PUBLISHABLE_KEY}>
-      <>{children}</>
+      <>
+        <CardActionBridge />
+        {children}
+      </>
     </StripeProvider>
   );
 }

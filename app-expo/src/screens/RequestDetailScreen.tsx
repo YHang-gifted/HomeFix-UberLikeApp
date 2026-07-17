@@ -21,6 +21,7 @@ import {
 } from '../../../app/src/features/payments/paymentFormat';
 import { hasPlatformFee, paymentSplit } from '../../../app/src/features/payments/paymentSplit';
 import type { OpenCheckout } from '../../../app/src/features/payments/checkout';
+import type { ConfirmCardAction } from '../../../app/src/features/payments/cardAction';
 import { mapsUrl } from '../../../app/src/features/location/mapsLink';
 import { staticMapPreviewUrl } from '../staticMap';
 import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
@@ -35,6 +36,7 @@ import type {
   Quote,
   Receipt,
   Review,
+  SavedCard,
   ServiceRequest,
 } from '../../../shared/schemas';
 import { apiClient } from '../api';
@@ -43,6 +45,11 @@ import { StatusBadge } from '../components/StatusBadge';
 import { colors, radii, shadow, spacing } from '../theme';
 
 const RATINGS = [1, 2, 3, 4, 5];
+
+/** "Visa" from Stripe's lowercase brand code; leaves unknown brands as-is. */
+function brandLabel(brand: string): string {
+  return brand.length === 0 ? 'Card' : brand.charAt(0).toUpperCase() + brand.slice(1);
+}
 
 function historyLabel(event: AuditEvent): string {
   if (event.action === 'service_request.created') {
@@ -78,6 +85,12 @@ export interface RequestDetailScreenProps {
    */
   openCheckout?: OpenCheckout;
   /**
+   * Completes a saved-card payment that needs SCA (3-D Secure), given the client secret from
+   * `paySavedCard`'s `requires_action` result. Injected for tests/web; wired in App.tsx from the
+   * native Stripe SDK. When absent, a card needing SCA falls back to "Pay another way".
+   */
+  confirmCardAction?: ConfirmCardAction;
+  /**
    * Builds a static map thumbnail URL for the location, or null when none is
    * configured (no API key). Injected for tests; defaults to the real Google Static
    * Maps preview from config.
@@ -104,6 +117,7 @@ export function RequestDetailScreen({
   onReset,
   onViewMessages,
   openCheckout,
+  confirmCardAction,
   mapPreviewUrl = staticMapPreviewUrl,
   paypalEnabled = process.env.EXPO_PUBLIC_PAYPAL_ENABLED === 'true',
   openDateTimePicker,
@@ -145,6 +159,7 @@ export function RequestDetailScreen({
   const [isFavorite, setIsFavorite] = useState<boolean | null>(null);
   const [favoriteBusy, setFavoriteBusy] = useState(false);
   const [payment, setPayment] = useState<Payment | null>(null);
+  const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [amountText, setAmountText] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -225,6 +240,18 @@ export function RequestDetailScreen({
           }
         } catch {
           // No payment yet (404) or not a party; leave it unset.
+        }
+        // The owning customer's saved cards, for tap-to-pay. Best-effort: a non-customer 403s and
+        // an unconfigured Stripe returns [], either of which just hides the saved-card option.
+        if (principal?.role === 'customer') {
+          try {
+            const cards = await activeClient.listPaymentMethods();
+            if (active) {
+              setSavedCards(cards);
+            }
+          } catch {
+            // Leave the saved-card option hidden.
+          }
         }
         try {
           const foundQuote = await activeClient.getQuote(requestId);
@@ -442,6 +469,41 @@ export function RequestDetailScreen({
     }
   }
 
+  async function paySavedCardNow(paymentMethodId: string): Promise<void> {
+    setPaymentError(null);
+    setPaymentNotice(null);
+    setPaymentBusy(true);
+    try {
+      const result = await activeClient.paySavedCard(requestId, paymentMethodId);
+      if (result.status === 'requires_action') {
+        if (result.clientSecret === undefined || confirmCardAction === undefined) {
+          // The card needs 3-D Secure but we can't drive it here (e.g. web) — send them to the
+          // hosted checkout instead, which handles the challenge itself.
+          setPaymentNotice('This card needs extra verification. Please use “Pay another way”.');
+        } else {
+          await confirmCardAction(result.clientSecret);
+          setPaymentNotice(
+            'Card verified. Your payment will show as paid once confirmed — refresh in a moment.',
+          );
+        }
+      } else {
+        setPaymentNotice(
+          'Payment sent. It will show as paid once confirmed — refresh in a moment.',
+        );
+      }
+      // Reflect any immediate change (usually still pending until the webhook settles).
+      try {
+        setPayment(await activeClient.getPayment(requestId));
+      } catch {
+        // Best-effort refresh; the notice already tells the customer what to expect.
+      }
+    } catch (payError) {
+      setPaymentError(isApiError(payError) ? payError.message : 'Could not complete the payment.');
+    } finally {
+      setPaymentBusy(false);
+    }
+  }
+
   async function refundNow(): Promise<void> {
     setPaymentError(null);
     setPaymentBusy(true);
@@ -608,6 +670,16 @@ export function RequestDetailScreen({
         ? 'Pay with PayPal'
         : 'Complete PayPal payment'
       : 'Pay now';
+  // Saved-card tap-to-pay is offered for a pending card payment (not PayPal) when the customer has
+  // at least one card on file. When shown, the existing button becomes the "pay another way"
+  // (hosted checkout) alternative.
+  const showSavedCards =
+    isOwner &&
+    payment !== null &&
+    payment.status === 'pending' &&
+    payment.provider !== 'paypal' &&
+    savedCards.length > 0;
+  const primaryPayLabel = showSavedCards ? 'Pay another way' : payActionLabel;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -1035,6 +1107,32 @@ export function RequestDetailScreen({
             </>
           )}
 
+          {showSavedCards && (
+            <View style={styles.savedCards}>
+              <Text style={styles.savedCardsLabel}>Pay with a saved card</Text>
+              {savedCards.map((card) => (
+                <Pressable
+                  key={card.id}
+                  style={({ pressed }) => [
+                    styles.savedCardRow,
+                    pressed && styles.savedCardRowPressed,
+                  ]}
+                  onPress={() => {
+                    void paySavedCardNow(card.id);
+                  }}
+                  disabled={paymentBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Pay with ${brandLabel(card.brand)} ending ${card.last4}`}
+                >
+                  <Text style={styles.savedCardText}>
+                    {brandLabel(card.brand)} •••• {card.last4}
+                  </Text>
+                  <Text style={styles.savedCardPay}>Pay</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
           {isOwner && payment !== null && payment.status === 'pending' && (
             <Pressable
               style={({ pressed }) => [styles.payButton, pressed && styles.payButtonPressed]}
@@ -1043,12 +1141,12 @@ export function RequestDetailScreen({
               }}
               disabled={paymentBusy}
               accessibilityRole="button"
-              accessibilityLabel={payActionLabel}
+              accessibilityLabel={primaryPayLabel}
             >
               {paymentBusy ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.payButtonText}>{payActionLabel}</Text>
+                <Text style={styles.payButtonText}>{primaryPayLabel}</Text>
               )}
             </Pressable>
           )}
@@ -1514,6 +1612,22 @@ const styles = StyleSheet.create({
   },
   payButtonPressed: { backgroundColor: colors.brandPressed },
   payButtonText: { color: colors.white, fontSize: 15, fontWeight: '700' },
+  savedCards: { marginTop: 12, gap: spacing.sm },
+  savedCardsLabel: { fontSize: 13, fontWeight: '700', color: colors.inkMuted },
+  savedCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.brand,
+    borderRadius: radii.medium,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    minHeight: 44,
+  },
+  savedCardRowPressed: { backgroundColor: colors.brandSoft },
+  savedCardText: { color: colors.ink, fontSize: 15, fontWeight: '600' },
+  savedCardPay: { color: colors.brand, fontSize: 15, fontWeight: '700' },
   reasonInput: {
     borderWidth: 1,
     borderColor: '#cbd5e1',

@@ -11,6 +11,7 @@ import { clearSession, persistSession, restoreSession } from '../app/src/auth/se
 import { registerForPush } from '../app/src/features/notifications/pushRegistration';
 import { readResetCode, urlWithoutResetCode } from '../app/src/features/auth/resetLink';
 import { apiClient } from './src/api';
+import { deviceConfirmCardAction } from './src/cardAction';
 import { deviceOpenCheckout } from './src/checkout';
 import { DateTimePickerHost, openDeviceDateTimePicker } from './src/dateTimePicker';
 import { deviceImagePicker } from './src/imagePicker';
@@ -247,6 +248,7 @@ function RequestDetailRoute({
       client={apiClient}
       requestId={route.params.id}
       openCheckout={deviceOpenCheckout}
+      confirmCardAction={deviceConfirmCardAction}
       openDateTimePicker={openDeviceDateTimePicker}
       onCancelled={() => {
         navigation.goBack();
