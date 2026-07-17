@@ -29,6 +29,7 @@ import type {
   RequestContacts,
   Review,
   SavedCard,
+  SavedCardPaymentResult,
   ServiceCategory,
   ServiceRequest,
   ServiceRequestPage,
@@ -68,6 +69,7 @@ import {
   requestHistorySchema,
   reviewSchema,
   savedCardListSchema,
+  savedCardPaymentResultSchema,
   serviceRequestPageSchema,
   serviceRequestSchema,
   uploadTargetSchema,
@@ -300,6 +302,23 @@ export class ApiClient {
   public async startCardSetup(): Promise<CheckoutSession> {
     const data = await this.send('POST', '/me/payment-methods/setup', undefined, true);
     return checkoutSessionSchema.parse(data);
+  }
+
+  /**
+   * Pay a pending card payment with a saved card, off-session. Returns `succeeded` (the payment
+   * settles via the webhook) or `requires_action` with a client secret the app completes with SCA.
+   */
+  public async paySavedCard(
+    requestId: string,
+    paymentMethodId: string,
+  ): Promise<SavedCardPaymentResult> {
+    const data = await this.send(
+      'POST',
+      `/service-requests/${requestId}/payment/pay-saved`,
+      { paymentMethodId },
+      true,
+    );
+    return savedCardPaymentResultSchema.parse(data);
   }
 
   /** The signed-in worker's certifications, most-recent-first. */
