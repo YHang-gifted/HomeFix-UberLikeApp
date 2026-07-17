@@ -752,6 +752,37 @@ export const createQuoteInputSchema = z.object({
 });
 export type CreateQuoteInput = z.infer<typeof createQuoteInputSchema>;
 
+/**
+ * A customer-initiated refund request on a paid payment. `open` awaits an admin decision;
+ * `approved` means the admin refunded the payment (reusing the existing refund line); `rejected`
+ * means the admin declined; `withdrawn` is reserved for a customer cancelling their own request.
+ */
+export const refundRequestStatusSchema = z.enum(['open', 'approved', 'rejected', 'withdrawn']);
+export type RefundRequestStatus = z.infer<typeof refundRequestStatusSchema>;
+
+export const refundRequestSchema = z.object({
+  id: z.uuid(),
+  requestId: z.uuid(),
+  paymentId: z.uuid(),
+  customerId: z.uuid(),
+  reason: z.string().max(1000),
+  status: refundRequestStatusSchema,
+  createdAt: z.iso.datetime(),
+  // Set when an admin resolves the request (approved/rejected).
+  resolvedAt: z.iso.datetime().optional(),
+  resolvedBy: z.uuid().optional(),
+  resolutionNote: z.string().max(1000).optional(),
+});
+export type RefundRequest = z.infer<typeof refundRequestSchema>;
+
+export const createRefundRequestInputSchema = z.object({
+  reason: z.string().trim().min(1).max(1000),
+});
+export type CreateRefundRequestInput = z.infer<typeof createRefundRequestInputSchema>;
+
+export const refundRequestListSchema = z.object({ items: z.array(refundRequestSchema) });
+export type RefundRequestList = z.infer<typeof refundRequestListSchema>;
+
 // A device's push-notification token, registered by a signed-in user so push
 // delivery can reach their device(s).
 export const registerDeviceTokenInputSchema = z.object({
