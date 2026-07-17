@@ -68,6 +68,15 @@ ENV EXPO_PUBLIC_PAYPAL_ENABLED=${EXPO_PUBLIC_PAYPAL_ENABLED}
 ARG EXPO_PUBLIC_CONNECT_PAYOUTS_ENABLED
 ENV EXPO_PUBLIC_CONNECT_PAYOUTS_ENABLED=${EXPO_PUBLIC_CONNECT_PAYOUTS_ENABLED}
 
+# OPTIONAL: the Stripe PUBLISHABLE key (`pk_…`), inlined at build time so the web app shows the
+# Uber-style saved-card UI ("Payment methods" → Add a card, and "Pay with a saved card" on a
+# request). Unset → the saved-card UI is hidden and the web app falls back to hosted checkout only.
+# A publishable key is designed to be public, so it is safe to bake into the web bundle (unlike the
+# secret `sk_…`, which stays server-side only). Build with:
+#   docker build --build-arg EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_or_test_... .
+ARG EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY
+ENV EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=${EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+
 # Install app-expo dependencies first so this layer caches unless the lockfile
 # changes. (node_modules is excluded by .dockerignore, so the later source copy
 # never clobbers it.)
