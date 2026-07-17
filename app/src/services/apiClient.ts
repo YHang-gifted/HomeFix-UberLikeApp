@@ -25,6 +25,7 @@ import type {
   PublicUser,
   Quote,
   Receipt,
+  RefundRequest,
   RegisterInput,
   RequestContacts,
   Review,
@@ -65,6 +66,7 @@ import {
   publicUserSchema,
   quoteSchema,
   receiptSchema,
+  refundRequestSchema,
   requestContactsSchema,
   requestHistorySchema,
   reviewSchema,
@@ -401,6 +403,23 @@ export class ApiClient {
   public async refundPayment(id: string): Promise<Payment> {
     const data = await this.send('POST', `/service-requests/${id}/payment/refund`, undefined, true);
     return paymentSchema.parse(data);
+  }
+
+  /** The owning customer files a refund request on a paid payment. */
+  public async requestRefund(id: string, reason: string): Promise<RefundRequest> {
+    const data = await this.send(
+      'POST',
+      `/service-requests/${id}/refund-request`,
+      { reason },
+      true,
+    );
+    return refundRequestSchema.parse(data);
+  }
+
+  /** The refund request for a request (owning customer or admin), or throws 404 if none. */
+  public async getRefundRequest(id: string): Promise<RefundRequest> {
+    const data = await this.send('GET', `/service-requests/${id}/refund-request`, undefined, true);
+    return refundRequestSchema.parse(data);
   }
 
   public async getQuote(id: string): Promise<Quote> {

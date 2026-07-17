@@ -35,6 +35,7 @@ import type {
   PaymentMethod,
   Quote,
   Receipt,
+  RefundRequest,
   Review,
   SavedCard,
   ServiceRequest,
@@ -49,6 +50,20 @@ const RATINGS = [1, 2, 3, 4, 5];
 /** "Visa" from Stripe's lowercase brand code; leaves unknown brands as-is. */
 function brandLabel(brand: string): string {
   return brand.length === 0 ? 'Card' : brand.charAt(0).toUpperCase() + brand.slice(1);
+}
+
+/** A customer-facing sentence for a refund request's status. */
+function refundStatusLabel(status: RefundRequest['status']): string {
+  switch (status) {
+    case 'open':
+      return 'Refund requested — awaiting review.';
+    case 'approved':
+      return 'Refund request approved — your payment was refunded.';
+    case 'rejected':
+      return 'Refund request declined.';
+    case 'withdrawn':
+      return 'Refund request withdrawn.';
+  }
 }
 
 function historyLabel(event: AuditEvent): string {
@@ -160,6 +175,10 @@ export function RequestDetailScreen({
   const [favoriteBusy, setFavoriteBusy] = useState(false);
   const [payment, setPayment] = useState<Payment | null>(null);
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
+  const [refundRequest, setRefundRequest] = useState<RefundRequest | null>(null);
+  const [refundReason, setRefundReason] = useState('');
+  const [refundBusy, setRefundBusy] = useState(false);
+  const [refundError, setRefundError] = useState<string | null>(null);
   const [amountText, setAmountText] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -251,6 +270,15 @@ export function RequestDetailScreen({
             }
           } catch {
             // Leave the saved-card option hidden.
+          }
+          // Any existing refund request on this payment (404 when none).
+          try {
+            const rr = await activeClient.getRefundRequest(requestId);
+            if (active) {
+              setRefundRequest(rr);
+            }
+          } catch {
+            // No refund request yet.
           }
         }
         try {
@@ -501,6 +529,27 @@ export function RequestDetailScreen({
       setPaymentError(isApiError(payError) ? payError.message : 'Could not complete the payment.');
     } finally {
       setPaymentBusy(false);
+    }
+  }
+
+  async function requestRefundNow(): Promise<void> {
+    const reason = refundReason.trim();
+    if (reason === '') {
+      setRefundError('Please say why you want a refund.');
+      return;
+    }
+    setRefundError(null);
+    setRefundBusy(true);
+    try {
+      const created = await activeClient.requestRefund(requestId, reason);
+      setRefundRequest(created);
+      setRefundReason('');
+    } catch (refundReqError) {
+      setRefundError(
+        isApiError(refundReqError) ? refundReqError.message : 'Could not request a refund.',
+      );
+    } finally {
+      setRefundBusy(false);
     }
   }
 
@@ -997,6 +1046,54 @@ export function RequestDetailScreen({
                     <Text style={styles.refundText}>Refund payment</Text>
                   )}
                 </Pressable>
+              )}
+
+              {isOwner && (refundRequest !== null || payment.status === 'paid') && (
+                <View style={styles.refundReqBox}>
+                  {refundRequest !== null ? (
+                    <>
+                      <Text style={styles.refundReqStatus}>
+                        {refundStatusLabel(refundRequest.status)}
+                      </Text>
+                      <Text style={styles.refundReqReason}>“{refundRequest.reason}”</Text>
+                      {refundRequest.resolutionNote !== undefined && (
+                        <Text style={styles.refundReqNote}>{refundRequest.resolutionNote}</Text>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.refundReqLabel}>Not right? Request a refund.</Text>
+                      <TextInput
+                        style={styles.reasonInput}
+                        value={refundReason}
+                        onChangeText={setRefundReason}
+                        placeholder="Why are you requesting a refund?"
+                        accessibilityLabel="Refund reason"
+                        editable={!refundBusy}
+                        multiline
+                      />
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.refundButton,
+                          pressed && styles.refundPressed,
+                        ]}
+                        onPress={() => {
+                          void requestRefundNow();
+                        }}
+                        disabled={refundBusy}
+                        accessibilityRole="button"
+                        accessibilityLabel="Request refund"
+                      >
+                        {refundBusy ? (
+                          <ActivityIndicator color="#dc2626" />
+                        ) : (
+                          <Text style={styles.refundText}>Request a refund</Text>
+                        )}
+                      </Pressable>
+                      {refundError !== null && <Text style={styles.error}>{refundError}</Text>}
+                    </>
+                  )}
+                </View>
               )}
 
               {payment.status === 'paid' && receipt === null && (
@@ -1548,6 +1645,11 @@ const styles = StyleSheet.create({
   },
   refundPressed: { backgroundColor: '#fef2f2' },
   refundText: { color: '#dc2626', fontSize: 15, fontWeight: '600' },
+  refundReqBox: { marginTop: 12, gap: 6 },
+  refundReqLabel: { fontSize: 13, fontWeight: '700', color: colors.inkMuted },
+  refundReqStatus: { fontSize: 14, fontWeight: '700', color: colors.ink },
+  refundReqReason: { fontSize: 13, color: colors.inkMuted, fontStyle: 'italic' },
+  refundReqNote: { fontSize: 13, color: colors.inkMuted },
   paymentInput: {
     borderWidth: 1,
     borderColor: colors.line,
