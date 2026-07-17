@@ -298,10 +298,15 @@ EMAIL_FROM unset)`, `stripe: live`, `connect: live`, …) would have made it ins
    same class of problem is waiting for PayPal and storage.
 
 Beyond a testable v1, the obvious product gaps are **scheduling/booking windows** (requests
-are matched immediately; there is a preferred time but no real calendar), a **customer-facing
-dispute flow** (refund and clawback exist as admin capabilities, but customers cannot raise a
-dispute), and **feeding worker ratings back into matching** (reviews are collected but do not
-influence ranking).
+are matched immediately; there is a preferred time but no real calendar) and **feeding worker
+ratings back into matching** (reviews are collected but do not influence ranking). The
+**customer-facing dispute flow** that used to be listed here **shipped in slices 199–202**
+(customer files a refund request → admin approves, reusing the existing refund line, or rejects
+with a reason; UI on both ends, notifications, and audit).
+
+Also shipped since the last snapshot: **Uber-style saved cards** (slices 193–198) — save a card via
+a hosted setup Checkout and pay in-app off-session, settling on the `payment_intent.succeeded`
+webhook.
 
 ## 6. Slice ledger since the last snapshot (110c–170)
 
