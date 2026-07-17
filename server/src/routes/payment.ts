@@ -14,6 +14,10 @@ import {
   postServiceRequestPaySavedCard,
   postStripeWebhook,
 } from '../controllers/paymentController.ts';
+import {
+  getServiceRequestRefundRequest,
+  postServiceRequestRefundRequest,
+} from '../controllers/refundRequestController.ts';
 import { authenticate } from '../middlewares/auth.ts';
 
 export const paymentRouter = express.Router();
@@ -46,6 +50,16 @@ paymentRouter.post(
   '/service-requests/:id/payment/refund',
   authenticate,
   postServiceRequestPaymentRefund,
+);
+paymentRouter.post(
+  '/service-requests/:id/refund-request',
+  authenticate,
+  postServiceRequestRefundRequest,
+);
+paymentRouter.get(
+  '/service-requests/:id/refund-request',
+  authenticate,
+  getServiceRequestRefundRequest,
 );
 // Payment-provider webhook (verified by a shared secret, not a session).
 paymentRouter.post('/webhooks/payments', postPaymentWebhook);

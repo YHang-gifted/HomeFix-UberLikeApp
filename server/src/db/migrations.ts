@@ -517,4 +517,31 @@ export const migrations: Migration[] = [
     id: '0039_user_stripe_customer_id',
     sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id text`,
   },
+  {
+    // A customer-initiated refund request on a paid payment, resolved by an admin. One per
+    // request (request_id UNIQUE). `payment_id` records which payment it targets so an approval
+    // can drive the existing refund. FKs mirror the quotes table (NOT VALID for zero-downtime).
+    id: '0040_refund_requests',
+    sql: `
+      CREATE TABLE IF NOT EXISTS refund_requests (
+        id uuid PRIMARY KEY,
+        request_id uuid NOT NULL UNIQUE,
+        payment_id uuid NOT NULL,
+        customer_id uuid NOT NULL,
+        reason text NOT NULL,
+        status text NOT NULL,
+        created_at timestamptz NOT NULL,
+        resolved_at timestamptz,
+        resolved_by uuid,
+        resolution_note text
+      );
+      ALTER TABLE refund_requests DROP CONSTRAINT IF EXISTS fk_refund_requests_request;
+      ALTER TABLE refund_requests ADD CONSTRAINT fk_refund_requests_request FOREIGN KEY (request_id) REFERENCES service_requests (id) NOT VALID;
+      ALTER TABLE refund_requests DROP CONSTRAINT IF EXISTS fk_refund_requests_payment;
+      ALTER TABLE refund_requests ADD CONSTRAINT fk_refund_requests_payment FOREIGN KEY (payment_id) REFERENCES payments (id) NOT VALID;
+      ALTER TABLE refund_requests DROP CONSTRAINT IF EXISTS fk_refund_requests_customer;
+      ALTER TABLE refund_requests ADD CONSTRAINT fk_refund_requests_customer FOREIGN KEY (customer_id) REFERENCES users (id) NOT VALID;
+      CREATE INDEX IF NOT EXISTS idx_refund_requests_status ON refund_requests (status)
+    `,
+  },
 ];
