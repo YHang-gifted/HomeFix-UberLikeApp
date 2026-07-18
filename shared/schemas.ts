@@ -108,6 +108,23 @@ export const serviceRequestPageSchema = z.object({
 });
 export type ServiceRequestPage = z.infer<typeof serviceRequestPageSchema>;
 
+/**
+ * A standardized, fixed-price task in the catalog — the Uber-style "price-first" track
+ * (`docs/pricing-model.md`). `id` is a stable slug (e.g. `drain-unclog`); `priceCents` is the
+ * platform-set price in {@link PLATFORM_CURRENCY}, the trusted source a customer books at (so a
+ * customer can never invent their own fixed price). Non-standard jobs stay on the quote track.
+ */
+export const catalogItemSchema = z.object({
+  id: z.string().min(1).max(64),
+  category: serviceCategorySchema,
+  title: z.string().min(1).max(120),
+  priceCents: z.number().int().positive(),
+});
+export type CatalogItem = z.infer<typeof catalogItemSchema>;
+
+export const catalogListSchema = z.object({ items: z.array(catalogItemSchema) });
+export type CatalogList = z.infer<typeof catalogListSchema>;
+
 // Admin dashboard summary: request counts by status plus payment/worker totals.
 const countField = z.number().int().nonnegative();
 export const requestsByStatusSchema = z.object({
