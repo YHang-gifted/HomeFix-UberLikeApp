@@ -4,10 +4,12 @@ import type {
   AuditEvent,
   CreateServiceRequestInput,
   Principal,
+  Quote,
   RequestContacts,
   ServiceRequest,
   ServiceRequestStatus,
 } from '../../../shared/schemas.ts';
+import { PLATFORM_CURRENCY } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { certificationRepository } from '../repositories/certificationRepository.ts';
 import { paymentRepository } from '../repositories/paymentRepository.ts';
@@ -206,6 +208,36 @@ async function assertWorkerCertifiedFor(workerId: string, category: string): Pro
   }
 }
 
+/**
+ * A fixed-price (catalog) job needs no worker quote — the platform already set the price. The
+ * moment a worker takes it, mint the **accepted** quote the rest of the system expects, so
+ * payment, payouts, receipts and refunds all work unchanged with no branching downstream
+ * (`docs/pricing-model.md` §2.2). Idempotent: a request that already has a quote is left alone,
+ * and a released job (whose quote is deleted) re-mints on the next claim.
+ */
+async function ensureFixedPriceQuote(request: ServiceRequest, workerId: string): Promise<void> {
+  if (request.pricingMode !== 'fixed' || request.fixedPriceCents === undefined) {
+    return;
+  }
+  const existing = await quoteRepository.findByRequest(request.id);
+  if (existing) {
+    return;
+  }
+  const now = new Date().toISOString();
+  const quote: Quote = {
+    id: randomUUID(),
+    requestId: request.id,
+    customerId: request.customerId,
+    workerId,
+    amountCents: request.fixedPriceCents,
+    currency: PLATFORM_CURRENCY,
+    status: 'accepted',
+    createdAt: now,
+    respondedAt: now,
+  };
+  await quoteRepository.save(quote);
+}
+
 export async function assignWorker(
   id: string,
   workerId: string,
@@ -226,6 +258,8 @@ export async function assignWorker(
   if (!updated) {
     throw new AppError('Only a pending request can be assigned', 422);
   }
+  // A catalog job is already priced — mint its accepted quote so it is payable straight away.
+  await ensureFixedPriceQuote(updated, workerId);
   // Snapshot the worker's name into the audit trail so the history reads
   // "Worker assigned: <name>" without a later lookup (and survives renames).
   const worker = await userRepository.findById(workerId);
@@ -274,6 +308,8 @@ export async function claimRequest(id: string, principal: Principal): Promise<Se
   if (!updated) {
     throw new AppError('This request is no longer available to claim', 422);
   }
+  // A catalog job is already priced — mint its accepted quote so it is payable straight away.
+  await ensureFixedPriceQuote(updated, principal.id);
   const worker = await userRepository.findById(principal.id);
   await recordAuditEvent({
     actor: principal,

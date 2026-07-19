@@ -48,6 +48,12 @@ export async function createQuote(
   if (request.workerId === undefined || principal.id !== request.workerId) {
     throw new AppError('Only the assigned worker may propose a quote', 403);
   }
+  // A catalog job's price is set by the platform, not the worker. The accepted quote is minted on
+  // assignment, so the "already exists" check below would catch this too — this is the explicit,
+  // defence-in-depth guard on a money path, with a message that says why.
+  if (request.pricingMode === 'fixed') {
+    throw new AppError('This job has a fixed price and cannot be quoted', 409);
+  }
   const existing = await quoteRepository.findByRequest(requestId);
   if (existing) {
     throw new AppError('A quote already exists for this request', 409);
