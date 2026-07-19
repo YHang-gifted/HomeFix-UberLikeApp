@@ -78,6 +78,46 @@ describe('deriveQuoteView', () => {
     );
   });
 
+  // On-site scope change: the assigned worker may revise the agreed price once the job is under
+  // way, but only while the money has not settled (then it is a refund question, not a price one).
+  describe('canRevise (on-site scope change)', () => {
+    const underWay = { ...request, status: 'in_progress' };
+
+    it('lets the assigned worker revise an existing quote once the job is under way', () => {
+      const v = deriveQuoteView({ principal: worker, request: underWay, quote: quote() });
+      assert.equal(v.canRevise, true);
+    });
+
+    it('does not offer a revision before the job is under way', () => {
+      const v = deriveQuoteView({
+        principal: worker,
+        request: { ...request, status: 'matched' },
+        quote: quote(),
+      });
+      assert.equal(v.canRevise, false);
+    });
+
+    it('does not offer a revision once the payment has settled', () => {
+      const v = deriveQuoteView({
+        principal: worker,
+        request: underWay,
+        quote: quote(),
+        paymentSettled: true,
+      });
+      assert.equal(v.canRevise, false);
+    });
+
+    it('does not offer a revision when there is no quote yet', () => {
+      const v = deriveQuoteView({ principal: worker, request: underWay, quote: null });
+      assert.equal(v.canRevise, false);
+    });
+
+    it('does not offer a revision to the customer', () => {
+      const v = deriveQuoteView({ principal: customer, request: underWay, quote: quote() });
+      assert.equal(v.canRevise, false);
+    });
+  });
+
   it('offers nothing to an unauthenticated viewer', () => {
     const v = deriveQuoteView({ principal: null, request, quote: null });
     assert.equal(v.canPropose, false);

@@ -190,6 +190,8 @@ export function RequestDetailScreen({
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteAmountText, setQuoteAmountText] = useState('');
   const [quoteNote, setQuoteNote] = useState('');
+  const [reviseAmountText, setReviseAmountText] = useState('');
+  const [reviseReason, setReviseReason] = useState('');
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [quoteBusy, setQuoteBusy] = useState(false);
 
@@ -610,6 +612,41 @@ export function RequestDetailScreen({
     }
   }
 
+  /**
+   * On-site scope change: the worker found extra work and proposes a revised total. The quote goes
+   * back to pending for the customer to agree; a payment set up at the old price is voided
+   * server-side, so drop it from view here too.
+   */
+  async function reviseQuoteNow(): Promise<void> {
+    const amountCents = dollarsToCents(reviseAmountText);
+    if (amountCents === null) {
+      setQuoteError('Enter a valid amount.');
+      return;
+    }
+    const reason = reviseReason.trim();
+    if (reason === '') {
+      setQuoteError('Say what the extra work is.');
+      return;
+    }
+    setQuoteError(null);
+    setQuoteBusy(true);
+    try {
+      const revised = await activeClient.reviseQuote(requestId, { amountCents, reason });
+      setQuote(revised);
+      setPayment(null);
+      setReviseAmountText('');
+      setReviseReason('');
+    } catch (reviseError) {
+      setQuoteError(
+        isApiError(reviseError)
+          ? reviseError.message
+          : 'Could not revise the price. Please try again.',
+      );
+    } finally {
+      setQuoteBusy(false);
+    }
+  }
+
   async function respondToQuote(accept: boolean): Promise<void> {
     setQuoteError(null);
     setQuoteBusy(true);
@@ -702,7 +739,13 @@ export function RequestDetailScreen({
       request.status === 'accepted' ||
       request.status === 'in_progress');
 
-  const quoteView = deriveQuoteView({ principal, request, quote });
+  const quoteView = deriveQuoteView({
+    principal,
+    request,
+    quote,
+    // Once the money has settled a price change is a refund question, so the revise form hides.
+    paymentSettled: payment !== null && payment.status !== 'pending',
+  });
   const scheduleView = deriveScheduleView({ principal, request });
   const locationPreview = mapPreviewUrl(request.location);
   const paymentAmountValue =
@@ -957,6 +1000,45 @@ export function RequestDetailScreen({
                   <ActivityIndicator color="#ffffff" />
                 ) : (
                   <Text style={styles.payButtonText}>Send quote</Text>
+                )}
+              </Pressable>
+            </>
+          )}
+
+          {quoteView.canRevise && (
+            <>
+              <Text style={styles.reviseLabel}>Found extra work? Propose a revised price.</Text>
+              <TextInput
+                style={styles.paymentInput}
+                value={reviseAmountText}
+                onChangeText={setReviseAmountText}
+                placeholder="Revised total in USD (e.g. 2500)"
+                keyboardType="numbers-and-punctuation"
+                accessibilityLabel="Revised amount"
+                editable={!quoteBusy}
+              />
+              <TextInput
+                style={[styles.paymentInput, styles.quoteNoteInput]}
+                value={reviseReason}
+                onChangeText={setReviseReason}
+                placeholder="What extra work is needed?"
+                accessibilityLabel="Revision reason"
+                editable={!quoteBusy}
+                multiline
+              />
+              <Pressable
+                style={({ pressed }) => [styles.payButton, pressed && styles.payButtonPressed]}
+                onPress={() => {
+                  void reviseQuoteNow();
+                }}
+                disabled={quoteBusy}
+                accessibilityRole="button"
+                accessibilityLabel="Revise price"
+              >
+                {quoteBusy ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text style={styles.payButtonText}>Revise price</Text>
                 )}
               </Pressable>
             </>
@@ -1581,6 +1663,7 @@ const styles = StyleSheet.create({
   },
   quoteDeclined: { fontSize: 14, fontWeight: '600', color: '#dc2626' },
   quoteNoteInput: { marginTop: 8, minHeight: 48, textAlignVertical: 'top' },
+  reviseLabel: { fontSize: 13, fontWeight: '700', color: colors.inkMuted, marginTop: 12 },
   quoteActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
   quoteAction: { flex: 1, marginTop: 0 },
   paymentRow: {

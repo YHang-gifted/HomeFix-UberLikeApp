@@ -31,6 +31,7 @@ import type {
   RegisterInput,
   RequestContacts,
   Review,
+  ReviseQuoteInput,
   SavedCard,
   SavedCardPaymentResult,
   ServiceCategory,
@@ -460,6 +461,15 @@ export class ApiClient {
 
   public async createQuote(id: string, input: CreateQuoteInput): Promise<Quote> {
     const data = await this.send('POST', `/service-requests/${id}/quote`, input, true);
+    return quoteSchema.parse(data);
+  }
+
+  /**
+   * On-site scope change: the assigned worker proposes a revised total for extra work found on
+   * site. The quote goes back to pending, so the customer agrees via {@link acceptQuote}.
+   */
+  public async reviseQuote(id: string, input: ReviseQuoteInput): Promise<Quote> {
+    const data = await this.send('POST', `/service-requests/${id}/quote/revise`, input, true);
     return quoteSchema.parse(data);
   }
 
