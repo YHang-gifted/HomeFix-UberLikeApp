@@ -124,6 +124,14 @@ blocker into a step. If it is **charged**, the fee must be handled to protect ag
   doesn't book, it covers the pro's time.
 - **Never cash-in-hand to the pro** — that is building the leakage channel yourself.
 
+> **What was actually built (slices 212–213): the no-deposit shape.** Pre-collecting would require
+> **deposit + balance = two payments per request**, a change to the money core, so it was
+> deliberately deferred. Instead the visit is a catalog item whose price is a **visit fee**: the
+> request is marked `priceProvisional`, which **blocks payment** until the worker prices the job on
+> site, and the revision clears it. Since a revision _replaces_ the price, the visit fee is absorbed
+> into the final total — the customer pays **once**. The trade-off is no up-front no-show/leakage
+> protection; revisit if that becomes a real problem.
+
 See `docs/fee-model.md` §5 for why payment protection (not enforcement) is the real anti-leakage
 lever, and how the deposit fits it.
 
@@ -148,27 +156,40 @@ not a rewrite.
 
 ## 8. Current state (what exists today)
 
-- **Quote track only**: customer posts a request (category, description, photos, location, preferred
-  time) → the **worker** proposes a price quote → the customer **accepts/declines**. Payment is
-  gated on an **accepted quote**. There is no customer-side estimate and no negotiation loop beyond
-  decline + free-text chat.
-- **No fixed-price catalog**, **no AI estimate**, **no assessment visit**, **no on-site variation
-  flow**.
-- Scheduling is a two-party propose → confirm → reschedule protocol (already built).
+**Both tracks are live.** Implemented across slices 206–213:
+
+- **Quote track** (unchanged): customer posts a request → the **worker** proposes a quote → the
+  customer accepts/declines. Payment is gated on an accepted quote.
+- **Fixed-price track**: `GET /catalog` serves the trusted catalog; booking with `catalogItemId` sets
+  `pricingMode: 'fixed'` + `fixedPriceCents`, with the **price and category taken from the catalog**
+  (a customer can never set their own fixed price). Taking the job **mints an accepted quote** at
+  that price (§2.2), so payment/payout/receipt/refund never branch. The create-request screen leads
+  with "Standard jobs — fixed price" and a "Something else" escape to the quote track.
+- **On-site scope change**: `POST …/quote/revise` puts the **same** quote back to `pending` at a new
+  total with a required reason; the customer agrees via the ordinary accept endpoint. Assigned worker
+  only, only once the job is under way, and only while the money has not moved; a pending payment at
+  the old price is voided. The worker's form is gated by `quoteView.canRevise`.
+- **Assessment visit**: an `assessment` catalog item marks the request **`priceProvisional`**, which
+  **blocks payment** until the worker prices it on site; the revision clears the flag. Because a
+  revision _replaces_ the price, the visit fee is absorbed into the final total — the customer pays
+  once. **No deposit is pre-collected** (decided: the lowest-risk shape, so the money line was
+  untouched).
+- Scheduling remains the two-party propose → confirm → reschedule protocol.
+
+**Not built:** the **AI estimate** (§4) — the only remaining pre-order item. Catalog prices are
+**placeholders** pending the target-job-profile decision (`docs/fee-model.md` §7).
 
 ---
 
 ## 9. Build order
 
-1. **Fixed-price catalog** — add `pricingMode`/`fixedPriceCents`; the catalog UI; the
-   fixed-price → auto-accepted-quote convergence (so downstream is untouched). Ship the price-first
-   path for a small set of standardized tasks.
-2. **On-site scope change (variation)** — needed as soon as fixed pricing exists, or under-priced
-   jobs become disputes.
-3. **AI estimate** — start as a non-binding range on the quote track; graduate categories into the
-   fixed catalog as calibration data earns trust.
-4. **Assessment visit + deposit** — depends on the platform-collected deposit mechanism (ties to
-   `docs/fee-model.md`).
+1. ✅ **Fixed-price catalog** — shipped (slices 206–209).
+2. ✅ **On-site scope change (variation)** — shipped (slices 210–211).
+3. ⬜ **AI estimate** — start as a non-binding range on the quote track; graduate categories into the
+   fixed catalog as calibration data earns trust. **The last open pre-order item.**
+4. ✅ **Assessment visit** — shipped (slices 212–213) **without** the pre-collected deposit. The
+   deposit variant remains possible later, but it needs **deposit + balance = two payments per
+   request**, which changes the money core.
 
 Pricing (pre-order) and escrow/refunds (post-order) are **different phases** — design them
 separately (see `docs/vision-gap.md` for how they sequence together).
