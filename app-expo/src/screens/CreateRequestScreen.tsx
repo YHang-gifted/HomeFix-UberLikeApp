@@ -1,4 +1,4 @@
-import { type ReactElement, useMemo, useState } from 'react';
+import { type ReactElement, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -31,7 +31,8 @@ import type { MapPicker } from '../../../app/src/features/location/mapPicker';
 import { initialMapRegion } from '../../../app/src/features/location/mapPicker';
 import type { ImagePicker } from '../../../app/src/features/uploads/uploadImage';
 import { uploadPickedImage } from '../../../app/src/features/uploads/uploadImage';
-import type { ServiceCategory, ServiceRequest } from '../../../shared/schemas';
+import { formatCents } from '../../../app/src/features/payments/paymentFormat';
+import type { CatalogItem, ServiceCategory, ServiceRequest } from '../../../shared/schemas';
 import { serviceCategorySchema } from '../../../shared/schemas';
 import { apiClient } from '../api';
 import { DateTimeField } from '../components/DateTimeField';
@@ -84,6 +85,8 @@ export function CreateRequestScreen({
 }: CreateRequestScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
 
+  const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+  const [catalogItemId, setCatalogItemId] = useState<string | null>(null);
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
   const [latitude, setLatitude] = useState('');
@@ -185,6 +188,41 @@ export function CreateRequestScreen({
     setErrors((current) => ({ ...current, latitude: undefined, longitude: undefined }));
   }
 
+  // The fixed-price catalog. Best-effort: if it can't be loaded the section is simply hidden and
+  // the form behaves exactly as before (a normal quote-track request).
+  useEffect(() => {
+    let active = true;
+    async function load(): Promise<void> {
+      try {
+        const items = await activeClient.listCatalog();
+        if (active) {
+          setCatalog(items);
+        }
+      } catch {
+        // Leave the catalog hidden.
+      }
+    }
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [activeClient]);
+
+  /**
+   * Picking a standard job sets everything the platform already knows: its category (the server
+   * takes it from the catalog too) and, when the customer hasn't typed anything yet, a starting
+   * description. The price is fixed, so no quote step follows.
+   */
+  function selectCatalogItem(item: CatalogItem): void {
+    setCatalogItemId(item.id);
+    setCategory(item.category);
+    setDescription((current) => (current.trim() === '' ? item.title : current));
+  }
+
+  function clearCatalogItem(): void {
+    setCatalogItemId(null);
+  }
+
   async function submit(): Promise<void> {
     setBanner(null);
 
@@ -219,6 +257,9 @@ export function CreateRequestScreen({
         ...(address !== null ? { address } : {}),
         ...(photoUrls.length > 0 ? { photoUrls } : {}),
         ...(scheduledAt !== null ? { scheduledAt: scheduledAt.toISOString() } : {}),
+        // A standard job is priced by the platform: the server takes the price (and category)
+        // from the catalog, so no worker quote step follows.
+        ...(catalogItemId !== null ? { catalogItemId } : {}),
       });
       setBanner('Request created');
       onCreated?.(created);
@@ -233,26 +274,74 @@ export function CreateRequestScreen({
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.label}>Category</Text>
-      <View style={styles.chips}>
-        {CATEGORIES.map((option) => {
-          const selected = option === category;
-          return (
-            <Pressable
-              key={option}
-              onPress={() => {
-                setCategory(option);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`Category ${option}`}
-              style={[styles.chip, selected && styles.chipSelected]}
+      {catalog.length > 0 && (
+        <>
+          <Text style={styles.label}>Standard jobs — fixed price</Text>
+          <Text style={styles.catalogHint}>
+            Pick one to book at a set price, or choose &quot;Something else&quot; to get quotes.
+          </Text>
+          {catalog.map((item) => {
+            const selected = item.id === catalogItemId;
+            return (
+              <Pressable
+                key={item.id}
+                onPress={() => {
+                  selectCatalogItem(item);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Standard job ${item.title}`}
+                style={[styles.catalogRow, selected && styles.catalogRowSelected]}
+              >
+                <Text style={[styles.catalogTitle, selected && styles.catalogTitleSelected]}>
+                  {item.title}
+                </Text>
+                <Text style={[styles.catalogPrice, selected && styles.catalogTitleSelected]}>
+                  {formatCents(item.priceCents)}
+                </Text>
+              </Pressable>
+            );
+          })}
+          <Pressable
+            onPress={clearCatalogItem}
+            accessibilityRole="button"
+            accessibilityLabel="Something else"
+            style={[styles.catalogRow, catalogItemId === null && styles.catalogRowSelected]}
+          >
+            <Text
+              style={[styles.catalogTitle, catalogItemId === null && styles.catalogTitleSelected]}
             >
-              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      {errors.category !== undefined && <Text style={styles.error}>{errors.category}</Text>}
+              Something else — describe your job
+            </Text>
+          </Pressable>
+        </>
+      )}
+
+      {catalogItemId === null && (
+        <>
+          <Text style={styles.label}>Category</Text>
+          <View style={styles.chips}>
+            {CATEGORIES.map((option) => {
+              const selected = option === category;
+              return (
+                <Pressable
+                  key={option}
+                  onPress={() => {
+                    setCategory(option);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Category ${option}`}
+                  style={[styles.chip, selected && styles.chipSelected]}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                    {option}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {errors.category !== undefined && <Text style={styles.error}>{errors.category}</Text>}
+        </>
+      )}
 
       <Text style={styles.label}>Description</Text>
       <TextInput
@@ -463,6 +552,23 @@ const styles = StyleSheet.create({
   chipSelected: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
   chipText: { fontSize: 14, color: '#334155', textTransform: 'capitalize' },
   chipTextSelected: { color: '#ffffff' },
+  catalogHint: { fontSize: 13, color: '#64748b', marginBottom: 8 },
+  catalogRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+    minHeight: 44,
+  },
+  catalogRowSelected: { borderColor: '#2563eb', backgroundColor: '#eff6ff' },
+  catalogTitle: { fontSize: 15, color: '#0f172a', flexShrink: 1 },
+  catalogTitleSelected: { color: '#2563eb', fontWeight: '700' },
+  catalogPrice: { fontSize: 15, fontWeight: '700', color: '#0f172a', marginLeft: 12 },
   input: {
     borderWidth: 1,
     borderColor: '#cbd5e1',
