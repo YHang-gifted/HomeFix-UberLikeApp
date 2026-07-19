@@ -56,6 +56,16 @@ export const FIXED_PRICE_CATALOG: readonly CatalogItem[] = [
     title: 'Assemble flat-pack furniture (per item)',
     priceCents: 6000,
   },
+  // Not a job in itself: the way in for work that cannot be priced from photos. The worker attends,
+  // assesses, and revises to the real total on site — so this fee is absorbed into the final price
+  // rather than charged on top.
+  {
+    id: 'assessment-visit',
+    category: 'general',
+    title: 'On-site assessment visit',
+    priceCents: 4900,
+    assessment: true,
+  },
 ];
 
 /** The full fixed-price catalog (a copy, so callers can't mutate the source). */

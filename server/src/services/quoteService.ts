@@ -143,6 +143,12 @@ export async function reviseQuote(
   };
   await quoteRepository.save(updated);
 
+  // The on-site price is now on the table, so an assessment job's price is no longer provisional —
+  // once the customer accepts it, they can pay.
+  if (request.priceProvisional === true) {
+    await serviceRequestRepository.save({ ...request, priceProvisional: false });
+  }
+
   await recordNotification({
     userId: quote.customerId,
     message: 'Your worker proposed a revised price for extra work found on site.',

@@ -555,4 +555,11 @@ export const migrations: Migration[] = [
       ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS fixed_price_cents integer
     `,
   },
+  {
+    // Booked as an assessment visit: the price is a visit fee and the real total is agreed on site,
+    // so the job cannot be paid until the worker revises it. Nullable — a missing value means the
+    // price is final (every job before this). See `docs/pricing-model.md` §6.
+    id: '0042_service_request_price_provisional',
+    sql: `ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS price_provisional boolean`,
+  },
 ];

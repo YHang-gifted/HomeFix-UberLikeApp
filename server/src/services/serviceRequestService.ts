@@ -75,6 +75,9 @@ export async function createServiceRequest(
     photoUrls: input.photoUrls ?? [],
     pricingMode: catalogItem !== undefined ? 'fixed' : 'quote',
     ...(catalogItem !== undefined ? { fixedPriceCents: catalogItem.priceCents } : {}),
+    // An assessment visit is priced on site, so the catalog price is only a visit fee: mark it
+    // provisional so the job cannot be paid until the worker has revised it.
+    ...(catalogItem?.assessment === true ? { priceProvisional: true } : {}),
     // A time given at creation is the customer's *proposal* — it becomes an agreement only
     // once the assigned worker confirms it (see scheduleService).
     ...(input.scheduledAt !== undefined

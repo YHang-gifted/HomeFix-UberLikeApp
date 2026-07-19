@@ -274,6 +274,15 @@ export async function createPayment(
     throw new AppError('A payment already exists for this request', 409);
   }
 
+  // An assessment visit is priced on site: paying the visit fee now would settle the job and block
+  // the worker's revision (see reviseQuote), so payment waits until the real price is agreed.
+  if (request.priceProvisional === true) {
+    throw new AppError(
+      'Your worker will confirm the final price on site — you can pay once it is agreed.',
+      409,
+    );
+  }
+
   // Payment is gated on an accepted quote, and must match its agreed amount, so a
   // customer cannot pay an arbitrary sum before a price has been agreed.
   const quote = await quoteRepository.findByRequest(requestId);
