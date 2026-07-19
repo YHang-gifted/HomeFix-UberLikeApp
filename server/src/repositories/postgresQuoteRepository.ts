@@ -7,7 +7,14 @@ const UPSERT = `
   INSERT INTO quotes
     (id, request_id, customer_id, worker_id, amount_cents, currency, note, status, created_at, responded_at)
   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-  ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, responded_at = EXCLUDED.responded_at
+  -- amount_cents and note must be updated too: an on-site scope change (reviseQuote) rewrites the
+  -- price and reason on the SAME quote row, and a DO UPDATE that omits a column silently keeps the
+  -- old value — which would persist the old price on Postgres while passing in memory.
+  ON CONFLICT (id) DO UPDATE SET
+    amount_cents = EXCLUDED.amount_cents,
+    note = EXCLUDED.note,
+    status = EXCLUDED.status,
+    responded_at = EXCLUDED.responded_at
 `;
 
 interface QuoteRow {

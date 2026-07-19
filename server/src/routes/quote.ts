@@ -5,6 +5,7 @@ import {
   postServiceRequestQuote,
   postServiceRequestQuoteAccept,
   postServiceRequestQuoteDecline,
+  postServiceRequestQuoteRevise,
 } from '../controllers/quoteController.ts';
 import { authenticate } from '../middlewares/auth.ts';
 
@@ -18,3 +19,4 @@ quoteRouter.post(
   authenticate,
   postServiceRequestQuoteDecline,
 );
+quoteRouter.post('/service-requests/:id/quote/revise', authenticate, postServiceRequestQuoteRevise);

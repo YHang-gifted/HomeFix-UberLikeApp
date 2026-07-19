@@ -4,10 +4,12 @@ import type {
   CreateQuoteInput,
   Principal,
   Quote,
+  ReviseQuoteInput,
   ServiceRequest,
 } from '../../../shared/schemas.ts';
 import { PLATFORM_CURRENCY } from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
+import { paymentRepository } from '../repositories/paymentRepository.ts';
 import { quoteRepository } from '../repositories/quoteRepository.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { isRequestParty } from './serviceRequestService.ts';
@@ -83,6 +85,81 @@ export async function createQuote(
     details: { requestId, amountCents: String(input.amountCents) },
   });
   return quote;
+}
+
+/**
+ * An on-site scope change: the assigned worker, already on the job, proposes a **revised total**
+ * because the work turned out bigger than priced. Rather than model a separate "variation" entity,
+ * this reuses the quote itself — the price goes back to `pending` at the new amount with the
+ * worker's reason, and the customer agrees through the ordinary accept endpoint. Everything
+ * downstream (payment, payout, receipt, refund) is unchanged because it all keys off the accepted
+ * quote's amount (`docs/pricing-model.md` §5).
+ *
+ * This is also how a **fixed-price catalog job** absorbs a bigger job than the photos showed — so
+ * an under-priced standard job becomes an agreed price change rather than a dispute.
+ *
+ * Assigned worker only; only once the job is under way; and only while the money has not moved —
+ * a paid job is a refund question, not a price change. A *pending* (unpaid) payment was set up at
+ * the old price, so it is voided and the customer re-creates it at the agreed amount.
+ */
+export async function reviseQuote(
+  requestId: string,
+  input: ReviseQuoteInput,
+  principal: Principal,
+): Promise<Quote> {
+  const request = await loadRequest(requestId);
+  if (request.workerId === undefined || principal.id !== request.workerId) {
+    throw new AppError('Only the assigned worker may revise the price', 403);
+  }
+  if (request.status !== 'accepted' && request.status !== 'in_progress') {
+    throw new AppError('The price can only be revised once the job is under way', 409);
+  }
+  const quote = await quoteRepository.findByRequest(requestId);
+  if (!quote) {
+    throw new AppError('No quote for this request', 404);
+  }
+
+  const payment = await paymentRepository.findByRequest(requestId);
+  if (payment) {
+    if (payment.status !== 'pending') {
+      throw new AppError('This job has been paid; the price can no longer be revised', 409);
+    }
+    // Only a pending payment reaches here: it was set up at the OLD price, so it is void. The
+    // customer re-creates it at the agreed amount.
+    await paymentRepository.deleteByRequest(requestId);
+  }
+
+  const updated: Quote = {
+    id: quote.id,
+    requestId: quote.requestId,
+    customerId: quote.customerId,
+    workerId: quote.workerId,
+    amountCents: input.amountCents,
+    currency: quote.currency,
+    note: input.reason,
+    status: 'pending',
+    createdAt: quote.createdAt,
+    // `respondedAt` is deliberately dropped: the revised price awaits a fresh decision.
+  };
+  await quoteRepository.save(updated);
+
+  await recordNotification({
+    userId: quote.customerId,
+    message: 'Your worker proposed a revised price for extra work found on site.',
+    requestId,
+  });
+  await recordAuditEvent({
+    actor: principal,
+    action: 'quote.revised',
+    resourceId: quote.id,
+    details: {
+      requestId,
+      fromAmountCents: String(quote.amountCents),
+      toAmountCents: String(input.amountCents),
+      reason: input.reason,
+    },
+  });
+  return updated;
 }
 
 /**

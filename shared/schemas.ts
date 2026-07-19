@@ -334,6 +334,7 @@ export const auditActionSchema = z.enum([
   'quote.proposed',
   'quote.accepted',
   'quote.declined',
+  'quote.revised',
   'schedule.proposed',
   'schedule.confirmed',
   'payment.created',
@@ -788,6 +789,18 @@ export const createQuoteInputSchema = z.object({
   note: z.string().trim().max(500).optional(),
 });
 export type CreateQuoteInput = z.infer<typeof createQuoteInputSchema>;
+
+/**
+ * An on-site scope change: the assigned worker found extra work and proposes a revised total. A
+ * `reason` is required — the customer is being asked to agree to a new price, so they must be told
+ * why (`docs/pricing-model.md` §5). This is how a fixed-price catalog job absorbs a bigger job than
+ * the photos showed, without up-front haggling.
+ */
+export const reviseQuoteInputSchema = z.object({
+  amountCents: z.number().int().min(MIN_AMOUNT_CENTS).max(100_000_000),
+  reason: z.string().trim().min(1).max(500),
+});
+export type ReviseQuoteInput = z.infer<typeof reviseQuoteInputSchema>;
 
 /**
  * A customer-initiated refund request on a paid payment. `open` awaits an admin decision;
