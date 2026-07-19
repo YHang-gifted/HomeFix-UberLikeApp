@@ -4,6 +4,7 @@ import type {
   AdminUserSummary,
   AuditEvent,
   AuditPage,
+  CatalogItem,
   Certification,
   CertificationStatus,
   CheckoutSession,
@@ -49,6 +50,7 @@ import {
   adminStatsSchema,
   adminUserListSchema,
   auditPageSchema,
+  catalogListSchema,
   certificationListSchema,
   certificationSchema,
   checkoutSessionSchema,
@@ -440,6 +442,15 @@ export class ApiClient {
     const body = note === undefined ? { decision } : { decision, note };
     const data = await this.send('POST', `/admin/refund-requests/${id}/resolve`, body, true);
     return refundRequestSchema.parse(data);
+  }
+
+  /**
+   * The fixed-price catalog of standardized tasks. Booking one (by passing `catalogItemId` to
+   * {@link createServiceRequest}) prices the job from the catalog server-side.
+   */
+  public async listCatalog(): Promise<CatalogItem[]> {
+    const data = await this.send('GET', '/catalog', undefined, true);
+    return catalogListSchema.parse(data).items;
   }
 
   public async getQuote(id: string): Promise<Quote> {
