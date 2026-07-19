@@ -292,9 +292,16 @@ export function CreateRequestScreen({
                 accessibilityLabel={`Standard job ${item.title}`}
                 style={[styles.catalogRow, selected && styles.catalogRowSelected]}
               >
-                <Text style={[styles.catalogTitle, selected && styles.catalogTitleSelected]}>
-                  {item.title}
-                </Text>
+                <View style={styles.catalogTitleBlock}>
+                  <Text style={[styles.catalogTitle, selected && styles.catalogTitleSelected]}>
+                    {item.title}
+                  </Text>
+                  {item.assessment === true && (
+                    <Text style={styles.catalogAssessment}>
+                      Visit fee — the final price is agreed on site
+                    </Text>
+                  )}
+                </View>
                 <Text style={[styles.catalogPrice, selected && styles.catalogTitleSelected]}>
                   {formatCents(item.priceCents)}
                 </Text>
@@ -566,7 +573,9 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   catalogRowSelected: { borderColor: '#2563eb', backgroundColor: '#eff6ff' },
-  catalogTitle: { fontSize: 15, color: '#0f172a', flexShrink: 1 },
+  catalogTitleBlock: { flexShrink: 1 },
+  catalogTitle: { fontSize: 15, color: '#0f172a' },
+  catalogAssessment: { fontSize: 12, color: '#64748b', marginTop: 2 },
   catalogTitleSelected: { color: '#2563eb', fontWeight: '700' },
   catalogPrice: { fontSize: 15, fontWeight: '700', color: '#0f172a', marginLeft: 12 },
   input: {
