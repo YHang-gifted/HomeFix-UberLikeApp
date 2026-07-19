@@ -4,6 +4,12 @@ import type { Principal, Quote, ServiceRequest } from '../../../../shared/schema
 export interface QuoteView {
   /** The assigned worker may propose a quote (one doesn't exist yet). */
   canPropose: boolean;
+  /**
+   * The assigned worker may propose a **revised** price for extra work found on site: a quote
+   * already exists, the job is under way, and the money has not moved yet. Mirrors the server's
+   * `reviseQuote` guards so the form is never shown when it would be rejected.
+   */
+  canRevise: boolean;
   /** The owning customer may accept or decline a still-pending quote. */
   canRespond: boolean;
   /** Human label for the current quote status, or null when there is no quote. */
@@ -26,8 +32,13 @@ export function deriveQuoteView(args: {
   principal: Principal | null;
   request: ServiceRequest;
   quote: Quote | null;
+  /**
+   * True once the payment has settled (paid or refunded). A settled job is a refund question, not
+   * a price change, so the revise affordance disappears. Defaults to false.
+   */
+  paymentSettled?: boolean;
 }): QuoteView {
-  const { principal, request, quote } = args;
+  const { principal, request, quote, paymentSettled = false } = args;
 
   const isAssignedWorker =
     principal !== null &&
@@ -38,8 +49,11 @@ export function deriveQuoteView(args: {
   const isOwner =
     principal !== null && principal.role === 'customer' && principal.id === request.customerId;
 
+  const jobUnderWay = request.status === 'accepted' || request.status === 'in_progress';
+
   return {
     canPropose: isAssignedWorker && quote === null,
+    canRevise: isAssignedWorker && quote !== null && jobUnderWay && !paymentSettled,
     canRespond: isOwner && quote !== null && quote.status === 'pending',
     statusLabel: quote === null ? null : STATUS_LABELS[quote.status],
     prefillAmountCents: quote !== null && quote.status === 'accepted' ? quote.amountCents : null,
