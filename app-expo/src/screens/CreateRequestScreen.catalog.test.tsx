@@ -94,6 +94,21 @@ describe('CreateRequestScreen — fixed-price catalog', () => {
     expect(input.catalogItemId).toBeUndefined();
   });
 
+  it('marks an assessment visit as a visit fee, not the job price', async () => {
+    const visit: CatalogItem = {
+      id: 'assessment-visit',
+      category: 'general',
+      title: 'On-site assessment visit',
+      priceCents: 4900,
+      assessment: true,
+    };
+    const client = clientWith({ listCatalog: jest.fn().mockResolvedValue([visit]) });
+
+    const { findByText } = await render(<CreateRequestScreen client={client} />);
+
+    await findByText(/final price is agreed on site/i);
+  });
+
   it('degrades to the normal form when the catalog cannot be loaded', async () => {
     const client = clientWith({ listCatalog: jest.fn().mockRejectedValue(new Error('offline')) });
 

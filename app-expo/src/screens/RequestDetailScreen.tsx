@@ -1231,7 +1231,14 @@ export function RequestDetailScreen({
             </>
           )}
 
-          {isOwner && payment === null && (
+          {isOwner && payment === null && request.priceProvisional === true && (
+            <Text style={styles.provisionalNotice}>
+              This is a visit fee. Your worker will confirm the final price on site — you can pay
+              once you have agreed it.
+            </Text>
+          )}
+
+          {isOwner && payment === null && request.priceProvisional !== true && (
             <>
               {paypalEnabled && (
                 <View style={styles.methodRow}>
@@ -1664,6 +1671,7 @@ const styles = StyleSheet.create({
   quoteDeclined: { fontSize: 14, fontWeight: '600', color: '#dc2626' },
   quoteNoteInput: { marginTop: 8, minHeight: 48, textAlignVertical: 'top' },
   reviseLabel: { fontSize: 13, fontWeight: '700', color: colors.inkMuted, marginTop: 12 },
+  provisionalNotice: { fontSize: 13, color: colors.inkMuted, marginTop: 12, lineHeight: 18 },
   quoteActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
   quoteAction: { flex: 1, marginTop: 0 },
   paymentRow: {
