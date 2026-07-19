@@ -5,11 +5,11 @@ import type { Queryable } from '../db/queryable.ts';
 
 const UPSERT = `
   INSERT INTO service_requests
-    (id, customer_id, worker_id, category, description, latitude, longitude, status, created_at, photo_urls, scheduled_at, address, schedule_status, schedule_proposed_by, pricing_mode, fixed_price_cents)
+    (id, customer_id, worker_id, category, description, latitude, longitude, status, created_at, photo_urls, scheduled_at, address, schedule_status, schedule_proposed_by, pricing_mode, fixed_price_cents, price_provisional)
   -- COALESCE mirrors the schema's scheduleStatus default on the read side: an explicit NULL
   -- from a caller that predates the column would otherwise override the column DEFAULT and
   -- trip the NOT NULL constraint (an explicit NULL does not fall back to DEFAULT).
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, COALESCE($13, 'unset'), $14, $15, $16)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, COALESCE($13, 'unset'), $14, $15, $16, $17)
   ON CONFLICT (id) DO UPDATE SET
     customer_id = EXCLUDED.customer_id,
     worker_id = EXCLUDED.worker_id,
@@ -25,7 +25,8 @@ const UPSERT = `
     schedule_status = EXCLUDED.schedule_status,
     schedule_proposed_by = EXCLUDED.schedule_proposed_by,
     pricing_mode = EXCLUDED.pricing_mode,
-    fixed_price_cents = EXCLUDED.fixed_price_cents
+    fixed_price_cents = EXCLUDED.fixed_price_cents,
+    price_provisional = EXCLUDED.price_provisional
 `;
 
 interface ServiceRequestRow {
@@ -45,6 +46,7 @@ interface ServiceRequestRow {
   schedule_proposed_by: string | null;
   pricing_mode: string | null;
   fixed_price_cents: number | null;
+  price_provisional: boolean | null;
 }
 
 function mapRow(row: unknown): ServiceRequest {
@@ -66,6 +68,7 @@ function mapRow(row: unknown): ServiceRequest {
     ...(r.schedule_proposed_by !== null ? { scheduleProposedBy: r.schedule_proposed_by } : {}),
     ...(r.pricing_mode !== null ? { pricingMode: r.pricing_mode } : {}),
     ...(r.fixed_price_cents !== null ? { fixedPriceCents: r.fixed_price_cents } : {}),
+    ...(r.price_provisional !== null ? { priceProvisional: r.price_provisional } : {}),
   };
   return serviceRequestSchema.parse(candidate);
 }
@@ -95,6 +98,7 @@ export class PostgresServiceRequestRepository implements ServiceRequestRepositor
       request.scheduleProposedBy ?? null,
       request.pricingMode ?? null,
       request.fixedPriceCents ?? null,
+      request.priceProvisional ?? null,
     ]);
   }
 

@@ -108,6 +108,13 @@ export const serviceRequestSchema = z.object({
   // missing value means `quote`. `fixedPriceCents` is set only for a `fixed` (catalog) job.
   pricingMode: pricingModeSchema.optional(),
   fixedPriceCents: z.number().int().positive().optional(),
+  /**
+   * The price on this job is **provisional** — it was booked as an assessment visit, so the real
+   * total is agreed on site. While true the job cannot be paid (paying would lock the price and
+   * block the worker's revision); `reviseQuote` clears it. Optional, so legacy rows/fixtures stay
+   * valid; a missing value means the price is final.
+   */
+  priceProvisional: z.boolean().optional(),
 });
 export type ServiceRequest = z.infer<typeof serviceRequestSchema>;
 
@@ -136,6 +143,13 @@ export const catalogItemSchema = z.object({
   category: serviceCategorySchema,
   title: z.string().min(1).max(120),
   priceCents: z.number().int().positive(),
+  /**
+   * An **assessment visit**: the price is a visit fee, and the real total is agreed on site once
+   * the worker has seen the job (`docs/pricing-model.md` §6). Booking one marks the request's price
+   * as provisional, so it cannot be paid until the worker has revised it — otherwise paying the
+   * visit fee up front would lock the price and block the revision.
+   */
+  assessment: z.boolean().optional(),
 });
 export type CatalogItem = z.infer<typeof catalogItemSchema>;
 
