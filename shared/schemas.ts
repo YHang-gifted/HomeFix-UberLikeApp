@@ -26,6 +26,15 @@ export const serviceRequestStatusSchema = z.enum([
 ]);
 export type ServiceRequestStatus = z.infer<typeof serviceRequestStatusSchema>;
 
+/**
+ * How the job's price is set. `quote` (the default/legacy path) — a worker proposes a price the
+ * customer accepts. `fixed` — a standardized catalog task the platform priced up front
+ * (`docs/pricing-model.md`); the price rides on `fixedPriceCents`. Optional (not defaulted) so
+ * legacy rows and existing fixtures — which omit it — stay valid; a missing value means `quote`.
+ */
+export const pricingModeSchema = z.enum(['quote', 'fixed']);
+export type PricingMode = z.infer<typeof pricingModeSchema>;
+
 export const coordinatesSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
@@ -53,6 +62,10 @@ export const createServiceRequestInputSchema = z.object({
   photoUrls: z.array(z.url()).max(5).optional(),
   // Optional preferred time for the visit (ISO 8601).
   scheduledAt: z.iso.datetime().optional(),
+  // When set, book a standardized fixed-price catalog task by its id: the server takes the price
+  // (and the category) from the catalog, so a customer can never set their own fixed price. Omit
+  // for a normal quote-track request.
+  catalogItemId: z.string().min(1).max(64).optional(),
 });
 export type CreateServiceRequestInput = z.infer<typeof createServiceRequestInputSchema>;
 
@@ -91,6 +104,10 @@ export const serviceRequestSchema = z.object({
   // parses as `unset`); the server always sets it.
   scheduleStatus: scheduleStatusSchema.default('unset'),
   scheduleProposedBy: scheduleProposerSchema.optional(),
+  // How this job is priced (see pricingModeSchema). Optional so legacy rows/fixtures stay valid; a
+  // missing value means `quote`. `fixedPriceCents` is set only for a `fixed` (catalog) job.
+  pricingMode: pricingModeSchema.optional(),
+  fixedPriceCents: z.number().int().positive().optional(),
 });
 export type ServiceRequest = z.infer<typeof serviceRequestSchema>;
 

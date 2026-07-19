@@ -15,6 +15,7 @@ import { quoteRepository } from '../repositories/quoteRepository.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { userRepository } from '../repositories/userRepository.ts';
 import { listEventsForResource, recordAuditEvent } from './auditService.ts';
+import { getCatalogItem } from './catalogService.ts';
 import { recordNotification } from './notificationService.ts';
 
 export interface ServiceRequestPage {
@@ -52,16 +53,26 @@ export async function createServiceRequest(
     throw new AppError('Not allowed to create a service request for another user', 403);
   }
 
+  // Booking a fixed-price catalog task: the server is the source of truth for the price AND the
+  // category (so a customer can never invent their own fixed price). An unknown id is a 400.
+  const catalogItem =
+    input.catalogItemId !== undefined ? getCatalogItem(input.catalogItemId) : undefined;
+  if (input.catalogItemId !== undefined && catalogItem === undefined) {
+    throw new AppError('Unknown catalog item', 400);
+  }
+
   const request: ServiceRequest = {
     id: randomUUID(),
     customerId: input.customerId,
-    category: input.category,
+    category: catalogItem?.category ?? input.category,
     description: input.description,
     location: input.location,
     ...(input.address !== undefined ? { address: input.address } : {}),
     status: 'pending',
     createdAt: new Date().toISOString(),
     photoUrls: input.photoUrls ?? [],
+    pricingMode: catalogItem !== undefined ? 'fixed' : 'quote',
+    ...(catalogItem !== undefined ? { fixedPriceCents: catalogItem.priceCents } : {}),
     // A time given at creation is the customer's *proposal* — it becomes an agreement only
     // once the assigned worker confirms it (see scheduleService).
     ...(input.scheduledAt !== undefined

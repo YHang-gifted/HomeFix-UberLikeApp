@@ -544,4 +544,15 @@ export const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_refund_requests_status ON refund_requests (status)
     `,
   },
+  {
+    // Fixed-price ("price-first") jobs: how the request is priced, and the platform-set price when
+    // it is a standardized catalog task. Both nullable — a legacy/quote request leaves them unset
+    // (the schema treats a missing `pricing_mode` as `quote`); the server always sets them on new
+    // rows. See `docs/pricing-model.md`.
+    id: '0041_service_request_pricing',
+    sql: `
+      ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS pricing_mode text;
+      ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS fixed_price_cents integer
+    `,
+  },
 ];

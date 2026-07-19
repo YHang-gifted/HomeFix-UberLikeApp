@@ -62,3 +62,8 @@ export const FIXED_PRICE_CATALOG: readonly CatalogItem[] = [
 export function listCatalog(): CatalogItem[] {
   return [...FIXED_PRICE_CATALOG];
 }
+
+/** A catalog item by its id, or undefined if there is no such item. */
+export function getCatalogItem(id: string): CatalogItem | undefined {
+  return FIXED_PRICE_CATALOG.find((item) => item.id === id);
+}
