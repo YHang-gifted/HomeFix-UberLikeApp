@@ -54,12 +54,12 @@ partial/time-boxed refunds.
 
 ## 3. The biggest gaps (grouped)
 
-- **AI photo estimate** (step 2) — not built.
-- **Two-sided quote / threshold negotiation** (steps 3–5) — the current model is worker-quotes /
-  customer-accepts; the vision's "customer estimates → worker reconciles → negotiate on gap" is a
-  **different model**, not just a missing feature. See `docs/pricing-model.md` for the recommended
-  resolution (platform/AI-set price for standardized jobs; quote + on-site variation for the rest —
-  which sidesteps up-front haggling).
+- **AI photo estimate** (step 2) — still not built; the last open pre-order item.
+- ~~**Two-sided quote / threshold negotiation** (steps 3–5)~~ — **resolved differently, and shipped
+  (206–213).** Instead of up-front haggling, the platform prices standardized jobs from a **catalog**
+  and everything uncertain is settled by an **on-site revision** (or an **assessment visit** when it
+  can't be priced remotely). This gives the customer the price certainty the vision wanted, without a
+  negotiation state machine — see `docs/pricing-model.md` §2, §5, §6.
 - **Completion-confirmation gate + escrow** (steps 8, 11) — payment is quote-gated, not
   completion-gated, and the payout is scheduled at settlement with **no hold-until-confirmation**.
   This is the root of the anti-fraud concern (§5).
@@ -126,14 +126,30 @@ release"** escrow marketplace model, which is exactly steps 8, 10, and 11 of the
 Pricing (**pre-order**) and escrow/refunds (**post-order**) are different phases; each is internally
 ordered. **Escrow is the keystone** — the refund enhancements depend on funds being held.
 
-**Pre-order (pricing) — see `docs/pricing-model.md`:**
+**Pre-order (pricing) — see `docs/pricing-model.md`. This line is now COMPLETE except AI.**
 
-1. Fixed-price catalog (`pricingMode`; fixed → auto-accepted-quote convergence).
-2. On-site scope change (variation).
-3. AI estimate (non-binding range → graduate into the catalog).
-4. Assessment visit + platform-collected deposit.
+1. ✅ **Fixed-price catalog — shipped (slices 206–209).** A server-side catalog is the trusted price
+   source (`GET /catalog`); booking by `catalogItemId` sets `pricingMode: 'fixed'` +
+   `fixedPriceCents` with the price **and category** taken from the catalog; taking the job mints an
+   **accepted quote** at that price, so payment/payout/receipt/refund need no branching; the customer
+   booking UI leads with "Standard jobs — fixed price".
+2. ✅ **On-site scope change — shipped (slices 210–211).** Modelled as a **revision of the same
+   quote** (back to `pending` at the new total with a required reason) rather than a new entity, so
+   the customer agrees through the ordinary accept endpoint and nothing downstream changes. Guarded
+   to the assigned worker, only once the job is under way, and only while the money has not moved; a
+   pending payment at the old price is voided. Worker UI gated by `quoteView.canRevise`.
+3. ⬜ **AI estimate — the only pre-order item left.** Non-binding range on the quote track;
+   categories graduate into the fixed catalog as calibration data earns it. Tech is easy, accuracy is
+   the risk (§4).
+4. ✅ **Assessment visit — shipped (slices 212–213), deliberately WITHOUT an up-front deposit.**
+   Decision: the lowest-risk shape — no deposit is collected, so the money line was untouched. An
+   `assessment` catalog item marks the request **`priceProvisional`**, which **blocks payment** until
+   the worker prices it on site; the revision then clears the flag. Because a revision _replaces_ the
+   price, the visit fee is absorbed into the final total — the customer pays once.
+   _The deposit variant (pre-collected + credited) remains available later, but it needs
+   **deposit + balance = two payments per request**, which is a change to the money core._
 
-**Post-order (money protection):**
+**Post-order (money protection) — not started:**
 
 5. **Escrow / payout hold + completion-confirmation gate** — the keystone; also the anti-leakage
    moat (`docs/fee-model.md` §5). _Legal/Stripe-ToS review first._
@@ -142,16 +158,21 @@ ordered. **Escrow is the keystone** — the refund enhancements depend on funds 
 8. Fee-model evolution — tiered commission + (later) subscription (`docs/fee-model.md`).
 9. Ratings feed matching + refund-rate guards (two-sided abuse protection).
 
-**Suggested first move:** the fixed-price catalog (1) delivers the most visible product value with
-the least risk; **escrow (5)** is the most valuable _protection_ work but should be preceded by a
-legal/compliance + Stripe-ToS spike, not started as code.
+**Where this leaves us:** the pre-order (pricing) line is done bar the AI estimate, so the next
+substantial move is **escrow (5)** — the most valuable protection work, and the one that should be
+preceded by a legal/compliance + Stripe-ToS spike rather than started as code.
 
 ---
 
 ## 7. Open questions that steer everything
 
 - **Target job profile** — high-frequency/low-value vs low-frequency/high-value? Drives pricing
-  track emphasis, fee model, and leakage pressure (`docs/fee-model.md` §7).
-- **Assessment visit** — charged or free? (`docs/pricing-model.md` §6.)
-- **AI estimate placement** — up front for expectation, or only behind the catalog? (§4.)
+  track emphasis, fee model, and leakage pressure (`docs/fee-model.md` §7). **Still open**, and it
+  also decides which catalog tasks and prices are real (today's catalog prices are placeholders).
+- ~~**Assessment visit** — charged or free?~~ **Decided:** charged as a catalog visit fee, but **not
+  pre-collected** — the fee is absorbed into the on-site total, so the customer pays once
+  (slices 212–213). Revisit only if no-shows or leakage become a real problem.
+- **AI estimate placement** — up front for expectation, or only behind the catalog? (§4.) Still open;
+  the last pre-order item.
 - **Escrow** — legal viability in the target market + Stripe Connect ToS confirmation (§4, §5).
+  **Still open, and now the gating question for the whole post-order line.**
