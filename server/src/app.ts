@@ -16,6 +16,7 @@ import { authRouter } from './routes/auth.ts';
 import { catalogRouter } from './routes/catalog.ts';
 import { certificationRouter } from './routes/certification.ts';
 import { deviceTokenRouter } from './routes/deviceToken.ts';
+import { estimateRouter } from './routes/estimate.ts';
 import { favoriteRouter } from './routes/favorite.ts';
 import { healthRouter } from './routes/health.ts';
 import { metricsRouter } from './routes/metrics.ts';
@@ -70,6 +71,7 @@ export function createApp(): Express {
   app.use(payoutRouter);
   app.use(uploadRouter);
   app.use(quoteRouter);
+  app.use(estimateRouter);
   app.use(scheduleRouter);
   app.use(auditRouter);
   app.use(adminRouter);
