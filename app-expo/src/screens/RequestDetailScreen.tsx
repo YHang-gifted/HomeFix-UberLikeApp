@@ -33,6 +33,7 @@ import type {
   Coordinates,
   Payment,
   PaymentMethod,
+  PriceEstimate,
   Quote,
   Receipt,
   RefundRequest,
@@ -188,6 +189,7 @@ export function RequestDetailScreen({
   const [receiptBusy, setReceiptBusy] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [estimate, setEstimate] = useState<PriceEstimate | null>(null);
   const [quoteAmountText, setQuoteAmountText] = useState('');
   const [quoteNote, setQuoteNote] = useState('');
   const [reviseAmountText, setReviseAmountText] = useState('');
@@ -290,6 +292,16 @@ export function RequestDetailScreen({
           }
         } catch {
           // No quote yet (404) or not a party; leave it unset.
+        }
+        try {
+          // A non-binding rough range for a quote-track job. 404 for a fixed-price job (its price
+          // is already set) — leave it unset in that case.
+          const foundEstimate = await activeClient.getEstimate(requestId);
+          if (active) {
+            setEstimate(foundEstimate);
+          }
+        } catch {
+          // No estimate (fixed-price job, or unavailable); leave it unset.
         }
         try {
           const foundReview = await activeClient.getReview(requestId);
@@ -941,6 +953,19 @@ export function RequestDetailScreen({
         >
           <Text style={styles.messagesText}>Messages</Text>
         </Pressable>
+      )}
+
+      {estimate !== null && (quote === null || quote.status !== 'accepted') && (
+        <View style={styles.estimateBox}>
+          <Text style={styles.estimateLabel}>Rough estimate</Text>
+          <Text style={styles.estimateRange}>
+            {`${formatCents(estimate.lowCents)} – ${formatCents(estimate.highCents)}`}
+          </Text>
+          <Text style={styles.estimateHint}>
+            A non-binding guide for jobs like this. Your final price comes from the worker&apos;s
+            quote.
+          </Text>
+        </View>
       )}
 
       {request.workerId !== undefined && (quote !== null || quoteView.canPropose) && (
@@ -1668,6 +1693,15 @@ const styles = StyleSheet.create({
     borderRadius: radii.medium,
     ...shadow,
   },
+  estimateBox: {
+    marginTop: 16,
+    padding: spacing.lg,
+    backgroundColor: colors.brandSoft,
+    borderRadius: radii.medium,
+  },
+  estimateLabel: { fontSize: 12, fontWeight: '800', color: colors.brand },
+  estimateRange: { fontSize: 20, fontWeight: '800', color: colors.ink, marginTop: 2 },
+  estimateHint: { fontSize: 13, color: colors.inkMuted, marginTop: 4, lineHeight: 18 },
   quoteDeclined: { fontSize: 14, fontWeight: '600', color: '#dc2626' },
   quoteNoteInput: { marginTop: 8, minHeight: 48, textAlignVertical: 'top' },
   reviseLabel: { fontSize: 13, fontWeight: '700', color: colors.inkMuted, marginTop: 12 },

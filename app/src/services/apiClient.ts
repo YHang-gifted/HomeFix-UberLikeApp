@@ -22,6 +22,7 @@ import type {
   Payment,
   PaymentMethod,
   Payout,
+  PriceEstimate,
   Principal,
   PublicUser,
   Quote,
@@ -66,6 +67,7 @@ import {
   paymentListSchema,
   paymentSchema,
   payoutListSchema,
+  priceEstimateSchema,
   publicUserListSchema,
   publicUserSchema,
   quoteSchema,
@@ -457,6 +459,15 @@ export class ApiClient {
   public async getQuote(id: string): Promise<Quote> {
     const data = await this.send('GET', `/service-requests/${id}/quote`, undefined, true);
     return quoteSchema.parse(data);
+  }
+
+  /**
+   * A non-binding rough price range for a quote-track request, to set the customer's expectation
+   * before workers quote. Throws 404 for a fixed-price job (it already has a set price).
+   */
+  public async getEstimate(id: string): Promise<PriceEstimate> {
+    const data = await this.send('GET', `/service-requests/${id}/estimate`, undefined, true);
+    return priceEstimateSchema.parse(data);
   }
 
   public async createQuote(id: string, input: CreateQuoteInput): Promise<Quote> {
