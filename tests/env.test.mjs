@@ -36,8 +36,24 @@ describe('loadEnv', () => {
     const env = loadEnv({
       NODE_ENV: 'production',
       JWT_SECRET: 'a-sufficiently-long-production-secret',
+      METRICS_TOKEN: 'a-metrics-scrape-token',
     });
     assert.equal(env.NODE_ENV, 'production');
+  });
+
+  // SEC-0011: an unset METRICS_TOKEN leaves GET /metrics world-readable, so production refuses to
+  // boot without it (same shape as the JWT_SECRET/NOTIFY_LOG_BODY guards).
+  it('refuses to boot in production without a METRICS_TOKEN', () => {
+    assert.throws(
+      () =>
+        loadEnv({ NODE_ENV: 'production', JWT_SECRET: 'a-sufficiently-long-production-secret' }),
+      /METRICS_TOKEN/,
+    );
+  });
+
+  it('allows an unset METRICS_TOKEN outside production', () => {
+    assert.doesNotThrow(() => loadEnv({ NODE_ENV: 'development' }));
+    assert.doesNotThrow(() => loadEnv({ NODE_ENV: 'test' }));
   });
 
   it('defaults NOTIFY_CHANNELS to an empty list', () => {

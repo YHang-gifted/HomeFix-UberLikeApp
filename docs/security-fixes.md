@@ -39,6 +39,7 @@ Use exactly one of: `authentication`, `authorization`, `input-validation`, `inje
 | SEC-0008 | 2026-07-11 | payment-integrity | Provider refund webhook did not reconcile the worker's payout                            | fixed     |
 | SEC-0009 | 2026-07-13 | secrets-exposure  | Password-reset tokens written to the application log by the notification fallback sender | fixed     |
 | SEC-0010 | 2026-07-13 | secrets-exposure  | Reset token in a URL would leak via `Referer` and browser history (magic link)           | addressed |
+| SEC-0011 | 2026-07-19 | data-exposure     | `GET /metrics` world-readable when `METRICS_TOKEN` is unset (now required in production) | fixed     |
 
 ## Entry template
 
@@ -197,3 +198,18 @@ Copy this block for every new fix.
 - **Regression test:** `tests/security-headers.test.mjs` (the headers are present on success and error responses) and `tests/password-reset-link.test.mjs` (`urlWithoutResetCode` drops the token and keeps other parameters; the token embedded in a link is still redacted from provider error text — SEC-0009).
 - **Prevention:** This entry + the two tests. The headers middleware is now the single place to add response-level hardening, and it is covered, so deleting it fails CI rather than silently re-opening the leak. Reviewer check for any new feature that puts a value in a URL: is it a secret, and if so does it survive only one hop?
 - **Related:** SEC-0009 (the same token; that entry keeps it out of _our_ logs, this one keeps it out of everyone else's)
+
+---
+
+### SEC-0011 — `GET /metrics` world-readable when `METRICS_TOKEN` is unset
+
+- **Date:** 2026-07-19
+- **Category:** data-exposure
+- **Severity:** low
+- **Affected area:** `server/src/config/env.ts` (`METRICS_TOKEN`), `server/src/routes/metrics.ts` (`GET /metrics`)
+- **Vulnerability:** The metrics endpoint only requires `Authorization: Bearer <token>` **when `METRICS_TOKEN` is set**; unset, it is open. `env.ts` did not require the token in production, so a deploy that never set it exposed **unauthenticated aggregate telemetry** (traffic, error rate, latency, RSS) on the public internet. Aggregate-only, so the blast radius is small — no user data, no request paths — but it is operational signal a stranger should not have, and "nobody set the token" is exactly the kind of omission that reaches production.
+- **Root cause:** The endpoint's auth was correct but **optional by configuration**: the safe state depended on an operator remembering to set a variable, rather than being enforced. Same class as SEC-0004 (default JWT secret) and SEC-0009 (`NOTIFY_LOG_BODY`): a setting that is fine on a laptop and unsafe in production, left to configuration hygiene.
+- **Canonical fix:** Refuse it at boot. `env.ts`'s `superRefine` now adds an issue when `NODE_ENV === 'production' && METRICS_TOKEN === undefined`, so production **fails fast** without the token — the identical production-invariant pattern used for `JWT_SECRET` (SEC-0004) and `NOTIFY_LOG_BODY` (SEC-0009). The endpoint's existing token check is unchanged. Rule for the class: a setting whose unsafe value is "unset/default" and whose safe value only matters in production must be enforced in the `env.ts` `superRefine`, not documented.
+- **Regression test:** `tests/env.test.mjs` — `loadEnv({ NODE_ENV: 'production', JWT_SECRET: … })` throws `/METRICS_TOKEN/`; it is allowed unset outside production; the production baseline that is expected to boot now includes `METRICS_TOKEN`.
+- **Prevention:** This entry + the boot-time guard + the regression test. Reviewer check: any new setting that is unauthenticated/unsafe when unset gets a production `superRefine` guard, the same way.
+- **Related:** SEC-0004, SEC-0009 (same boot-time production-invariant pattern)

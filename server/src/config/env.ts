@@ -31,7 +31,8 @@ const envSchema = z
     // Bearer token guarding the Prometheus /metrics endpoint. Set it and scrapers
     // must send `Authorization: Bearer <token>`; leave it unset and /metrics is open
     // (dev / trusted network only — set it, or restrict at the proxy, in production).
-    // Empty is treated as unset.
+    // Empty is treated as unset. **Required in production** (see the superRefine below, SEC-0011):
+    // unset there leaves `/metrics` world-readable on the public internet.
     METRICS_TOKEN: z.preprocess(
       (value) => (value === '' ? undefined : value),
       z.string().min(1).optional(),
@@ -286,6 +287,18 @@ const envSchema = z
         path: ['NOTIFY_LOG_BODY'],
         message:
           'NOTIFY_LOG_BODY must not be enabled in production: it writes password-reset tokens and recipient addresses to the log',
+      });
+    }
+    // SEC-0011. Same shape as the two guards above (SEC-0004/0009): unset `METRICS_TOKEN` leaves
+    // `GET /metrics` world-readable, so on a public deployment it must be set. Aggregate telemetry
+    // only (traffic, error rate, latency, RSS), but it is unauthenticated on the open internet, so
+    // it is refused at boot rather than trusted to nobody forgetting it on a deploy.
+    if (env.NODE_ENV === 'production' && env.METRICS_TOKEN === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['METRICS_TOKEN'],
+        message:
+          'METRICS_TOKEN must be set in production so GET /metrics is not exposed unauthenticated on the public internet',
       });
     }
   });

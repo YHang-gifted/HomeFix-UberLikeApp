@@ -99,10 +99,11 @@ payouts, and the backfill). PayPal has not met a real provider at all.
       (`docs/device-build.md`, https://docs.expo.dev/push-notifications/fcm-credentials/). iOS
       needs **APNs**, which comes with the Apple Developer account. Not a blocker — the app
       degrades to no-push cleanly — but email is the only working channel until this is done.
-- [ ] **`METRICS_TOKEN`** — unset today, which leaves `GET /metrics` **world-readable**.
-      Aggregate data only (traffic, error rate, latency, RSS), so the blast radius is
-      small, but it is unauthenticated telemetry on the public internet. `env.ts` does not
-      require it in production; it should (same `superRefine` pattern as SEC-0004/0009).
+- [x] **`METRICS_TOKEN`** — **now required in production (SEC-0011).** `env.ts` refuses to boot
+      without it when `NODE_ENV=production`, so `/metrics` can no longer be left world-readable by
+      forgetting to set the token (same `superRefine` pattern as SEC-0004/0009). **Operator action:**
+      set `METRICS_TOKEN` as a Railway service variable, or the app will fail fast on the next deploy;
+      scrape with `Authorization: Bearer <token>`.
 - [ ] **Log drain** — logs are safe to ship since SEC-0009. Point Railway's Log Drain at
       something queryable (`docs/deployment.md`).
 - [ ] **Alerting** — none exists. At minimum: `/ready` failing, and the 5xx rate.
