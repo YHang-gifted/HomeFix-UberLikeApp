@@ -85,7 +85,13 @@ describe('SEC-0009: notification logs never carry the recipient or the body', ()
 });
 
 describe('SEC-0009: NOTIFY_LOG_BODY is refused in production', () => {
-  const base = { NODE_ENV: 'production', JWT_SECRET: 'a-strong-production-secret-value' };
+  // METRICS_TOKEN is required in production too (SEC-0011), so include it in the baseline that is
+  // expected to boot successfully.
+  const base = {
+    NODE_ENV: 'production',
+    JWT_SECRET: 'a-strong-production-secret-value',
+    METRICS_TOKEN: 'a-metrics-scrape-token',
+  };
 
   it('rejects NOTIFY_LOG_BODY=true in production', () => {
     assert.throws(
