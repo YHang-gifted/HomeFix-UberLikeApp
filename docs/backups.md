@@ -1,17 +1,21 @@
 # Database Backups & Restore Runbook
 
-> ## ⚠️ NONE OF THIS IS ENABLED YET
+> ## ✅ PITR is live, and the restore drill has passed
 >
-> As of **2026-07-13**, neither scheduled snapshots nor PITR are switched on: the current
-> Railway plan does not offer them. **The production database has no recovery story.**
+> As of **2026-07-22**, Point-in-Time Recovery is **enabled** on the production Railway
+> Postgres (plan upgraded from the earlier tier that did not offer it). The restore drill
+> below was run end to end that day and **passed**: a PITR fork was provisioned and all six
+> spot-checked tables — `users`, `service_requests`, `quotes`, `payments`, `payouts`,
+> `audit_events` — matched the source row-for-row.
 >
-> That is a deliberate, acceptable trade for an internal alpha holding test data. It stops
-> being acceptable the moment a real customer's job, payment, or payout is in there — so it
-> is a **blocker on `docs/go-live-checklist.md`**, to be done when the plan is upgraded.
+> **Measured RTO: ≈5–10 minutes** (first drill, 2026-07-22) — from clicking _Restore to this
+> moment_ to a verified fork. Treat it as an order-of-magnitude figure, not an SLA; re-measure
+> after any change to the schema-migration flow.
 >
-> When that happens, do **PITR first**. Its window is **not retroactive**: it begins at the
-> first base backup after you enable it, so enabling it the day you need it is enabling it
-> too late.
+> Still to do (belt-and-braces, not a recovery blocker): confirm scheduled **volume backups**
+> are on **Daily + Weekly** (PITR only covers the archive window; a wiped volume takes its own
+> backups with it). PITR's window is **not retroactive** — it only covers time since it was
+> enabled, so leave it on.
 
 HomeFix stores all durable state in a single Postgres database. This runbook
 covers the managed backups the deploy target takes automatically, how to take an
@@ -177,6 +181,14 @@ the problem.
   contains customer data and is covered by the same rules as production data — never
   commit one.
 
-**Recovery objectives.** Not yet agreed. Once the drill above has been run once, record
-the measured RTO and the RPO the enabled schedules actually give you, rather than the
-ones we would like.
+**Recovery objectives.**
+
+- **RTO ≈5–10 minutes**, measured on the first restore drill (2026-07-22): the time from
+  _Restore to this moment_ to a PITR fork whose `payments` / `payouts` / `audit_events` row
+  counts matched the source. This is a single-sample, order-of-magnitude figure — re-measure
+  after any change to the schema-migration flow, and treat cutover (swapping the connection
+  string) as extra time on top.
+- **RPO** is bounded by the PITR archive window (continuous WAL) for a bad-migration recovery,
+  and by the volume-snapshot schedule (Daily kept 6 days) for a whole-volume loss. Confirm
+  Daily + Weekly are actually enabled and record the real numbers here, not the ones we would
+  like.

@@ -39,25 +39,28 @@ workaround.
 
 This is the single most user-facing gap in the product, and it is pure configuration.
 
-### Database backups and recovery — BLOCKED (Railway plan)
+### Database backups and recovery — PITR live, drill passed (2026-07-22)
 
-**None of this is enabled.** The current Railway plan does not offer it. See
-`docs/backups.md` for the mechanisms and their footguns.
+The Railway plan was upgraded and recovery is now enabled. See `docs/backups.md` for the
+mechanisms, their footguns, and the drill procedure.
 
-- [ ] Scheduled volume snapshots: **Daily + Weekly** (Backups tab).
-- [ ] **Point-in-Time Recovery.** The important one: migrations run **automatically on
-      boot**, so a faulty migration mutates production the moment a deploy lands.
-      Snapshots only rewind to last night; PITR rewinds to the minute before it ran.
-- [ ] Run the **restore drill** in `docs/backups.md` once, end to end, and record the
-      measured RTO there.
+- [x] **Point-in-Time Recovery — enabled 2026-07-22.** The important one: migrations run
+      **automatically on boot**, so a faulty migration mutates production the moment a deploy
+      lands. Snapshots only rewind to last night; PITR rewinds to the minute before it ran.
+- [x] **Restore drill run end to end (2026-07-22).** A PITR fork was provisioned and all six
+      spot-checked tables (`users`, `service_requests`, `quotes`, `payments`, `payouts`,
+      `audit_events`) matched the source row-for-row. **Measured RTO ≈5–10 min**, recorded in
+      `docs/backups.md`.
+- [ ] Confirm scheduled volume snapshots are on **Daily + Weekly** (Backups tab). Belt-and-
+      braces alongside PITR — a wiped volume takes its own backups with it, so this is not
+      redundant. Not a recovery blocker; PITR already gives a bad-migration recovery path.
 
-> ⚠️ **The PITR window is not retroactive.** It begins at the first base backup _after_ you
-> enable it. Enabling it the day you need it is enabling it too late. When the plan is
-> upgraded, do this **first**, before anything else on this list.
+> ⚠️ **The PITR window is not retroactive.** It only covers time since it was enabled
+> (2026-07-22), so leave it on — do not stage-disable it.
 
-Until this is done, **the production database has no recovery story.** That is acceptable
-for an internal alpha with test data. It is not acceptable the moment a real customer's
-job, payment, or payout is in it.
+The production database now has a proven recovery story for the failure this project is most
+exposed to (a bad auto-run migration). Re-run the drill after any change to the schema-
+migration flow.
 
 ### Purge the historical logs (SEC-0009 residue)
 
