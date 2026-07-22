@@ -149,18 +149,26 @@ ordered. **Escrow is the keystone** — the refund enhancements depend on funds 
    _The deposit variant (pre-collected + credited) remains available later, but it needs
    **deposit + balance = two payments per request**, which is a change to the money core._
 
-**Post-order (money protection) — not started:**
+**Post-order (money protection):**
 
-5. **Escrow / payout hold + completion-confirmation gate** — the keystone; also the anti-leakage
-   moat (`docs/fee-model.md` §5). _Legal/Stripe-ToS review first._
-6. Partial refunds + proportional payout reconciliation.
-7. Refund time window (from confirmed completion).
-8. Fee-model evolution — tiered commission + (later) subscription (`docs/fee-model.md`).
-9. Ratings feed matching + refund-rate guards (two-sided abuse protection).
+5. **Escrow / payout hold + completion-confirmation gate** — ⏸️ **DEFERRED to avoid legal/regulatory
+   scope and launch faster** (2026-07-19; see `docs/escrow-spike.md`). It is the anti-fraud keystone
+   and the anti-leakage moat (`docs/fee-model.md` §5), but it is the one item that could implicate
+   money-transmission/escrow licensing, so it is parked until the legal/Stripe answers are worth
+   getting. The product ships on the existing "transfer at settlement + refund reconciliation
+   (SEC-0007/0008)" model, which needs no new licensing.
+6. ⏸️ Partial refunds + proportional payout reconciliation — **deferred with escrow** (without a hold
+   it just widens the clawback problem).
+7. ⏸️ Refund time window — **deferred with escrow**.
+8. Fee-model evolution — tiered commission + (later) subscription (`docs/fee-model.md`). Independent
+   of escrow; can proceed whenever the job-profile numbers are decided.
+9. **Ratings feed matching + refund-rate guards** — the **non-regulatory** substitute for escrow's
+   fraud protection: keep bad workers out and cap serial refunds, no fund-holding. Can proceed now.
 
-**Where this leaves us:** the pre-order (pricing) line is done bar the AI estimate, so the next
-substantial move is **escrow (5)** — the most valuable protection work, and the one that should be
-preceded by a legal/compliance + Stripe-ToS spike rather than started as code.
+**Where this leaves us:** the pre-order (pricing) line is done bar the AI estimate. Escrow and the
+refund enhancements are **deferred to keep launch clear of regulatory scope**, so the next work is
+**the go-live checklist** (`docs/go-live-checklist.md` — all config/ops/proof, no legal), with the
+cheap fraud mitigations (9) and the AI estimate available as product follow-ups.
 
 ---
 
