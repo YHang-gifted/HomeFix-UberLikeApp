@@ -291,11 +291,11 @@ and a genuinely testable v1 is **QA and operations, not engineering**.
    Railway plan** (`docs/go-live-checklist.md`); log shipping is unblocked since SEC-0009 but
    not switched on. Structured 5xx logging and a Prometheus `/metrics` endpoint already exist,
    though `/metrics` is world-readable until `METRICS_TOKEN` is set.
-4. **Report the provider configuration at boot.** Finding out that `EMAIL_*` had never been
-   set took a registration, a log hunt and a dashboard screenshot — because nothing says which
-   providers are live. One line on startup (`email: inert (EMAIL_API_URL, EMAIL_API_KEY,
-EMAIL_FROM unset)`, `stripe: live`, `connect: live`, …) would have made it instant, and the
-   same class of problem is waiting for PayPal and storage.
+4. ~~**Report the provider configuration at boot.**~~ **Done.** The server logs a "Provider
+   configuration at boot" report — one line each for payments, the Stripe webhook, Connect payouts,
+   PayPal, email, push, storage and metrics, each saying live vs. mock/inert and naming the unset
+   variables (`server/src/config/providerReport.ts`). Finding out a provider is inert no longer
+   needs a registration, a log hunt and a dashboard screenshot.
 
 Beyond a testable v1, the obvious product gaps are **scheduling/booking windows** (requests
 are matched immediately; there is a preferred time but no real calendar) and **feeding worker
