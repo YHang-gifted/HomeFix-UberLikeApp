@@ -51,9 +51,11 @@ mechanisms, their footguns, and the drill procedure.
       spot-checked tables (`users`, `service_requests`, `quotes`, `payments`, `payouts`,
       `audit_events`) matched the source row-for-row. **Measured RTO ≈5–10 min**, recorded in
       `docs/backups.md`.
-- [ ] Confirm scheduled volume snapshots are on **Daily + Weekly** (Backups tab). Belt-and-
-      braces alongside PITR — a wiped volume takes its own backups with it, so this is not
-      redundant. Not a recovery blocker; PITR already gives a bad-migration recovery path.
+- [x] **Scheduled volume snapshots on — Daily enabled, plus a manual baseline (2026-07-22).**
+      Belt-and-braces alongside PITR — a wiped volume takes its own backups with it, so this is
+      not redundant. A manual 302 MB backup was taken to close the gap before the first
+      scheduled run, and the Daily schedule is active (next run < 24h). _Confirm **Weekly** is
+      also ticked under Edit schedule for the longer retention window._
 
 > ⚠️ **The PITR window is not retroactive.** It only covers time since it was enabled
 > (2026-07-22), so leave it on — do not stage-disable it.

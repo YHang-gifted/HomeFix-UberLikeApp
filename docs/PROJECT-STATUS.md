@@ -1,6 +1,6 @@
 # HomeFix — Project Status & Road to a Testable v1
 
-_Snapshot as of 2026-07-13 (through slice 178). Compiled against the original vision:
+_Snapshot as of 2026-07-22 (through slice 220; log backfilled for 194–220). Compiled against the original vision:
 an Uber-like home-repair marketplace with three roles (customer, worker, admin), a
 request lifecycle, worker matching, quoting, payments, reviews, and messaging._
 
@@ -1421,8 +1421,162 @@ com.homefix.dev`. That **confirms the app code is right** (186's `projectId` fix
   PaymentSheet save flow (Phase 2) and off-session charge + SCA fallback (Phase 3) come next.
   app-expo + docs — _handed off_.
 
-_All slices above are merged to `main` except **134** (auth audit), **152**
-(Stripe go-live runbook), and **193** (saved-card Phase 1), which were handed off._
+> _Backfill note (added by slice 222)._ The log fell behind at **194** — the same point a
+> commit-format drift crept in — so entries **194–220** below were reconstructed from the git
+> history and the design records after the fact. **194–198 were committed in Conventional-Commits
+> style (`feat(payments):` / `build(web):`), not the `slice NNN:` ledger convention**; they are
+> logged here under their true slice numbers for continuity. From **199** onward the `slice NNN:`
+> prefix was restored and has been kept since.
+
+- **194** saved-card payments, **Phase 2a: the server data model** (committed as
+  `feat(payments): saved cards phase 2a`). A Stripe **Customer** per user, a hosted **setup
+  session** (SetupIntent via Checkout) to save a card without the app ever touching the number,
+  and endpoints to **list** a user's saved payment methods. Config-gated + mock by default, the
+  same seam as the rest of payments. Server — _merged_.
+
+- **195** saved-card payments, **Phase 2b: the Payment methods screen** (committed as
+  `feat(payments): saved cards phase 2b`). New `PaymentMethodsScreen` — lists saved cards and an
+  **Add card** button that launches the hosted setup flow. `apiClient` gains `listPaymentMethods`
+  / `startCardSetup`. app-expo — _merged_.
+
+- **196** saved-card payments, **Phase 3a: charge a saved card off-session** (server; committed
+  as `feat(payments): saved cards phase 3a`). Pay an order with a stored card via an
+  **off-session PaymentIntent**; the payment settles on the **`payment_intent.succeeded`**
+  webhook (not on the API response), so a card that needs extra authentication is not marked paid
+  prematurely. Server — _merged_.
+
+- **197** saved-card payments, **Phase 3b: pay in-app + inline SCA** (committed as
+  `feat(payments): saved cards phase 3b`). RequestDetail gains **Pay with a saved card**; when the
+  off-session charge is declined for authentication, the app runs the **inline SCA (3-D Secure)**
+  step and retries. `apiClient.paySavedCard`. This completes the Uber-style flow end to end
+  (194–197): save once, then pay in a tap. app-expo + app — _merged_.
+
+- **198** [FIX] **the deployed web hid "Add card"** (committed as
+  `build(web): inline EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY`). The Dockerfile web-build stage never
+  received the **publishable** key, so on the deployed site the saved-card UI silently did not
+  render even
+  though the code was correct. Passed the key at build time (it is publishable — safe to ship).
+  A build-config gap, not a code bug. Confirmed on device by the user. web build — _merged_.
+
+- **199** customer **refund / dispute flow, part 1: file + view** (backend). A customer can
+  **request a refund** on a paid payment; the request is recorded with a status and is viewable.
+  Deliberately an **admin-review model** — filing a request does **not** move money; an admin
+  resolves it (part 2). New `refundRequest` schemas + audit actions
+  (`refund_request.created/approved/rejected`), service, controller/route, and the Postgres
+  repository. Server — _merged_.
+
+- **200** refund/dispute, **part 2: admin resolves** — approve / reject + notify + audit.
+  Approval **reuses `refundPayment`** (the SEC-0007/0008 path that also reverses the worker
+  payout), and does the refund **first** so a failed refund leaves the request open rather than
+  marking it done; rejection requires a note. Notifies the customer and writes the audit entry.
+  Server — _merged_.
+
+- **201** refund/dispute, **part 3: the customer UI** — a **Request a refund** control and the
+  request's **status** surfaced on a paid payment in RequestDetail. `apiClient.requestRefund` /
+  `getRefundRequest`. app-expo + app — _merged_.
+
+- **202** refund/dispute, **part 4: the admin queue UI** — new `AdminRefundRequestsScreen` listing
+  open requests with **approve / reject** actions (reject prompts for the required note).
+  `apiClient.listRefundRequests` / `resolveRefundRequest`. This ships the customer-facing
+  refund/dispute flow end to end (199–202). app-expo + app — _merged_.
+
+- **203** docs — mark the **refund/dispute flow shipped** (go-live checklist §5 + PROJECT-STATUS).
+  Docs only — _merged_.
+
+- **204** docs — **fee-model design record.** The outcome of the pricing-strategy discussion: a
+  **moderate tiered commission** (marginal brackets, a minimum fee, a cap so large jobs are not
+  over-taxed) plus a **future volume-gated subscription** a worker can opt into once they have
+  accrued enough jobs. Records the reasoning and the three-sided fairness argument; not yet
+  implemented. `docs/fee-model.md`. Docs only — _merged_.
+
+- **205** docs — **pricing-model + vision-gap design records.** `pricing-model.md` (the two-track
+  model: neutral fixed prices for standardized jobs, worker quotes for complex ones, on-site
+  revision instead of two-sided haggling) and `vision-gap.md` (where the build sits against the
+  original project vision). Docs only — _merged_.
+
+- **206** two-track pricing, **part 1: the fixed-price catalog (read-only `GET /catalog`).** A
+  server-side `FIXED_PRICE_CATALOG` (category, title, price; an `assessment` flag on some) exposed
+  read-only. The start of the "some jobs have a neutral, upfront price" track. Server — _merged_.
+
+- **207** pricing, **part 2: book a catalog task.** `createServiceRequest` accepts a
+  `catalogItemId` and stamps the request with **`pricingMode`** (`fixed` vs `quote`) and
+  **`fixedPriceCents`** from the catalog (an unknown id is a 400). The new request fields are
+  **optional (no `.default()`)** on purpose, so the 9 app-expo ServiceRequest fixtures did not
+  churn. Migration 0041. Server — _merged_.
+
+- **208** pricing, **part 3: converge early — mint the accepted quote on assignment.** A
+  fixed-price job **auto-creates an _accepted_ quote at its fixed price** the moment a worker is
+  assigned/claims it (`ensureFixedPriceQuote`, idempotent, from both `assignWorker` and
+  `claimRequest`), and a worker is **blocked from quoting** a fixed-price job (409). The point:
+  the downstream money flow (payment / payout / refund) **never has to branch** on pricing mode —
+  it always sees an accepted quote. Server — _merged_.
+
+- **209** pricing, **part 4: the customer booking UI.** `CreateRequestScreen` gains a **catalog
+  picker**; choosing a catalogued task books it at the fixed price (with the assessment label
+  where relevant). `apiClient.listCatalog`. app-expo + app — _merged_.
+
+- **210** pricing, **part 5: on-site scope change — revise the agreed price** (server). The
+  assigned worker can **revise the quote** once the job is under way (accepted / in-progress) and
+  **money has not moved**: `reviseQuote` rewrites the **same** quote to `pending` at the new amount
+  with the reason as its note, deletes any pending payment, and (for assessment jobs) clears
+  `priceProvisional`. Notifies + audits `quote.revised`. Also fixed a **silent Postgres UPSERT
+  bug** — the quote `ON CONFLICT` was not updating `amount_cents`/`note`, so a revision would keep
+  the old price on Postgres while passing in memory. Server — _merged_.
+
+- **211** pricing, **part 6: the worker revise UI.** RequestDetail gains a **revise-price form**
+  (new amount + required reason) for the assigned worker while the job is under way.
+  `apiClient.reviseQuote`. app-expo + app — _merged_.
+
+- **212** pricing, **part 7: the assessment visit.** Catalog items flagged `assessment` book at a
+  **provisional price** (`priceProvisional: true`) — the worker prices the job **on site**, and
+  **payment is blocked** (409) until the provisional flag is cleared by a revision. No deposit is
+  taken (the deliberate "lowest-risk" choice from the AskUserQuestion). Migration 0042. Server —
+  _merged_.
+
+- **213** pricing, **part 8: the provisional-price UI.** RequestDetail shows a **provisional-price
+  notice** on an assessment job and suppresses the pay action until the worker has set the real
+  price. This ships the two-track pricing line end to end (206–213). app-expo + app — _merged_.
+
+- **214** docs — roadmap reflects the **shipped pricing line (206–213)**. Docs only — _merged_.
+
+- **215** **AI price estimate, part 1: a non-binding range** (server). `getEstimate` returns a
+  **low/high range** for a request (per-category defaults today, behind an **injectable
+  estimator seam** — `setPriceEstimatorForTests` — ready for a real vision model later). Explicitly
+  **advisory**: party-gated, and 404 for fixed-price jobs (they already have a price). The last
+  pre-order piece of the original vision (customer sees a rough price before ordering). Server —
+  _merged_.
+
+- **216** AI price estimate, **part 2: show the range in the app.** RequestDetail renders a
+  **rough-estimate block** (a range, labelled non-binding). `apiClient.getEstimate`. app-expo +
+  app — _merged_.
+
+- **217** docs — **escrow spike + defer decision.** Documents that escrow ≈ **delaying the Connect
+  `transfers.create`** (funds already sit in Stripe custody; the legal line is "never sweep to the
+  platform bank account"), and the decision to **defer escrow + partial refunds + a refund window**
+  to avoid money-transmitter / regulatory scope and **launch faster**. `docs/escrow-spike.md`.
+  Docs only — _merged_.
+
+- **218** **SEC-0011 — require `METRICS_TOKEN` in production.** `/metrics` was world-readable if
+  the token was unset; `env.ts` now **fails to boot in production** without it (a `superRefine`
+  guard mirroring the `JWT_SECRET` / `NOTIFY_LOG_BODY` patterns). Ledger entry + regression test; two
+  existing production env tests updated to supply the token. Server — _merged_.
+
+- **219** **graceful shutdown — drain in-flight requests on SIGTERM.** On a redeploy the platform
+  sends SIGTERM; the server now stops taking new work, lets in-flight requests finish (including
+  **payment settlements**), and exits, rather than dropping them mid-flight. Closes the WebSocket
+  server + each client first (a persistent socket would otherwise keep `server.close()` waiting
+  forever), with a timeout force-exit and an idempotency latch. Fully injected, so it is unit
+  tested. Server — _merged_.
+
+- **220** **provider configuration report at boot.** A boot-time log line per subsystem
+  (payments, stripe webhook, payouts/Connect, paypal, email, push, storage, metrics) saying
+  **live vs. mock/inert** and **naming the unset variables** — so "is Stripe live? is email
+  actually sending?" is answered by a glance at the log instead of a failed registration and a log
+  hunt. Pure function, unit tested; the fields mirror the config-gated selectors so the report
+  tracks what the app actually does. Server — _merged_.
+
+_All slices above are merged to `main` except **134** (auth audit) and **152**
+(Stripe go-live runbook), which were handed off._
 The API **and the web app** are deployed and ACTIVE on Railway (same-origin). Stripe
 (payments **and** Connect payouts) has been exercised **live in a sandbox** — see the dry-run
 entry above; the default remains mock mode (no key set).\_
