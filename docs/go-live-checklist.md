@@ -174,4 +174,7 @@ them by hand:
   manual clawback (the approval 409s in that case rather than half-refunding).
 - **Ratings do not feed matching.** Reviews are collected and shown, but do not influence
   ranking.
-- **No graceful shutdown**, so in-flight requests are dropped on redeploy.
+- ~~**No graceful shutdown**, so in-flight requests are dropped on redeploy.~~ **Fixed.** On
+  `SIGTERM`/`SIGINT` the server stops accepting connections, closes live WebSocket sockets, drains
+  in-flight HTTP requests, then exits — with a timeout that forces exit if draining hangs
+  (`server/src/lifecycle/gracefulShutdown.ts`).
