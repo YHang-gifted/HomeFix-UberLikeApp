@@ -156,6 +156,20 @@ export type CatalogItem = z.infer<typeof catalogItemSchema>;
 export const catalogListSchema = z.object({ items: z.array(catalogItemSchema) });
 export type CatalogList = z.infer<typeof catalogListSchema>;
 
+/**
+ * A **non-binding** rough price range for a quote-track job, to set the customer's expectation
+ * before workers quote (`docs/pricing-model.md` §4). It is explicitly NOT a quote — a photo can't
+ * see hidden scope, so it is a range, and it is only ever advisory. Amounts in
+ * {@link PLATFORM_CURRENCY} minor units; `lowCents <= highCents`.
+ */
+export const priceEstimateSchema = z
+  .object({
+    lowCents: z.number().int().nonnegative(),
+    highCents: z.number().int().nonnegative(),
+  })
+  .refine((e) => e.lowCents <= e.highCents, { message: 'lowCents must be <= highCents' });
+export type PriceEstimate = z.infer<typeof priceEstimateSchema>;
+
 // Admin dashboard summary: request counts by status plus payment/worker totals.
 const countField = z.number().int().nonnegative();
 export const requestsByStatusSchema = z.object({
