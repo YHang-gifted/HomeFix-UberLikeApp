@@ -9,9 +9,10 @@ real devices, native modules, and full user journeys._
 _The happy-path server loop (customer -> worker -> admin: post, assign, quote,
 accept, pay with commission split, payout, message, complete, review, audit) is
 also covered automatically by `tests/e2e-smoke.test.mjs` in `npm test`; other server
-rules — credential-gated matching (§16), the paid-cancel guard, and admin cancel +
-refund (§11) — have their own automated tests too. This checklist adds the device- and
-native-module coverage that automation can't._
+rules — credential-gated matching (§16), the paid-cancel guard, admin cancel + refund
+(§11), the fixed-price convergence and on-site revision (§19–§20), customer refund requests
+(§18), and the price estimate (§21) — have their own automated tests too. This checklist adds
+the device- and native-module coverage that automation can't._
 
 _**The web build is now checked in a real browser** (slice 185): the `Web E2E` CI job serves
 the actual export and drives Chromium through boot, sign-in, and posting a request, failing on
@@ -24,7 +25,7 @@ and performance._
 ## 0. Prerequisites & environment
 
 - [ ] Backend running with a real Postgres (`DATABASE_URL` set); all migrations
-      (`0001`–`0035`) applied on boot.
+      (`0001`–`0042`) applied on boot.
 - [ ] `JWT_SECRET` set to a strong, non-default value (the server refuses to boot
       in production otherwise).
 - [ ] `CORS_ALLOWED_ORIGINS` set to the app/web origin(s) if testing from a
@@ -41,6 +42,11 @@ and performance._
 - [ ] **Geocoding:** address search depends on the platform's geocoding provider;
       have a known address ready, and a fallback plan to enter coordinates
       manually.
+- [ ] **Saved-card payments (§17):** to exercise the in-app saved-card flow, set
+      the Stripe keys (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) and
+      `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` (on **web** the publishable key must be
+      inlined at **build** time — slice 198). With no key set, the saved-card UI is
+      simply absent and hosted checkout still works.
 
 ## 1. Smoke
 
@@ -254,3 +260,79 @@ and performance._
       unlock another.
 - [ ] **Admin override:** an admin can still **assign** an uncertified worker directly
       (a trusted override); only self-serve claim/visibility is gated.
+
+## 17. Saved-card payments — native + web (slices 193–198)
+
+_The Uber-style "save a card once, then pay in a tap" flow. It **coexists** with hosted
+checkout — both paths must keep working. Needs the Stripe keys from §0._
+
+- [ ] Customer home → **Cards** opens **Payment methods**; with none saved the list is empty
+      with an **Add a card** action.
+- [ ] **Add a card** opens the hosted Stripe setup flow; on return the card appears in the list
+      (brand + last 4). No card number is ever entered in the app.
+- [ ] On an **accepted** request, **Pay with a saved card** charges off-session; the payment is
+      marked **paid** only when the **`payment_intent.succeeded`** webhook lands — not on the tap.
+- [ ] A card that triggers **SCA (3-D Secure)** shows the inline authentication step and completes
+      after it; the payment is **not** marked paid until authentication succeeds.
+- [ ] The hosted-checkout **Pay now** path still works alongside saved cards (coexistence).
+- [ ] **Web:** the deployed site shows the saved-card UI (publishable key inlined at build —
+      slice 198). With no key set, the UI is absent and hosted checkout still works (no crash).
+
+## 18. Customer refund / dispute flow (slices 199–202)
+
+_Admin-review model: filing a request does **not** move money; an admin resolves it._
+
+- [ ] On a **paid** payment, the customer sees **Request a refund**; submitting records the
+      request and shows its **status** (pending). Filing it alone moves no money.
+- [ ] **Admin refund-requests queue** lists open requests. **Approve** performs the actual refund
+      (reuses the admin refund path — also reverses the worker's **pending** payout), notifies the
+      customer, and marks the request approved.
+- [ ] **Reject** requires a **note**; the customer sees the rejection and its reason; no money moves.
+- [ ] If the underlying refund **fails**, the request stays **open** (not marked resolved).
+- [ ] The actions are audited (`refund_request.created` / `approved` / `rejected`).
+- [ ] A **non-admin** never sees the resolve queue.
+
+## 19. Fixed-price catalog & booking (slices 206–209)
+
+_The "some jobs have a neutral, upfront price" track. Converges early so the money flow never
+branches on pricing mode._
+
+- [ ] Create request → the **catalog picker** lists fixed-price tasks (title + price); assessment
+      items carry an **assessment** label.
+- [ ] Booking a catalogued task stamps the request with its **fixed price**, shown upfront — there
+      is no separate quoting step for the customer.
+- [ ] When a worker is **assigned / claims** a fixed-price job, an **accepted quote at the fixed
+      price appears automatically** (no worker quote needed).
+- [ ] A worker **cannot** propose a normal quote on a fixed-price job (**409**) — the price is
+      fixed (the on-site path is §20).
+- [ ] A free-form (**quote-mode**) request still goes through the worker-quote flow unchanged.
+
+## 20. On-site scope change & assessment visit (slices 210–213)
+
+- [ ] While a job is **under way** (accepted / in_progress) and **unpaid**, the assigned worker can
+      **revise the agreed price** (new amount + **required reason**); the customer is notified and
+      must accept the new (pending) quote.
+- [ ] Revising **deletes any pending payment** so the customer re-pays the new amount. A job where
+      money has **already moved** cannot be revised.
+- [ ] The revision is audited (`quote.revised`) with the reason carried as the quote note.
+- [ ] An **assessment-visit** booking shows a **provisional-price notice** and **blocks payment**
+      (pay action suppressed; server **409**) until the worker sets the real price on site.
+- [ ] After the worker prices an assessment job via **revise**, the provisional flag clears and
+      payment proceeds normally.
+
+## 21. AI price estimate — non-binding (slices 215–216)
+
+- [ ] At/near ordering, a request shows a **rough estimate range** (low–high), clearly labelled
+      **non-binding**.
+- [ ] A **fixed-price** (catalog) request shows **no** estimate — it already has a price (the
+      endpoint 404s).
+- [ ] The estimate is visible only to the request's **parties**.
+
+## Sign-off
+
+_Record each pass so a green checklist is traceable to a specific build._
+
+- **Build / commit:** `________` — **Device / OS:** `________` — **Date:** `________` —
+  **Tester:** `________`
+- [ ] Automated suites green for this build: `npm test`, `app-expo` jest, and the CI **Web E2E** job.
+- **Findings / bugs filed:** `________`
