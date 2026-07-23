@@ -963,7 +963,7 @@ export function RequestDetailScreen({
           </Text>
           <Text style={styles.estimateHint}>
             A non-binding guide for jobs like this. Your final price comes from the worker&apos;s
-            quote.
+            quote, which reflects the parts, labour time, and site access your job needs.
           </Text>
         </View>
       )}

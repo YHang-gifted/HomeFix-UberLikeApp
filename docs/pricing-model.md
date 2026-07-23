@@ -95,6 +95,22 @@ constraints:
 The safe rollout: AI gives a **fixed price only inside the standardized catalog**, and a
 **non-binding range** everywhere else.
 
+### 4.1 Keep the estimate qualitative; itemization belongs to the quote
+
+A customer reasonably asks "why this price?", and the temptation is to break the estimate into
+**materials / labour-hours / travel**. **Resist that at the estimate stage.** Before anyone has
+assessed the job, a line-item breakdown is **fabricated precision**: it manufactures a hard anchor
+that the worker's real quote then appears to violate ("the app said 2 hours, why 4?") — the exact
+dispute the non-binding framing exists to avoid — and the platform cannot stand behind
+per-region material/labour figures pre-assessment.
+
+So the estimate stays a **range plus a one-line qualitative note** on what drives the price (parts,
+labour time, site access). The **itemized breakdown belongs to the worker's quote** — the
+accountable, binding number, where a real person stands behind each line. A future **"quote line
+items"** slice (§9.5) adds materials / labour (hours × rate) / travel to the quote itself. A
+_structured_ AI estimate (per-driver ranges) is possible only once the real vision model lands, and
+even then stays non-binding.
+
 ---
 
 ## 5. On-site scope change (variation) — required
@@ -174,10 +190,16 @@ not a rewrite.
   revision _replaces_ the price, the visit fee is absorbed into the final total — the customer pays
   once. **No deposit is pre-collected** (decided: the lowest-risk shape, so the money line was
   untouched).
+- **AI estimate** (shipped, slices 215–216): a **non-binding range** (low–high) shown on a
+  quote-track request before it is priced, hidden once a quote is accepted (the agreed price is the
+  source of truth) and never shown on a fixed-price job (the server 404s it). Per-category ranges
+  today, behind an **injectable estimator seam** ready for a real model. The estimate stays
+  **qualitative** — itemization is deferred to a future "quote line items" slice (§4.1, §9.5).
 - Scheduling remains the two-party propose → confirm → reschedule protocol.
 
-**Not built:** the **AI estimate** (§4) — the only remaining pre-order item. Catalog prices are
-**placeholders** pending the target-job-profile decision (`docs/fee-model.md` §7).
+**Not built:** a **real vision-model estimator** (today's ranges are per-category defaults behind
+the seam) and **quote line items** (§4.1). Catalog prices are **placeholders** pending the
+target-job-profile decision (`docs/fee-model.md` §7).
 
 ---
 
@@ -185,11 +207,16 @@ not a rewrite.
 
 1. ✅ **Fixed-price catalog** — shipped (slices 206–209).
 2. ✅ **On-site scope change (variation)** — shipped (slices 210–211).
-3. ⬜ **AI estimate** — start as a non-binding range on the quote track; graduate categories into the
-   fixed catalog as calibration data earns trust. **The last open pre-order item.**
+3. ✅ **AI estimate** — shipped (slices 215–216) as a non-binding range on the quote track. A real
+   vision model and per-category calibration (graduating categories into the fixed catalog as data
+   earns trust) remain future work behind the estimator seam.
 4. ✅ **Assessment visit** — shipped (slices 212–213) **without** the pre-collected deposit. The
    deposit variant remains possible later, but it needs **deposit + balance = two payments per
    request**, which changes the money core.
+5. ⬜ **Quote line items** — itemize the worker's quote (materials / labour hours × rate / travel) so
+   the customer sees **why** a price is what it is, at the accountable stage rather than the estimate
+   (§4.1). Keeps the estimate qualitative and moves the "explain the price" burden to the binding
+   number a real person stands behind.
 
 Pricing (pre-order) and escrow/refunds (post-order) are **different phases** — design them
 separately (see `docs/vision-gap.md` for how they sequence together).
