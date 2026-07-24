@@ -16,8 +16,10 @@ export interface MapRegion {
  */
 export type MapPicker = (initial: MapRegion) => Promise<DeviceCoordinates | null>;
 
-// Centered on Taipei when the form has no usable coordinates yet.
-const DEFAULT_CENTER: DeviceCoordinates = { latitude: 25.033, longitude: 121.5654 };
+// Centered on the geographic center of the contiguous US when the form has no usable coordinates
+// yet — HomeFix is a US-market product (the TWD→USD pivot, slice 172), so the old Taipei default
+// no longer fits.
+const DEFAULT_CENTER: DeviceCoordinates = { latitude: 39.8283, longitude: -98.5795 };
 const DEFAULT_DELTA = 0.02;
 
 /**
