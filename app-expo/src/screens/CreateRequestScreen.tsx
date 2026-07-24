@@ -454,7 +454,7 @@ export function CreateRequestScreen({
           setLatitude(text);
           setAddress(null);
         }}
-        placeholder="25.03"
+        placeholder="39.83"
         keyboardType="numbers-and-punctuation"
         accessibilityLabel="Latitude"
         editable={!submitting}
@@ -469,7 +469,7 @@ export function CreateRequestScreen({
           setLongitude(text);
           setAddress(null);
         }}
-        placeholder="121.56"
+        placeholder="-98.58"
         keyboardType="numbers-and-punctuation"
         accessibilityLabel="Longitude"
         editable={!submitting}
