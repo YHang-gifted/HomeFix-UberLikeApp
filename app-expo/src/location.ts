@@ -4,26 +4,37 @@ import type {
   DeviceCoordinates,
   LocationProvider,
 } from '../../app/src/features/location/currentLocation';
+import { resolveDevicePosition } from '../../app/src/features/location/currentLocation';
 import type { GeocodeResult, Geocoder } from '../../app/src/features/location/geocoding';
 
 /**
- * The real device location provider, backed by `expo-location`. Asks for
- * foreground permission, then reads the current GPS position. A denied
- * permission throws a friendly message so the form can fall back to manual
- * coordinate entry. Injected into CreateRequestScreen in App.tsx; tests use a
- * fake provider so they never touch the native module.
+ * The real device location provider, backed by `expo-location`. It asks for foreground permission,
+ * prefers an instant last-known fix, and only otherwise takes a fresh read — bounded by a timeout so
+ * the UI can never spin forever when the platform has no signal (e.g. an emulator with no fresh
+ * fix). A denied permission or a timeout throws a friendly message so the form falls back to manual
+ * entry. The orchestration lives in `resolveDevicePosition` (tested); this only wires the native
+ * primitives. Injected into CreateRequestScreen in App.tsx; tests use a fake provider.
  */
 export const deviceLocationProvider: LocationProvider = {
-  async getCurrentPosition(): Promise<DeviceCoordinates> {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      throw new Error('Location permission denied. Please enter coordinates manually.');
-    }
-    const position = await Location.getCurrentPositionAsync({});
-    return {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-    };
+  getCurrentPosition(): Promise<DeviceCoordinates> {
+    return resolveDevicePosition({
+      async requestPermission(): Promise<boolean> {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        return status === 'granted';
+      },
+      async getLastKnownPosition(): Promise<DeviceCoordinates | null> {
+        const position = await Location.getLastKnownPositionAsync();
+        return position === null
+          ? null
+          : { latitude: position.coords.latitude, longitude: position.coords.longitude };
+      },
+      async getCurrentPosition(): Promise<DeviceCoordinates> {
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        return { latitude: position.coords.latitude, longitude: position.coords.longitude };
+      },
+    });
   },
 };
 

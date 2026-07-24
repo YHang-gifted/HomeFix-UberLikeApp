@@ -46,3 +46,60 @@ export async function fetchCurrentLocation(provider: LocationProvider): Promise<
     return { ok: false, message };
   }
 }
+
+/**
+ * The raw device primitives the real provider wires to `expo-location`. Injectable so the
+ * orchestration below (permission → instant last-known → time-bounded fresh read) is unit-tested
+ * without the native module.
+ */
+export interface RawPositionSource {
+  requestPermission(): Promise<boolean>;
+  getLastKnownPosition(): Promise<DeviceCoordinates | null>;
+  getCurrentPosition(): Promise<DeviceCoordinates>;
+}
+
+/** Default cap on how long a fresh GPS read may take before we give up and ask for manual entry. */
+export const CURRENT_LOCATION_TIMEOUT_MS = 15_000;
+
+/** Reject with `message` if `promise` has not settled within `ms` — so a stalled read never hangs. */
+async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(message));
+    }, ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+    }
+  }
+}
+
+/**
+ * Resolve the device position without ever hanging: require permission, then prefer an instant
+ * last-known fix (which also succeeds on emulators, where a fresh fix may never arrive), and only
+ * otherwise take a fresh read bounded by a timeout. Pure orchestration over injected primitives, so
+ * the "spinner forever" failure mode is impossible — and unit-testable. A denied permission or a
+ * timeout throws a friendly message that {@link fetchCurrentLocation} surfaces for manual entry.
+ */
+export async function resolveDevicePosition(
+  source: RawPositionSource,
+  timeoutMs: number = CURRENT_LOCATION_TIMEOUT_MS,
+): Promise<DeviceCoordinates> {
+  const granted = await source.requestPermission();
+  if (!granted) {
+    throw new Error('Location permission denied. Please enter coordinates manually.');
+  }
+  const lastKnown = await source.getLastKnownPosition();
+  if (lastKnown !== null) {
+    return lastKnown;
+  }
+  return withTimeout(
+    source.getCurrentPosition(),
+    timeoutMs,
+    'Could not get your location in time. Please enter coordinates manually.',
+  );
+}
