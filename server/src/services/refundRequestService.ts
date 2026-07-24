@@ -43,12 +43,16 @@ export async function requestRefund(
   if (payment.status !== 'paid') {
     throw new AppError('A refund can only be requested for a paid payment', 409);
   }
+  // At most one active refund request per payment — but a *rejected* one must not lock the customer
+  // out of a genuine dispute. A rejected request can be re-filed (an appeal): it reuses the same row
+  // (re-opening it with the new reason and a fresh timestamp), so the "one per payment" invariant
+  // holds while the prior rejection remains in the audit log. An open or approved request still 409s.
   const existing = await refundRequestRepository.findByRequest(requestId);
-  if (existing) {
+  if (existing !== undefined && existing.status !== 'rejected') {
     throw new AppError('A refund request already exists for this payment', 409);
   }
   const refundRequest: RefundRequest = {
-    id: randomUUID(),
+    id: existing?.status === 'rejected' ? existing.id : randomUUID(),
     requestId,
     paymentId: payment.id,
     customerId: request.customerId,

@@ -96,22 +96,32 @@ describe('RequestDetailScreen — customer refund request', () => {
     expect(requestRefund).not.toHaveBeenCalled();
   });
 
-  it('shows the status of an existing (rejected) refund request instead of the form', async () => {
+  it('shows a declined refund request with its reason and lets the customer re-file (appeal)', async () => {
+    const requestRefund = jest
+      .fn()
+      .mockResolvedValue(makeRefundRequest({ status: 'open', reason: 'Leak came back' }));
     const client = clientWith({
       getRefundRequest: jest
         .fn()
         .mockResolvedValue(
           makeRefundRequest({ status: 'rejected', resolutionNote: 'The work was completed.' }),
         ),
+      requestRefund,
     });
 
-    const { findByText, queryByLabelText } = await render(
+    const { findByText, findByLabelText } = await render(
       <RequestDetailScreen requestId={REQUEST_ID} client={client} />,
     );
 
     await findByText(/declined/i);
     await findByText('The work was completed.');
-    expect(queryByLabelText('Request refund')).toBeNull();
+
+    // The appeal path: the re-file form is offered again, and filing calls requestRefund.
+    await fireEvent.changeText(await findByLabelText('Refund reason'), 'Leak came back');
+    await fireEvent.press(await findByLabelText('Request refund'));
+    await waitFor(() => {
+      expect(requestRefund).toHaveBeenCalledWith(REQUEST_ID, 'Leak came back');
+    });
   });
 
   it('hides the refund UI when the payment is not paid', async () => {

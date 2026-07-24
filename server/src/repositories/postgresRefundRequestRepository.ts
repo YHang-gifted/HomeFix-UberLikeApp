@@ -9,6 +9,8 @@ const UPSERT = `
   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
   ON CONFLICT (id) DO UPDATE SET
     status = EXCLUDED.status,
+    reason = EXCLUDED.reason,
+    created_at = EXCLUDED.created_at,
     resolved_at = EXCLUDED.resolved_at,
     resolved_by = EXCLUDED.resolved_by,
     resolution_note = EXCLUDED.resolution_note
