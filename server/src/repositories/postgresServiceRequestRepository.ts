@@ -5,11 +5,11 @@ import type { Queryable } from '../db/queryable.ts';
 
 const UPSERT = `
   INSERT INTO service_requests
-    (id, customer_id, worker_id, category, description, latitude, longitude, status, created_at, photo_urls, scheduled_at, address, schedule_status, schedule_proposed_by, pricing_mode, fixed_price_cents, price_provisional)
+    (id, customer_id, worker_id, category, description, latitude, longitude, status, created_at, photo_urls, scheduled_at, address, schedule_status, schedule_proposed_by, pricing_mode, fixed_price_cents, price_provisional, en_route_at, en_route_eta_minutes)
   -- COALESCE mirrors the schema's scheduleStatus default on the read side: an explicit NULL
   -- from a caller that predates the column would otherwise override the column DEFAULT and
   -- trip the NOT NULL constraint (an explicit NULL does not fall back to DEFAULT).
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, COALESCE($13, 'unset'), $14, $15, $16, $17)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, COALESCE($13, 'unset'), $14, $15, $16, $17, $18, $19)
   ON CONFLICT (id) DO UPDATE SET
     customer_id = EXCLUDED.customer_id,
     worker_id = EXCLUDED.worker_id,
@@ -26,7 +26,9 @@ const UPSERT = `
     schedule_proposed_by = EXCLUDED.schedule_proposed_by,
     pricing_mode = EXCLUDED.pricing_mode,
     fixed_price_cents = EXCLUDED.fixed_price_cents,
-    price_provisional = EXCLUDED.price_provisional
+    price_provisional = EXCLUDED.price_provisional,
+    en_route_at = EXCLUDED.en_route_at,
+    en_route_eta_minutes = EXCLUDED.en_route_eta_minutes
 `;
 
 interface ServiceRequestRow {
@@ -47,6 +49,8 @@ interface ServiceRequestRow {
   pricing_mode: string | null;
   fixed_price_cents: number | null;
   price_provisional: boolean | null;
+  en_route_at: string | Date | null;
+  en_route_eta_minutes: number | null;
 }
 
 function mapRow(row: unknown): ServiceRequest {
@@ -69,6 +73,8 @@ function mapRow(row: unknown): ServiceRequest {
     ...(r.pricing_mode !== null ? { pricingMode: r.pricing_mode } : {}),
     ...(r.fixed_price_cents !== null ? { fixedPriceCents: r.fixed_price_cents } : {}),
     ...(r.price_provisional !== null ? { priceProvisional: r.price_provisional } : {}),
+    ...(r.en_route_at !== null ? { enRouteAt: new Date(r.en_route_at).toISOString() } : {}),
+    ...(r.en_route_eta_minutes !== null ? { enRouteEtaMinutes: r.en_route_eta_minutes } : {}),
   };
   return serviceRequestSchema.parse(candidate);
 }
@@ -99,6 +105,8 @@ export class PostgresServiceRequestRepository implements ServiceRequestRepositor
       request.pricingMode ?? null,
       request.fixedPriceCents ?? null,
       request.priceProvisional ?? null,
+      request.enRouteAt ?? null,
+      request.enRouteEtaMinutes ?? null,
     ]);
   }
 
@@ -138,7 +146,8 @@ export class PostgresServiceRequestRepository implements ServiceRequestRepositor
     const result = await this.db.query(
       `UPDATE service_requests
           SET worker_id = NULL, status = 'pending',
-              scheduled_at = NULL, schedule_status = 'unset', schedule_proposed_by = NULL
+              scheduled_at = NULL, schedule_status = 'unset', schedule_proposed_by = NULL,
+              en_route_at = NULL, en_route_eta_minutes = NULL
         WHERE id = $1
           AND worker_id = $2
           AND status IN ('matched', 'accepted', 'in_progress')
@@ -154,7 +163,8 @@ export class PostgresServiceRequestRepository implements ServiceRequestRepositor
     const result = await this.db.query(
       `UPDATE service_requests
           SET worker_id = NULL, status = 'pending',
-              scheduled_at = NULL, schedule_status = 'unset', schedule_proposed_by = NULL
+              scheduled_at = NULL, schedule_status = 'unset', schedule_proposed_by = NULL,
+              en_route_at = NULL, en_route_eta_minutes = NULL
         WHERE id = $1 AND status IN ('matched', 'accepted', 'in_progress')
         RETURNING *`,
       [id],

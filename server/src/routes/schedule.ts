@@ -1,6 +1,7 @@
 import express from 'express';
 
 import {
+  postServiceRequestOnMyWay,
   postServiceRequestSchedule,
   postServiceRequestScheduleConfirm,
 } from '../controllers/scheduleController.ts';
@@ -14,3 +15,4 @@ scheduleRouter.post(
   authenticate,
   postServiceRequestScheduleConfirm,
 );
+scheduleRouter.post('/service-requests/:id/on-my-way', authenticate, postServiceRequestOnMyWay);

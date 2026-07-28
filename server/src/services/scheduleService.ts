@@ -1,4 +1,5 @@
 import type {
+  OnMyWayInput,
   Principal,
   ProposeScheduleInput,
   ScheduleProposer,
@@ -8,6 +9,7 @@ import { AppError } from '../errors/appError.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
 import { recordAuditEvent } from './auditService.ts';
 import { recordNotification } from './notificationService.ts';
+import { estimateTravelMinutes } from './travelTimeService.ts';
 
 /**
  * The visit schedule is a two-party agreement, negotiated exactly like a counter-offer:
@@ -137,6 +139,55 @@ export async function confirmSchedule(
     action: 'schedule.confirmed',
     resourceId: request.id,
     details: { scheduledAt: request.scheduledAt },
+  });
+  return updated;
+}
+
+/**
+ * The assigned worker sets out for a confirmed visit ("on my way"). Records the departure time and,
+ * when the worker sent their location and a maps provider is configured, a rough travel-time ETA;
+ * then notifies the customer so they know the worker is coming. Worker-only, and only once the visit
+ * time is `confirmed` — there is no point setting out for a time nobody agreed. See
+ * `docs/live-tracking.md`.
+ */
+export async function markEnRoute(
+  requestId: string,
+  input: OnMyWayInput,
+  principal: Principal,
+): Promise<ServiceRequest> {
+  const { request, me } = await loadForScheduling(requestId, principal);
+  if (me !== 'worker') {
+    throw new AppError('Only the assigned worker can set out for the visit', 403);
+  }
+  if (request.scheduleStatus !== 'confirmed') {
+    throw new AppError('The visit time must be confirmed before you set out', 409);
+  }
+
+  const etaMinutes =
+    input.origin !== undefined
+      ? await estimateTravelMinutes(input.origin, request.location)
+      : undefined;
+
+  const updated: ServiceRequest = {
+    ...request,
+    enRouteAt: new Date().toISOString(),
+    ...(etaMinutes !== undefined ? { enRouteEtaMinutes: etaMinutes } : {}),
+  };
+  await serviceRequestRepository.save(updated);
+
+  await recordNotification({
+    userId: request.customerId,
+    message:
+      etaMinutes !== undefined
+        ? `Your worker is on the way — about ${String(etaMinutes)} min away.`
+        : 'Your worker is on the way.',
+    requestId: request.id,
+  });
+  await recordAuditEvent({
+    actor: principal,
+    action: 'visit.en_route',
+    resourceId: request.id,
+    details: etaMinutes !== undefined ? { etaMinutes: String(etaMinutes) } : {},
   });
   return updated;
 }
