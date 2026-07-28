@@ -562,4 +562,14 @@ export const migrations: Migration[] = [
     id: '0042_service_request_price_provisional',
     sql: `ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS price_provisional boolean`,
   },
+  {
+    // Live-tracking (Phase 1): when the assigned worker set out for a confirmed visit, and a rough
+    // travel-time ETA in minutes if a maps provider computed one. Both nullable — every job before
+    // this leaves them unset. See `docs/live-tracking.md`.
+    id: '0043_service_request_en_route',
+    sql: `
+      ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS en_route_at timestamptz;
+      ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS en_route_eta_minutes integer
+    `,
+  },
 ];

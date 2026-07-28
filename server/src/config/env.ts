@@ -268,6 +268,14 @@ const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.string().min(1).optional(),
     ),
+    // Google Maps API key with the Distance Matrix API enabled. Set it to compute a real
+    // travel-time ETA when a worker taps "on my way" (a server-side call from their departure
+    // location to the job); leave unset and the "on my way" notification simply carries no ETA.
+    // Operator-supplied — never committed. Empty is treated as unset. See `docs/live-tracking.md`.
+    GOOGLE_MAPS_API_KEY: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production' && env.JWT_SECRET === DEV_JWT_SECRET) {

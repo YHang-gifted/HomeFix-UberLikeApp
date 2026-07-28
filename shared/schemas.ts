@@ -115,6 +115,11 @@ export const serviceRequestSchema = z.object({
    * valid; a missing value means the price is final.
    */
   priceProvisional: z.boolean().optional(),
+  // Live-tracking (Phase 1): set when the assigned worker taps "on my way" for a confirmed visit,
+  // with a rough travel-time ETA (minutes) from their departure location when a maps provider is
+  // configured. Both optional, so legacy rows/fixtures stay valid. See `docs/live-tracking.md`.
+  enRouteAt: z.iso.datetime().optional(),
+  enRouteEtaMinutes: z.number().int().positive().max(1440).optional(),
 });
 export type ServiceRequest = z.infer<typeof serviceRequestSchema>;
 
@@ -123,6 +128,16 @@ export const proposeScheduleInputSchema = z.object({
   scheduledAt: z.iso.datetime(),
 });
 export type ProposeScheduleInput = z.infer<typeof proposeScheduleInputSchema>;
+
+/**
+ * The assigned worker sets out for a confirmed visit ("on my way"). Their departure `origin` is
+ * optional — sent when the app could read a location so the server can compute a rough ETA, and
+ * omitted otherwise (the notification then simply carries no ETA).
+ */
+export const onMyWayInputSchema = z.object({
+  origin: coordinatesSchema.optional(),
+});
+export type OnMyWayInput = z.infer<typeof onMyWayInputSchema>;
 
 export const serviceRequestPageSchema = z.object({
   items: z.array(serviceRequestSchema),
@@ -365,6 +380,7 @@ export const auditActionSchema = z.enum([
   'quote.revised',
   'schedule.proposed',
   'schedule.confirmed',
+  'visit.en_route',
   'payment.created',
   'payment.refunded',
   'certification.submitted',
