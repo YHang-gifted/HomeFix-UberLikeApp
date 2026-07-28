@@ -118,7 +118,7 @@ describe('AdminRefundRequestsScreen', () => {
     // Switch to Rejected → the resolved request shows with its note and no approve/reject actions.
     await fireEvent.press(await findByLabelText('Show rejected refund requests'));
     await findByText('Work was completed as agreed.');
-    await findByText(/Rejected/);
+    await findByText(/Rejected ·/); // the outcome line, not the "Rejected" tab chip
     expect(queryByLabelText(`Approve refund ${RR_ID}`)).toBeNull();
     expect(listRefundRequests).toHaveBeenCalledWith('rejected');
   });
