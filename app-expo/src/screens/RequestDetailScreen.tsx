@@ -1157,7 +1157,7 @@ export function RequestDetailScreen({
 
               {isOwner && (refundRequest !== null || payment.status === 'paid') && (
                 <View style={styles.refundReqBox}>
-                  {refundRequest !== null ? (
+                  {refundRequest !== null && (
                     <>
                       <Text style={styles.refundReqStatus}>
                         {refundStatusLabel(refundRequest.status)}
@@ -1167,9 +1167,15 @@ export function RequestDetailScreen({
                         <Text style={styles.refundReqNote}>{refundRequest.resolutionNote}</Text>
                       )}
                     </>
-                  ) : (
+                  )}
+                  {/* No request yet, or a declined one the customer may appeal by filing again. */}
+                  {(refundRequest === null || refundRequest.status === 'rejected') && (
                     <>
-                      <Text style={styles.refundReqLabel}>Not right? Request a refund.</Text>
+                      <Text style={styles.refundReqLabel}>
+                        {refundRequest === null
+                          ? 'Not right? Request a refund.'
+                          : 'Still not resolved? You can request a refund again.'}
+                      </Text>
                       <TextInput
                         style={styles.reasonInput}
                         value={refundReason}

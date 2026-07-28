@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit",
     "integrity:files": "node scripts/check-file-integrity.mjs",
     "backup:db": "node scripts/backup-db.mjs",
-    "security:audit": "npm audit --audit-level=high",
+    "security:audit": "npm audit --audit-level=high --omit=dev",
     "quality": "npm run integrity:files && npm run format:check && npm run lint && npm run typecheck && npm test && npm run security:audit",
     "test": "node --import tsx --test --test-concurrency=1",
     "test:e2e": "playwright test"

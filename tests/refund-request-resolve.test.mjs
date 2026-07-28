@@ -178,6 +178,38 @@ describe('admin resolves refund requests', () => {
     );
   });
 
+  it('lets the customer re-file after a rejection, re-opening the same request', async () => {
+    const { requestId, refundRequestId } = await openRefundRequest();
+    await resolveRefund(refundRequestId, ADMIN_ID, 'admin', {
+      decision: 'reject',
+      note: 'Not this time.',
+    });
+
+    // The appeal: a fresh reason re-opens the request (same row, resolution cleared).
+    const res = await api(
+      CUSTOMER_ID,
+      'customer',
+      'POST',
+      `/service-requests/${requestId}/refund-request`,
+      {
+        reason: 'New evidence: the leak came back.',
+      },
+    );
+    assert.equal(res.status, 201);
+    const reopened = await res.json();
+    assert.equal(reopened.id, refundRequestId);
+    assert.equal(reopened.status, 'open');
+    assert.equal(reopened.reason, 'New evidence: the leak came back.');
+    assert.equal(reopened.resolutionNote, undefined);
+    assert.equal(reopened.resolvedAt, undefined);
+
+    // The admin can resolve the re-opened request again.
+    assert.equal(
+      (await resolveRefund(reopened.id, ADMIN_ID, 'admin', { decision: 'approve' })).status,
+      200,
+    );
+  });
+
   it('lists the queue for an admin and filters by status, but forbids non-admins', async () => {
     const { refundRequestId } = await openRefundRequest();
 
