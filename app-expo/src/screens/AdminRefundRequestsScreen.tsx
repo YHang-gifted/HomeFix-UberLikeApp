@@ -44,7 +44,6 @@ export function AdminRefundRequestsScreen({
 
   useEffect(() => {
     let active = true;
-    setQueue(null);
     async function load(): Promise<void> {
       try {
         const found = await activeClient.listRefundRequests(statusFilter);
@@ -123,6 +122,7 @@ export function AdminRefundRequestsScreen({
               style={[styles.chip, selected && styles.chipSelected]}
               onPress={() => {
                 setStatusFilter(filter.value);
+                setQueue(null);
               }}
               accessibilityRole="button"
               accessibilityLabel={`Show ${filter.label.toLowerCase()} refund requests`}
