@@ -91,4 +91,35 @@ describe('AdminRefundRequestsScreen', () => {
     const { findByText } = await render(<AdminRefundRequestsScreen client={clientWith({})} />);
     await findByText('No refund requests awaiting review.');
   });
+
+  it('shows resolved requests as read-only history on a non-open tab', async () => {
+    const listRefundRequests = jest.fn().mockImplementation((status) =>
+      Promise.resolve(
+        status === 'rejected'
+          ? [
+              makeRefundRequest({
+                status: 'rejected',
+                resolutionNote: 'Work was completed as agreed.',
+                resolvedAt: '2026-06-24T00:00:00.000Z',
+              }),
+            ]
+          : [],
+      ),
+    );
+    const client = clientWith({ listRefundRequests });
+
+    const { findByText, findByLabelText, queryByLabelText } = await render(
+      <AdminRefundRequestsScreen client={client} />,
+    );
+
+    // The default Open tab is empty.
+    await findByText('No refund requests awaiting review.');
+
+    // Switch to Rejected → the resolved request shows with its note and no approve/reject actions.
+    await fireEvent.press(await findByLabelText('Show rejected refund requests'));
+    await findByText('Work was completed as agreed.');
+    await findByText(/Rejected ·/); // the outcome line, not the "Rejected" tab chip
+    expect(queryByLabelText(`Approve refund ${RR_ID}`)).toBeNull();
+    expect(listRefundRequests).toHaveBeenCalledWith('rejected');
+  });
 });
