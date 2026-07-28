@@ -15,6 +15,13 @@ import type { RefundRequest } from '../../../shared/schemas';
 import { apiClient } from '../api';
 import { colors, radii, shadow, spacing } from '../theme';
 
+/** The status tabs for the admin queue: open work to action first, then resolved history. */
+const STATUS_FILTERS: { value: RefundRequest['status']; label: string }[] = [
+  { value: 'open', label: 'Open' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
+];
+
 export interface AdminRefundRequestsScreenProps {
   /** Optional client override (used by tests). Defaults to the app singleton. */
   client?: ApiClient;
@@ -33,12 +40,14 @@ export function AdminRefundRequestsScreen({
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [messages, setMessages] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<RefundRequest['status']>('open');
 
   useEffect(() => {
     let active = true;
+    setQueue(null);
     async function load(): Promise<void> {
       try {
-        const found = await activeClient.listRefundRequests('open');
+        const found = await activeClient.listRefundRequests(statusFilter);
         if (active) {
           setQueue(found);
           setError(null);
@@ -53,7 +62,7 @@ export function AdminRefundRequestsScreen({
     return () => {
       active = false;
     };
-  }, [activeClient, refreshToken]);
+  }, [activeClient, refreshToken, statusFilter]);
 
   function setMessage(id: string, message: string): void {
     setMessages((current) => ({ ...current, [id]: message }));
@@ -101,13 +110,39 @@ export function AdminRefundRequestsScreen({
       <Text style={styles.eyebrow}>ADMIN</Text>
       <Text style={styles.heading}>Refund requests</Text>
       <Text style={styles.subheading}>
-        Approve to refund the customer, or reject with a reason.
+        Approve to refund the customer, or reject with a reason. Switch tabs to review resolved
+        history.
       </Text>
+
+      <View style={styles.filters}>
+        {STATUS_FILTERS.map((filter) => {
+          const selected = statusFilter === filter.value;
+          return (
+            <Pressable
+              key={filter.value}
+              style={[styles.chip, selected && styles.chipSelected]}
+              onPress={() => {
+                setStatusFilter(filter.value);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Show ${filter.label.toLowerCase()} refund requests`}
+            >
+              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                {filter.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
       {queue === null ? (
         <ActivityIndicator style={styles.loading} />
       ) : queue.length === 0 ? (
-        <Text style={styles.empty}>No refund requests awaiting review.</Text>
+        <Text style={styles.empty}>
+          {statusFilter === 'open'
+            ? 'No refund requests awaiting review.'
+            : `No ${statusFilter} refund requests.`}
+        </Text>
       ) : (
         queue.map((refundRequest) => {
           const busy = busyId === refundRequest.id;
@@ -119,48 +154,71 @@ export function AdminRefundRequestsScreen({
                 Requested {new Date(refundRequest.createdAt).toLocaleString()}
               </Text>
 
-              <TextInput
-                style={styles.input}
-                value={notes[refundRequest.id] ?? ''}
-                onChangeText={(text) => {
-                  setNotes((current) => ({ ...current, [refundRequest.id]: text }));
-                }}
-                placeholder="Note (required to reject)"
-                accessibilityLabel={`Resolution note for ${refundRequest.id}`}
-                editable={!busy}
-              />
+              {refundRequest.status === 'open' ? (
+                <>
+                  <TextInput
+                    style={styles.input}
+                    value={notes[refundRequest.id] ?? ''}
+                    onChangeText={(text) => {
+                      setNotes((current) => ({ ...current, [refundRequest.id]: text }));
+                    }}
+                    placeholder="Note (required to reject)"
+                    accessibilityLabel={`Resolution note for ${refundRequest.id}`}
+                    editable={!busy}
+                  />
 
-              <View style={styles.actions}>
-                <Pressable
-                  style={({ pressed }) => [styles.approve, pressed && styles.approvePressed]}
-                  onPress={() => {
-                    void resolve(refundRequest, 'approve');
-                  }}
-                  disabled={busy}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Approve refund ${refundRequest.id}`}
-                >
-                  {busy ? (
-                    <ActivityIndicator color={colors.white} />
-                  ) : (
-                    <Text style={styles.approveText}>Approve</Text>
+                  <View style={styles.actions}>
+                    <Pressable
+                      style={({ pressed }) => [styles.approve, pressed && styles.approvePressed]}
+                      onPress={() => {
+                        void resolve(refundRequest, 'approve');
+                      }}
+                      disabled={busy}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Approve refund ${refundRequest.id}`}
+                    >
+                      {busy ? (
+                        <ActivityIndicator color={colors.white} />
+                      ) : (
+                        <Text style={styles.approveText}>Approve</Text>
+                      )}
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [styles.reject, pressed && styles.rejectPressed]}
+                      onPress={() => {
+                        void resolve(refundRequest, 'reject');
+                      }}
+                      disabled={busy}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Reject refund ${refundRequest.id}`}
+                    >
+                      <Text style={styles.rejectText}>Reject</Text>
+                    </Pressable>
+                  </View>
+
+                  {message !== undefined && message !== '' && (
+                    <Text style={styles.message}>{message}</Text>
                   )}
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.reject, pressed && styles.rejectPressed]}
-                  onPress={() => {
-                    void resolve(refundRequest, 'reject');
-                  }}
-                  disabled={busy}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Reject refund ${refundRequest.id}`}
-                >
-                  <Text style={styles.rejectText}>Reject</Text>
-                </Pressable>
-              </View>
-
-              {message !== undefined && message !== '' && (
-                <Text style={styles.message}>{message}</Text>
+                </>
+              ) : (
+                <>
+                  <Text
+                    style={[
+                      styles.outcome,
+                      refundRequest.status === 'approved'
+                        ? styles.outcomeApproved
+                        : styles.outcomeRejected,
+                    ]}
+                  >
+                    {refundRequest.status === 'approved' ? 'Approved' : 'Rejected'}
+                    {refundRequest.resolvedAt !== undefined
+                      ? ` · ${new Date(refundRequest.resolvedAt).toLocaleString()}`
+                      : ''}
+                  </Text>
+                  {refundRequest.resolutionNote !== undefined && (
+                    <Text style={styles.outcomeNote}>{refundRequest.resolutionNote}</Text>
+                  )}
+                </>
               )}
             </View>
           );
@@ -227,4 +285,20 @@ const styles = StyleSheet.create({
   rejectPressed: { backgroundColor: colors.dangerSoft },
   rejectText: { color: colors.danger, fontSize: 15, fontWeight: '700' },
   message: { marginTop: spacing.sm, fontSize: 13, color: colors.danger },
+  filters: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, flexWrap: 'wrap' },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: radii.medium,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  chipSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
+  chipText: { fontSize: 13, fontWeight: '700', color: colors.inkMuted },
+  chipTextSelected: { color: colors.white },
+  outcome: { fontSize: 14, fontWeight: '700', marginTop: spacing.md },
+  outcomeApproved: { color: colors.brand },
+  outcomeRejected: { color: colors.danger },
+  outcomeNote: { fontSize: 13, color: colors.inkMuted, marginTop: spacing.xs, fontStyle: 'italic' },
 });
