@@ -16,6 +16,7 @@ import type {
   CreateServiceRequestInput,
   EarningsSummary,
   ImageContentType,
+  LiveLocation,
   Message,
   Notification,
   NotificationList,
@@ -60,6 +61,7 @@ import {
   connectOnboardingSchema,
   deviceTokenListSchema,
   earningsSummarySchema,
+  liveLocationSchema,
   messageListSchema,
   messageSchema,
   notificationListSchema,
@@ -651,6 +653,15 @@ export class ApiClient {
     const body = origin !== undefined ? { origin } : {};
     const data = await this.send('POST', `/service-requests/${id}/on-my-way`, body, true);
     return serviceRequestSchema.parse(data);
+  }
+
+  /**
+   * The assigned worker posts a live position while on the way; the server relays it to the parties
+   * over the WebSocket and does not store it (live-tracking Phase 2). See `docs/live-tracking.md`.
+   */
+  public async publishLocation(id: string, coords: Coordinates): Promise<LiveLocation> {
+    const data = await this.send('POST', `/service-requests/${id}/location`, coords, true);
+    return liveLocationSchema.parse(data);
   }
 
   /**

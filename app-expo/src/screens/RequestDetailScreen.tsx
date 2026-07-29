@@ -26,7 +26,10 @@ import { mapsUrl } from '../../../app/src/features/location/mapsLink';
 import { staticMapPreviewUrl } from '../staticMap';
 import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
 import { deriveScheduleView } from '../../../app/src/features/schedule/scheduleView';
-import type { LocationProvider } from '../../../app/src/features/location/currentLocation';
+import type {
+  LocationProvider,
+  LocationWatcher,
+} from '../../../app/src/features/location/currentLocation';
 import { fetchCurrentLocation } from '../../../app/src/features/location/currentLocation';
 import { isFuture } from '../../../app/src/features/schedule/scheduleFormat';
 import type { OpenDateTimePicker } from '../../../app/src/features/schedule/dateTimePicker';
@@ -130,6 +133,11 @@ export interface RequestDetailScreenProps {
    * rough ETA. Injected; App.tsx wires the real one, tests pass a fake. Absent → no ETA is sent.
    */
   locationProvider?: LocationProvider;
+  /**
+   * Streams the assigned worker's foreground position while they are on the way, so the customer
+   * sees them move (live-tracking Phase 2). Injected; App.tsx wires the real one, tests pass a fake.
+   */
+  locationWatcher?: LocationWatcher;
 }
 
 export function RequestDetailScreen({
@@ -145,6 +153,7 @@ export function RequestDetailScreen({
   paypalEnabled = process.env.EXPO_PUBLIC_PAYPAL_ENABLED === 'true',
   openDateTimePicker,
   locationProvider,
+  locationWatcher,
 }: RequestDetailScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
   const principal = useMemo(() => activeClient.getPrincipal(), [activeClient]);
@@ -332,6 +341,40 @@ export function RequestDetailScreen({
       active = false;
     };
   }, [activeClient, requestId, principal]);
+
+  // While the assigned worker is on the way, stream their foreground position so the customer can
+  // watch them move (live-tracking Phase 2). Worker-only, only once en route, and only while the app
+  // is open on this screen; the stream stops on unmount or when the job is no longer en route.
+  useEffect(() => {
+    if (locationWatcher === undefined || request === null || principal === null) {
+      return undefined;
+    }
+    const isAssignedWorker = principal.role === 'worker' && principal.id === request.workerId;
+    const active = request.status !== 'completed' && request.status !== 'cancelled';
+    if (!isAssignedWorker || request.enRouteAt === undefined || !active) {
+      return undefined;
+    }
+    const watcher = locationWatcher;
+    let stop: (() => void) | null = null;
+    let cancelled = false;
+    async function start(): Promise<void> {
+      const stopFn = await watcher.watch((coords) => {
+        void activeClient.publishLocation(requestId, coords).catch(() => undefined);
+      });
+      if (cancelled) {
+        stopFn();
+      } else {
+        stop = stopFn;
+      }
+    }
+    void start();
+    return () => {
+      cancelled = true;
+      if (stop !== null) {
+        stop();
+      }
+    };
+  }, [locationWatcher, request, principal, requestId, activeClient]);
 
   async function cancel(): Promise<void> {
     setCancelling(true);
