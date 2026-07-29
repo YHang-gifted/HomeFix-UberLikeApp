@@ -5,6 +5,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 
 import type { Principal } from '../../../shared/schemas.ts';
 import { verifyToken } from '../auth/jwt.ts';
+import { locationHub } from '../services/locationHub.ts';
 import { messageHub } from '../services/messageHub.ts';
 import { isRequestParty } from '../services/serviceRequestService.ts';
 import { serviceRequestRepository } from '../repositories/serviceRequestRepository.ts';
@@ -79,16 +80,32 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
     return;
   }
 
-  const unsubscribe = messageHub.subscribe(auth.requestId, (message) => {
+  const unsubscribeMessages = messageHub.subscribe(auth.requestId, (message) => {
     if (socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify(message));
     }
   });
-  socket.on('close', unsubscribe);
-  socket.on('error', unsubscribe);
+  // The same per-request channel also relays the worker's live position while they are on the way
+  // (live-tracking Phase 2), tagged `type:'location'` so the client can tell it from a chat message.
+  const unsubscribeLocation = locationHub.subscribe(auth.requestId, (location) => {
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'location', location }));
+    }
+  });
+  const cleanup = (): void => {
+    unsubscribeMessages();
+    unsubscribeLocation();
+  };
+  socket.on('close', cleanup);
+  socket.on('error', cleanup);
   // Tell the client the subscription is live, so it knows messages posted from
   // now on will be pushed (and tests can post without racing the subscribe).
   socket.send(JSON.stringify({ type: 'ready' }));
+  // A party joining mid-trip sees the worker's last known position immediately.
+  const latestLocation = locationHub.latest(auth.requestId);
+  if (latestLocation !== undefined) {
+    socket.send(JSON.stringify({ type: 'location', location: latestLocation }));
+  }
 }
 
 /**
