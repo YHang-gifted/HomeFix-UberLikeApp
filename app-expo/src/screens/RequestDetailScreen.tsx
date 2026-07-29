@@ -26,6 +26,8 @@ import { mapsUrl } from '../../../app/src/features/location/mapsLink';
 import { staticMapPreviewUrl } from '../staticMap';
 import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
 import { deriveScheduleView } from '../../../app/src/features/schedule/scheduleView';
+import type { LocationProvider } from '../../../app/src/features/location/currentLocation';
+import { fetchCurrentLocation } from '../../../app/src/features/location/currentLocation';
 import { isFuture } from '../../../app/src/features/schedule/scheduleFormat';
 import type { OpenDateTimePicker } from '../../../app/src/features/schedule/dateTimePicker';
 import type {
@@ -123,6 +125,11 @@ export interface RequestDetailScreenProps {
    * one; tests pass a fake. Left undefined the propose field is hidden.
    */
   openDateTimePicker?: OpenDateTimePicker;
+  /**
+   * Reads the worker's current location when they tap "On my way", so the server can attach a
+   * rough ETA. Injected; App.tsx wires the real one, tests pass a fake. Absent → no ETA is sent.
+   */
+  locationProvider?: LocationProvider;
 }
 
 export function RequestDetailScreen({
@@ -137,6 +144,7 @@ export function RequestDetailScreen({
   mapPreviewUrl = staticMapPreviewUrl,
   paypalEnabled = process.env.EXPO_PUBLIC_PAYPAL_ENABLED === 'true',
   openDateTimePicker,
+  locationProvider,
 }: RequestDetailScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
   const principal = useMemo(() => activeClient.getPrincipal(), [activeClient]);
@@ -391,6 +399,28 @@ export function RequestDetailScreen({
     } catch (failure) {
       setScheduleError(
         isApiError(failure) ? failure.message : 'Could not confirm the time. Please try again.',
+      );
+    } finally {
+      setScheduling(false);
+    }
+  }
+
+  /** The assigned worker sets out. Try to read a location for the ETA, but proceed without it. */
+  async function goEnRoute(): Promise<void> {
+    setScheduling(true);
+    setScheduleError(null);
+    try {
+      let origin: Coordinates | undefined;
+      if (locationProvider !== undefined) {
+        const outcome = await fetchCurrentLocation(locationProvider);
+        if (outcome.ok) {
+          origin = { latitude: Number(outcome.latitude), longitude: Number(outcome.longitude) };
+        }
+      }
+      setRequest(await activeClient.markEnRoute(requestId, origin));
+    } catch (failure) {
+      setScheduleError(
+        isApiError(failure) ? failure.message : 'Could not update your status. Please try again.',
       );
     } finally {
       setScheduling(false);
@@ -858,6 +888,12 @@ export function RequestDetailScreen({
           <Text style={styles.label}>Visit time</Text>
           <Text style={styles.value}>{scheduleView.summary}</Text>
 
+          {scheduleView.enRouteSummary !== null && (
+            <Text style={styles.enRouteSummary} accessibilityLabel="On the way status">
+              {scheduleView.enRouteSummary}
+            </Text>
+          )}
+
           {scheduleView.canConfirm && (
             <Pressable
               style={({ pressed }) => [
@@ -900,6 +936,23 @@ export function RequestDetailScreen({
                 <Text style={styles.proposeVisitButtonText}>{scheduleView.proposeLabel}</Text>
               </Pressable>
             </>
+          )}
+
+          {scheduleView.canMarkEnRoute && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.proposeVisitButton,
+                pressed && styles.proposeVisitButtonPressed,
+              ]}
+              onPress={() => {
+                void goEnRoute();
+              }}
+              disabled={scheduling}
+              accessibilityRole="button"
+              accessibilityLabel="On my way"
+            >
+              <Text style={styles.proposeVisitButtonText}>On my way</Text>
+            </Pressable>
           )}
 
           {scheduleError !== null && <Text style={styles.error}>{scheduleError}</Text>}
@@ -1834,6 +1887,7 @@ const styles = StyleSheet.create({
   },
   proposeVisitButtonPressed: { backgroundColor: colors.canvas },
   proposeVisitButtonText: { color: colors.brand, fontSize: 15, fontWeight: '700' },
+  enRouteSummary: { marginTop: 6, fontSize: 14, fontWeight: '700', color: colors.brand },
   payButton: {
     marginTop: 12,
     backgroundColor: colors.brand,

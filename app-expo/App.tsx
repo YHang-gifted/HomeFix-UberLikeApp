@@ -252,6 +252,7 @@ function RequestDetailRoute({
       openCheckout={deviceOpenCheckout}
       confirmCardAction={deviceConfirmCardAction}
       openDateTimePicker={openDeviceDateTimePicker}
+      locationProvider={deviceLocationProvider}
       onCancelled={() => {
         navigation.goBack();
       }}
