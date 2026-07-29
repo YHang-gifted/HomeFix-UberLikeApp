@@ -22,6 +22,13 @@ export interface ScheduleView {
   canPropose: boolean;
   /** 'Propose a time' the first time, 'Propose a new time' once one is agreed. */
   proposeLabel: string;
+  /**
+   * The assigned worker may set out ("on my way") for a confirmed visit they have not yet started
+   * heading to. Live-tracking Phase 1 — see `docs/live-tracking.md`.
+   */
+  canMarkEnRoute: boolean;
+  /** A line shown once the worker is on the way, written for the viewer; null before then. */
+  enRouteSummary: string | null;
 }
 
 /** Which scheduling party the viewer is, or null if they are not a party (e.g. an admin). */
@@ -81,11 +88,29 @@ export function deriveScheduleView(input: ScheduleViewInput): ScheduleView {
     summary = 'No visit time agreed yet.';
   }
 
+  const canMarkEnRoute =
+    me === 'worker' &&
+    isNegotiable(request) &&
+    request.scheduleStatus === 'confirmed' &&
+    request.enRouteAt === undefined;
+
+  let enRouteSummary: string | null = null;
+  if (request.enRouteAt !== undefined) {
+    const etaText =
+      request.enRouteEtaMinutes !== undefined
+        ? ` — about ${String(request.enRouteEtaMinutes)} min away`
+        : '';
+    enRouteSummary =
+      me === 'worker' ? "You're on the way to this visit." : `Your worker is on the way${etaText}.`;
+  }
+
   return {
     visible: request.scheduledAt !== undefined || canAct,
     summary,
     canConfirm,
     canPropose: canAct,
     proposeLabel: request.scheduleStatus === 'confirmed' ? 'Propose a new time' : 'Propose a time',
+    canMarkEnRoute,
+    enRouteSummary,
   };
 }

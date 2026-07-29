@@ -93,6 +93,49 @@ describe('deriveScheduleView', () => {
     assert.match(view.summary, /not yet confirmed/);
   });
 
+  it('lets the assigned worker set out once the visit is confirmed', () => {
+    const confirmed = makeRequest({
+      scheduledAt: WHEN,
+      scheduleStatus: 'confirmed',
+      scheduleProposedBy: 'customer',
+    });
+    assert.equal(
+      deriveScheduleView({ principal: WORKER, request: confirmed }).canMarkEnRoute,
+      true,
+    );
+    // Not the worker, or a time that is not confirmed → no en-route action.
+    assert.equal(
+      deriveScheduleView({ principal: CUSTOMER, request: confirmed }).canMarkEnRoute,
+      false,
+    );
+    const proposed = makeRequest({
+      scheduledAt: WHEN,
+      scheduleStatus: 'proposed',
+      scheduleProposedBy: 'customer',
+    });
+    assert.equal(
+      deriveScheduleView({ principal: WORKER, request: proposed }).canMarkEnRoute,
+      false,
+    );
+  });
+
+  it('shows an on-the-way line with the ETA once the worker sets out, and hides the action', () => {
+    const enRoute = makeRequest({
+      scheduledAt: WHEN,
+      scheduleStatus: 'confirmed',
+      scheduleProposedBy: 'customer',
+      enRouteAt: '2030-08-01T14:00:00.000Z',
+      enRouteEtaMinutes: 20,
+    });
+    const customerView = deriveScheduleView({ principal: CUSTOMER, request: enRoute });
+    assert.match(customerView.enRouteSummary ?? '', /on the way/i);
+    assert.match(customerView.enRouteSummary ?? '', /20 min/);
+    // Already en route → the worker no longer sees the action, but does see the status.
+    const workerView = deriveScheduleView({ principal: WORKER, request: enRoute });
+    assert.equal(workerView.canMarkEnRoute, false);
+    assert.match(workerView.enRouteSummary ?? '', /on the way/i);
+  });
+
   it('offers nothing on a closed job, or one with no worker to agree with', () => {
     for (const overrides of [{ status: 'completed' }, { status: 'cancelled' }]) {
       const view = deriveScheduleView({ principal: WORKER, request: makeRequest(overrides) });

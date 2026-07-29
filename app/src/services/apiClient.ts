@@ -9,6 +9,7 @@ import type {
   CertificationStatus,
   CheckoutSession,
   ConnectOnboarding,
+  Coordinates,
   CreateCertificationInput,
   CreateQuoteInput,
   CreateReviewInput,
@@ -638,6 +639,17 @@ export class ApiClient {
       undefined,
       true,
     );
+    return serviceRequestSchema.parse(data);
+  }
+
+  /**
+   * The assigned worker sets out for the confirmed visit ("on my way"). Sends their departure
+   * `origin` when the app could read a location, so the server can attach a rough ETA; omitted
+   * otherwise (the customer is still notified, just without an ETA). See `docs/live-tracking.md`.
+   */
+  public async markEnRoute(id: string, origin?: Coordinates): Promise<ServiceRequest> {
+    const body = origin !== undefined ? { origin } : {};
+    const data = await this.send('POST', `/service-requests/${id}/on-my-way`, body, true);
     return serviceRequestSchema.parse(data);
   }
 
