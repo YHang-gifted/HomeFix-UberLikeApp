@@ -31,11 +31,13 @@ import type {
   LocationWatcher,
 } from '../../../app/src/features/location/currentLocation';
 import { fetchCurrentLocation } from '../../../app/src/features/location/currentLocation';
+import type { ConnectLocationStream } from '../../../app/src/features/tracking/liveLocationStream';
 import { isFuture } from '../../../app/src/features/schedule/scheduleFormat';
 import type { OpenDateTimePicker } from '../../../app/src/features/schedule/dateTimePicker';
 import type {
   AuditEvent,
   Coordinates,
+  LiveLocation,
   Payment,
   PaymentMethod,
   PriceEstimate,
@@ -138,6 +140,11 @@ export interface RequestDetailScreenProps {
    * sees them move (live-tracking Phase 2). Injected; App.tsx wires the real one, tests pass a fake.
    */
   locationWatcher?: LocationWatcher;
+  /**
+   * Subscribes to the worker's live position while they are on the way, so the customer sees them
+   * move on a map (live-tracking Phase 2). Injected; App.tsx wires the real one, tests pass a fake.
+   */
+  connectLocationStream?: ConnectLocationStream;
 }
 
 export function RequestDetailScreen({
@@ -154,6 +161,7 @@ export function RequestDetailScreen({
   openDateTimePicker,
   locationProvider,
   locationWatcher,
+  connectLocationStream,
 }: RequestDetailScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
   const principal = useMemo(() => activeClient.getPrincipal(), [activeClient]);
@@ -194,6 +202,7 @@ export function RequestDetailScreen({
   const [payment, setPayment] = useState<Payment | null>(null);
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [refundRequest, setRefundRequest] = useState<RefundRequest | null>(null);
+  const [workerLocation, setWorkerLocation] = useState<LiveLocation | null>(null);
   const [refundReason, setRefundReason] = useState('');
   const [refundBusy, setRefundBusy] = useState(false);
   const [refundError, setRefundError] = useState<string | null>(null);
@@ -375,6 +384,25 @@ export function RequestDetailScreen({
       }
     };
   }, [locationWatcher, request, principal, requestId, activeClient]);
+
+  // The owning customer watches the worker move while they are on the way (live-tracking Phase 2):
+  // subscribe to the live-location stream and keep the latest position. Owner-only, only en route.
+  useEffect(() => {
+    if (connectLocationStream === undefined || request === null || principal === null) {
+      return undefined;
+    }
+    const isViewerOwner = principal.role === 'customer' && principal.id === request.customerId;
+    const active = request.status !== 'completed' && request.status !== 'cancelled';
+    if (!isViewerOwner || request.enRouteAt === undefined || !active) {
+      return undefined;
+    }
+    const subscription = connectLocationStream(requestId, (location) => {
+      setWorkerLocation(location);
+    });
+    return () => {
+      subscription.close();
+    };
+  }, [connectLocationStream, request, principal, requestId]);
 
   async function cancel(): Promise<void> {
     setCancelling(true);
@@ -833,6 +861,10 @@ export function RequestDetailScreen({
   });
   const scheduleView = deriveScheduleView({ principal, request });
   const locationPreview = mapPreviewUrl(request.location);
+  const workerMapPreview =
+    workerLocation !== null
+      ? mapPreviewUrl({ latitude: workerLocation.latitude, longitude: workerLocation.longitude })
+      : null;
   const paymentAmountValue =
     amountText !== ''
       ? amountText
@@ -999,6 +1031,20 @@ export function RequestDetailScreen({
           )}
 
           {scheduleError !== null && <Text style={styles.error}>{scheduleError}</Text>}
+        </View>
+      )}
+
+      {isOwner && request.enRouteAt !== undefined && workerLocation !== null && (
+        <View style={styles.liveMap} accessibilityLabel="Worker live location">
+          <Text style={styles.label}>Worker location (live)</Text>
+          {workerMapPreview !== null && (
+            <Image
+              source={{ uri: workerMapPreview }}
+              style={styles.mapPreview}
+              resizeMode="cover"
+            />
+          )}
+          <Text style={styles.enRouteSummary}>Your worker is on the way — updating live.</Text>
         </View>
       )}
 
@@ -1931,6 +1977,7 @@ const styles = StyleSheet.create({
   proposeVisitButtonPressed: { backgroundColor: colors.canvas },
   proposeVisitButtonText: { color: colors.brand, fontSize: 15, fontWeight: '700' },
   enRouteSummary: { marginTop: 6, fontSize: 14, fontWeight: '700', color: colors.brand },
+  liveMap: { marginTop: 12 },
   payButton: {
     marginTop: 12,
     backgroundColor: colors.brand,

@@ -33,17 +33,22 @@ export function mergeIncomingMessage(current: Message[] | null, incoming: Messag
   return [...current, incoming];
 }
 
-/** Callbacks a single socket attempt reports back to the reconnect wrapper. */
-export interface SocketHooks {
-  onMessage: (message: Message) => void;
+/** Callbacks a single socket attempt reports back to the reconnect wrapper. Generic over the item
+ *  type so the same backoff logic drives both the chat stream and the live-location stream. */
+export interface StreamHooks<T> {
+  onMessage: (item: T) => void;
   /** The connection is live — used to reset the backoff. */
   onOpen: () => void;
   /** The connection ended; `code` is the close code, when known. */
   onClose: (code?: number) => void;
 }
+/** @deprecated Chat-specific alias of {@link StreamHooks}. */
+export type SocketHooks = StreamHooks<Message>;
 
 /** Opens one socket attempt, wired to the given hooks; returns how to close it. */
-export type OpenMessageSocket = (hooks: SocketHooks) => { close: () => void };
+export type OpenStream<T> = (hooks: StreamHooks<T>) => { close: () => void };
+/** @deprecated Chat-specific alias of {@link OpenStream}. */
+export type OpenMessageSocket = OpenStream<Message>;
 
 export interface ReconnectOptions {
   /** First reconnect delay; doubles each attempt. Default 1000ms. */
@@ -65,9 +70,9 @@ export interface ReconnectOptions {
  * closes (e.g. an auth rejection that a retry can't fix). Pure and fully
  * injectable, so the backoff logic is testable without a real WebSocket or timers.
  */
-export function createReconnectingStream(
-  open: OpenMessageSocket,
-  onMessage: MessageStreamListener,
+export function createReconnectingStream<T>(
+  open: OpenStream<T>,
+  onItem: (item: T) => void,
   options: ReconnectOptions = {},
 ): MessageStreamSubscription {
   const baseDelayMs = options.baseDelayMs ?? 1000;
@@ -90,9 +95,9 @@ export function createReconnectingStream(
       return;
     }
     current = open({
-      onMessage: (message) => {
+      onMessage: (item) => {
         if (!closed) {
-          onMessage(message);
+          onItem(item);
         }
       },
       onOpen: () => {
