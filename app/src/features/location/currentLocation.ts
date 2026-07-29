@@ -13,6 +13,16 @@ export interface LocationProvider {
   getCurrentPosition(): Promise<DeviceCoordinates>;
 }
 
+/**
+ * Injectable source of a **stream** of foreground position updates, for live-tracking a worker on
+ * the way to a visit (live-tracking Phase 2). The real implementation (app-expo) wraps
+ * `expo-location`'s `watchPositionAsync`; tests pass a fake. `watch` resolves to a stop function the
+ * caller calls to end the stream (on unmount / when no longer en route).
+ */
+export interface LocationWatcher {
+  watch(onUpdate: (coords: DeviceCoordinates) => void): Promise<() => void>;
+}
+
 /** Format raw coordinates into the string values the create-request form uses. */
 export function toCoordinateStrings(coords: DeviceCoordinates): {
   latitude: string;

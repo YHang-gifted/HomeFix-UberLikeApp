@@ -62,6 +62,42 @@ describe('RequestDetailScreen — worker on my way', () => {
     await findByText(/on the way/i);
   });
 
+  it('streams the assigned worker location while en route', async () => {
+    const enRoute = makeRequest({
+      status: 'in_progress',
+      enRouteAt: '2030-08-01T14:00:00.000Z',
+      enRouteEtaMinutes: 18,
+    });
+    const publishLocation = jest.fn().mockResolvedValue({});
+    const client = clientWith(
+      { getServiceRequest: jest.fn().mockResolvedValue(enRoute), publishLocation },
+      WORKER,
+    );
+    let emit: ((coords: { latitude: number; longitude: number }) => void) | undefined;
+    const locationWatcher = {
+      watch: (onUpdate: (coords: { latitude: number; longitude: number }) => void) => {
+        emit = onUpdate;
+        return Promise.resolve(() => undefined);
+      },
+    };
+
+    await render(
+      <RequestDetailScreen
+        requestId={REQUEST_ID}
+        client={client}
+        locationWatcher={locationWatcher}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(emit).toBeDefined();
+    });
+    emit?.({ latitude: 40.7, longitude: -74 });
+    await waitFor(() => {
+      expect(publishLocation).toHaveBeenCalledWith(REQUEST_ID, { latitude: 40.7, longitude: -74 });
+    });
+  });
+
   it('shows the customer an on-the-way line with the ETA and no action', async () => {
     const enRoute = makeRequest({ enRouteAt: '2030-08-01T14:00:00.000Z', enRouteEtaMinutes: 18 });
     const client = clientWith(
