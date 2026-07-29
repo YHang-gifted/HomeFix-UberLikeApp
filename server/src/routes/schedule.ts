@@ -1,6 +1,7 @@
 import express from 'express';
 
 import {
+  postServiceRequestLocation,
   postServiceRequestOnMyWay,
   postServiceRequestSchedule,
   postServiceRequestScheduleConfirm,
@@ -16,3 +17,4 @@ scheduleRouter.post(
   postServiceRequestScheduleConfirm,
 );
 scheduleRouter.post('/service-requests/:id/on-my-way', authenticate, postServiceRequestOnMyWay);
+scheduleRouter.post('/service-requests/:id/location', authenticate, postServiceRequestLocation);

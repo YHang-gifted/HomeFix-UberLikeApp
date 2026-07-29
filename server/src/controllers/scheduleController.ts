@@ -1,9 +1,14 @@
 import type { NextFunction, Request, Response } from 'express';
 
-import { onMyWayInputSchema, proposeScheduleInputSchema } from '../../../shared/schemas.ts';
+import {
+  coordinatesSchema,
+  onMyWayInputSchema,
+  proposeScheduleInputSchema,
+} from '../../../shared/schemas.ts';
 import { AppError } from '../errors/appError.ts';
 import { requirePrincipal } from '../middlewares/auth.ts';
 import { confirmSchedule, markEnRoute, proposeSchedule } from '../services/scheduleService.ts';
+import { publishLiveLocation } from '../services/trackingService.ts';
 import { parseUuidParam } from './parseUuidParam.ts';
 
 function parseId(req: Request, next: NextFunction): string | undefined {
@@ -86,6 +91,35 @@ export async function postServiceRequestOnMyWay(
 
   try {
     res.status(200).json(await markEnRoute(id, parsed.data, principal));
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** The assigned worker posts their live position while on the way — relayed to the parties, not stored. */
+export async function postServiceRequestLocation(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const principal = requirePrincipal(req, next);
+  if (!principal) {
+    return;
+  }
+
+  const id = parseId(req, next);
+  if (id === undefined) {
+    return;
+  }
+
+  const parsed = coordinatesSchema.safeParse(req.body);
+  if (!parsed.success) {
+    next(new AppError('Invalid location payload', 422));
+    return;
+  }
+
+  try {
+    res.status(200).json(await publishLiveLocation(id, parsed.data, principal));
   } catch (error) {
     next(error);
   }

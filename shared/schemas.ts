@@ -139,6 +139,19 @@ export const onMyWayInputSchema = z.object({
 });
 export type OnMyWayInput = z.infer<typeof onMyWayInputSchema>;
 
+/**
+ * A worker's live position, relayed to the request's parties over the WebSocket while they are on
+ * the way to a visit (live-tracking Phase 2). Ephemeral — never stored. See `docs/live-tracking.md`.
+ * The worker posts a bare {@link coordinatesSchema}; the server stamps `requestId` and `at`.
+ */
+export const liveLocationSchema = z.object({
+  requestId: z.uuid(),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  at: z.iso.datetime(),
+});
+export type LiveLocation = z.infer<typeof liveLocationSchema>;
+
 export const serviceRequestPageSchema = z.object({
   items: z.array(serviceRequestSchema),
   total: z.number().int().nonnegative(),
