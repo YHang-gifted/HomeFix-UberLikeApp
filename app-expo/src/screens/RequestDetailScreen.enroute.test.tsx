@@ -1,7 +1,7 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
-import type { Principal, ServiceRequest } from '../../../shared/schemas';
+import type { LiveLocation, Principal, ServiceRequest } from '../../../shared/schemas';
 import { RequestDetailScreen } from './RequestDetailScreen';
 
 // Live-tracking Phase 1 (app): the assigned worker sets out ("On my way") for a confirmed visit,
@@ -96,6 +96,47 @@ describe('RequestDetailScreen — worker on my way', () => {
     await waitFor(() => {
       expect(publishLocation).toHaveBeenCalledWith(REQUEST_ID, { latitude: 40.7, longitude: -74 });
     });
+  });
+
+  it('shows the customer the worker live location once a position arrives', async () => {
+    const enRoute = makeRequest({
+      status: 'in_progress',
+      enRouteAt: '2030-08-01T14:00:00.000Z',
+      enRouteEtaMinutes: 18,
+    });
+    const client = clientWith(
+      { getServiceRequest: jest.fn().mockResolvedValue(enRoute) },
+      CUSTOMER,
+    );
+    let emitLoc: ((location: LiveLocation) => void) | undefined;
+    const connectLocationStream = (
+      _requestId: string,
+      onLocation: (location: LiveLocation) => void,
+    ) => {
+      emitLoc = onLocation;
+      return { close: () => undefined };
+    };
+
+    const { findByText, queryByText } = await render(
+      <RequestDetailScreen
+        requestId={REQUEST_ID}
+        client={client}
+        connectLocationStream={connectLocationStream}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(emitLoc).toBeDefined();
+    });
+    // Nothing shown until a position arrives.
+    expect(queryByText(/updating live/i)).toBeNull();
+    emitLoc?.({
+      requestId: REQUEST_ID,
+      latitude: 40.7,
+      longitude: -74,
+      at: '2030-08-01T14:01:00.000Z',
+    });
+    await findByText(/updating live/i);
   });
 
   it('shows the customer an on-the-way line with the ETA and no action', async () => {
