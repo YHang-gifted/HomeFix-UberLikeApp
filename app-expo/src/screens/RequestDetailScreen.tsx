@@ -24,6 +24,7 @@ import type { OpenCheckout } from '../../../app/src/features/payments/checkout';
 import type { ConfirmCardAction } from '../../../app/src/features/payments/cardAction';
 import { mapsUrl } from '../../../app/src/features/location/mapsLink';
 import { staticMapPreviewUrl } from '../staticMap';
+import type { LiveMapView } from '../liveMap';
 import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
 import { deriveScheduleView } from '../../../app/src/features/schedule/scheduleView';
 import type {
@@ -145,6 +146,12 @@ export interface RequestDetailScreenProps {
    * move on a map (live-tracking Phase 2). Injected; App.tsx wires the real one, tests pass a fake.
    */
   connectLocationStream?: ConnectLocationStream;
+  /**
+   * Draws the worker's live position on an interactive map (live-tracking Phase 2b). Injected;
+   * App.tsx wires the real `react-native-maps` view, tests pass a fake. Absent (web, or no Maps key)
+   * → the customer sees the static map thumbnail instead.
+   */
+  liveMap?: LiveMapView;
 }
 
 export function RequestDetailScreen({
@@ -162,6 +169,7 @@ export function RequestDetailScreen({
   locationProvider,
   locationWatcher,
   connectLocationStream,
+  liveMap: LiveMap,
 }: RequestDetailScreenProps): ReactElement {
   const activeClient = useMemo(() => client ?? apiClient, [client]);
   const principal = useMemo(() => activeClient.getPrincipal(), [activeClient]);
@@ -1037,12 +1045,19 @@ export function RequestDetailScreen({
       {isOwner && request.enRouteAt !== undefined && workerLocation !== null && (
         <View style={styles.liveMap} accessibilityLabel="Worker live location">
           <Text style={styles.label}>Worker location (live)</Text>
-          {workerMapPreview !== null && (
-            <Image
-              source={{ uri: workerMapPreview }}
-              style={styles.mapPreview}
-              resizeMode="cover"
+          {LiveMap !== undefined ? (
+            <LiveMap
+              worker={{ latitude: workerLocation.latitude, longitude: workerLocation.longitude }}
+              destination={request.location}
             />
+          ) : (
+            workerMapPreview !== null && (
+              <Image
+                source={{ uri: workerMapPreview }}
+                style={styles.mapPreview}
+                resizeMode="cover"
+              />
+            )
           )}
           <Text style={styles.enRouteSummary}>Your worker is on the way — updating live.</Text>
         </View>
