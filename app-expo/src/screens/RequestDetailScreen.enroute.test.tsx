@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
 import type { LiveLocation, Principal, ServiceRequest } from '../../../shared/schemas';
@@ -130,11 +130,13 @@ describe('RequestDetailScreen — worker on my way', () => {
     });
     // Nothing shown until a position arrives.
     expect(queryByText(/updating live/i)).toBeNull();
-    emitLoc?.({
-      requestId: REQUEST_ID,
-      latitude: 40.7,
-      longitude: -74,
-      at: '2030-08-01T14:01:00.000Z',
+    act(() => {
+      emitLoc?.({
+        requestId: REQUEST_ID,
+        latitude: 40.7,
+        longitude: -74,
+        at: '2030-08-01T14:01:00.000Z',
+      });
     });
     await findByText(/updating live/i);
   });
