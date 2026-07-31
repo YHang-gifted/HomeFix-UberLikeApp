@@ -27,11 +27,9 @@ import { staticMapPreviewUrl } from '../staticMap';
 import type { LiveMapView } from '../liveMap';
 import { deriveQuoteView } from '../../../app/src/features/quotes/quoteView';
 import { deriveScheduleView } from '../../../app/src/features/schedule/scheduleView';
-import type {
-  LocationProvider,
-  LocationWatcher,
-} from '../../../app/src/features/location/currentLocation';
+import type { LocationProvider } from '../../../app/src/features/location/currentLocation';
 import { fetchCurrentLocation } from '../../../app/src/features/location/currentLocation';
+import type { BackgroundTracker } from '../../../app/src/features/tracking/backgroundTracker';
 import type { ConnectLocationStream } from '../../../app/src/features/tracking/liveLocationStream';
 import { isFuture } from '../../../app/src/features/schedule/scheduleFormat';
 import type { OpenDateTimePicker } from '../../../app/src/features/schedule/dateTimePicker';
@@ -137,10 +135,10 @@ export interface RequestDetailScreenProps {
    */
   locationProvider?: LocationProvider;
   /**
-   * Streams the assigned worker's foreground position while they are on the way, so the customer
-   * sees them move (live-tracking Phase 2). Injected; App.tsx wires the real one, tests pass a fake.
+   * Reports the assigned worker's position while they are on the way, so the customer sees them
+   * move (live-tracking Phase 2). Injected; App.tsx wires the real one, tests pass a fake.
    */
-  locationWatcher?: LocationWatcher;
+  backgroundTracker?: BackgroundTracker;
   /**
    * Subscribes to the worker's live position while they are on the way, so the customer sees them
    * move on a map (live-tracking Phase 2). Injected; App.tsx wires the real one, tests pass a fake.
@@ -167,7 +165,7 @@ export function RequestDetailScreen({
   paypalEnabled = process.env.EXPO_PUBLIC_PAYPAL_ENABLED === 'true',
   openDateTimePicker,
   locationProvider,
-  locationWatcher,
+  backgroundTracker,
   connectLocationStream,
   liveMap: LiveMap,
 }: RequestDetailScreenProps): ReactElement {
@@ -359,11 +357,12 @@ export function RequestDetailScreen({
     };
   }, [activeClient, requestId, principal]);
 
-  // While the assigned worker is on the way, stream their foreground position so the customer can
-  // watch them move (live-tracking Phase 2). Worker-only, only once en route, and only while the app
-  // is open on this screen; the stream stops on unmount or when the job is no longer en route.
+  // While the assigned worker is on the way, report their position so the customer can watch them
+  // move (live-tracking Phase 2). Worker-only, only once en route. The tracker owns publishing (and,
+  // in a later slice, keeps reporting in the background); here we just start it and stop on unmount
+  // or when the job is no longer en route.
   useEffect(() => {
-    if (locationWatcher === undefined || request === null || principal === null) {
+    if (backgroundTracker === undefined || request === null || principal === null) {
       return undefined;
     }
     const isAssignedWorker = principal.role === 'worker' && principal.id === request.workerId;
@@ -371,27 +370,12 @@ export function RequestDetailScreen({
     if (!isAssignedWorker || request.enRouteAt === undefined || !active) {
       return undefined;
     }
-    const watcher = locationWatcher;
-    let stop: (() => void) | null = null;
-    let cancelled = false;
-    async function start(): Promise<void> {
-      const stopFn = await watcher.watch((coords) => {
-        void activeClient.publishLocation(requestId, coords).catch(() => undefined);
-      });
-      if (cancelled) {
-        stopFn();
-      } else {
-        stop = stopFn;
-      }
-    }
-    void start();
+    const tracker = backgroundTracker;
+    void tracker.start(requestId);
     return () => {
-      cancelled = true;
-      if (stop !== null) {
-        stop();
-      }
+      void tracker.stop();
     };
-  }, [locationWatcher, request, principal, requestId, activeClient]);
+  }, [backgroundTracker, request, principal, requestId]);
 
   // The owning customer watches the worker move while they are on the way (live-tracking Phase 2):
   // subscribe to the live-location stream and keep the latest position. Owner-only, only en route.

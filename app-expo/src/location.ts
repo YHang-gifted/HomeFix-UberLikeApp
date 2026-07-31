@@ -3,7 +3,6 @@ import * as Location from 'expo-location';
 import type {
   DeviceCoordinates,
   LocationProvider,
-  LocationWatcher,
 } from '../../app/src/features/location/currentLocation';
 import { resolveDevicePosition } from '../../app/src/features/location/currentLocation';
 import type { GeocodeResult, Geocoder } from '../../app/src/features/location/geocoding';
@@ -36,30 +35,6 @@ export const deviceLocationProvider: LocationProvider = {
         return { latitude: position.coords.latitude, longitude: position.coords.longitude };
       },
     });
-  },
-};
-
-/**
- * The real foreground location stream, backed by `expo-location`'s `watchPositionAsync`. Used to
- * live-track the assigned worker on the way to a visit (Phase 2). Foreground only — it runs while
- * the app is open on the request screen; no background permission. A denied permission yields a
- * no-op stream (the stop function still resolves) so the caller never has to special-case it.
- */
-export const deviceLocationWatcher: LocationWatcher = {
-  async watch(onUpdate: (coords: DeviceCoordinates) => void): Promise<() => void> {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      return () => undefined;
-    }
-    const subscription = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.Balanced, timeInterval: 5000, distanceInterval: 25 },
-      (position) => {
-        onUpdate({ latitude: position.coords.latitude, longitude: position.coords.longitude });
-      },
-    );
-    return () => {
-      subscription.remove();
-    };
   },
 };
 
