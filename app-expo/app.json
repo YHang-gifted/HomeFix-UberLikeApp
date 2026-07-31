@@ -36,7 +36,11 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "HomeFix uses your location to place your repair request on the map."
+          "locationWhenInUsePermission": "HomeFix uses your location to place your repair request on the map.",
+          "locationAlwaysAndWhenInUsePermission": "HomeFix shares your live location with the customer only while you are on the way to a booked visit, so they can follow your ETA. It stops when you arrive or the job ends.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       [
