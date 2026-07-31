@@ -11,12 +11,13 @@ import { clearSession, persistSession, restoreSession } from '../app/src/auth/se
 import { registerForPush } from '../app/src/features/notifications/pushRegistration';
 import { readResetCode, urlWithoutResetCode } from '../app/src/features/auth/resetLink';
 import { apiClient } from './src/api';
+import { deviceBackgroundTracker } from './src/backgroundTracker';
 import { deviceConfirmCardAction } from './src/cardAction';
 import { deviceOpenCheckout } from './src/checkout';
 import { DateTimePickerHost, openDeviceDateTimePicker } from './src/dateTimePicker';
 import { deviceImagePicker } from './src/imagePicker';
 import { deviceLiveMap, liveMapAvailable } from './src/liveMap';
-import { deviceGeocoder, deviceLocationProvider, deviceLocationWatcher } from './src/location';
+import { deviceGeocoder, deviceLocationProvider } from './src/location';
 import { deviceConnectLocationStream } from './src/locationStream';
 import { MapPickerHost, deviceMapPicker, mapPickerAvailable } from './src/mapPicker';
 import { deviceConnectMessageStream } from './src/messageStream';
@@ -255,7 +256,7 @@ function RequestDetailRoute({
       confirmCardAction={deviceConfirmCardAction}
       openDateTimePicker={openDeviceDateTimePicker}
       locationProvider={deviceLocationProvider}
-      locationWatcher={deviceLocationWatcher}
+      backgroundTracker={deviceBackgroundTracker}
       connectLocationStream={deviceConnectLocationStream}
       liveMap={liveMapAvailable ? deviceLiveMap : undefined}
       onCancelled={() => {

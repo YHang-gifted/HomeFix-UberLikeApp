@@ -64,40 +64,49 @@ describe('RequestDetailScreen — worker on my way', () => {
     await findByText(/on the way/i);
   });
 
-  it('streams the assigned worker location while en route', async () => {
+  it('starts background tracking for the assigned worker while en route', async () => {
     const enRoute = makeRequest({
       status: 'in_progress',
       enRouteAt: '2030-08-01T14:00:00.000Z',
       enRouteEtaMinutes: 18,
     });
-    const publishLocation = jest.fn().mockResolvedValue({});
-    const client = clientWith(
-      { getServiceRequest: jest.fn().mockResolvedValue(enRoute), publishLocation },
-      WORKER,
-    );
-    let emit: ((coords: { latitude: number; longitude: number }) => void) | undefined;
-    const locationWatcher = {
-      watch: (onUpdate: (coords: { latitude: number; longitude: number }) => void) => {
-        emit = onUpdate;
-        return Promise.resolve(() => undefined);
-      },
-    };
+    const client = clientWith({ getServiceRequest: jest.fn().mockResolvedValue(enRoute) }, WORKER);
+    const start = jest.fn().mockResolvedValue(undefined);
+    const backgroundTracker = { start, stop: jest.fn().mockResolvedValue(undefined) };
 
     await render(
       <RequestDetailScreen
         requestId={REQUEST_ID}
         client={client}
-        locationWatcher={locationWatcher}
+        backgroundTracker={backgroundTracker}
       />,
     );
 
     await waitFor(() => {
-      expect(emit).toBeDefined();
+      expect(start).toHaveBeenCalledWith(REQUEST_ID);
     });
-    emit?.({ latitude: 40.7, longitude: -74 });
-    await waitFor(() => {
-      expect(publishLocation).toHaveBeenCalledWith(REQUEST_ID, { latitude: 40.7, longitude: -74 });
-    });
+  });
+
+  it('does not start background tracking before the worker is en route', async () => {
+    // A confirmed visit the worker has NOT set out for (no enRouteAt) must not stream a location.
+    const client = clientWith(
+      { getServiceRequest: jest.fn().mockResolvedValue(makeRequest()) },
+      WORKER,
+    );
+    const start = jest.fn().mockResolvedValue(undefined);
+    const backgroundTracker = { start, stop: jest.fn().mockResolvedValue(undefined) };
+
+    const { findByText } = await render(
+      <RequestDetailScreen
+        requestId={REQUEST_ID}
+        client={client}
+        backgroundTracker={backgroundTracker}
+      />,
+    );
+
+    // Wait until the request has loaded and rendered (so the tracking effect has had its chance).
+    await findByText('Leaking sink');
+    expect(start).not.toHaveBeenCalled();
   });
 
   it('shows the customer the worker live location once a position arrives', async () => {
