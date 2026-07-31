@@ -52,10 +52,8 @@ describe('registerForPush', () => {
   });
 
   it('survives a non-Error rejection', async () => {
-    const outcome = await registerForPush(
-      // eslint-disable-next-line prefer-promise-reject-errors
-      { getToken: () => Promise.reject('a string') },
-      () => Promise.resolve(),
+    const outcome = await registerForPush({ getToken: () => Promise.reject('a string') }, () =>
+      Promise.resolve(),
     );
     assert.deepEqual(outcome, { ok: false, reason: 'error', detail: 'Unknown error' });
   });

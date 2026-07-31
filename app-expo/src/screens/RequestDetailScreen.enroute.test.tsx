@@ -1,6 +1,8 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Text } from 'react-native';
 
 import type { ApiClient } from '../../../app/src/services/apiClient';
+import type { LiveMapProps } from '../../../app/src/features/tracking/liveMap';
 import type { LiveLocation, Principal, ServiceRequest } from '../../../shared/schemas';
 import { RequestDetailScreen } from './RequestDetailScreen';
 
@@ -137,6 +139,50 @@ describe('RequestDetailScreen — worker on my way', () => {
       at: '2030-08-01T14:01:00.000Z',
     });
     await findByText(/updating live/i);
+  });
+
+  it('draws the worker position on the injected live map, headed to the job site', async () => {
+    const enRoute = makeRequest({
+      status: 'in_progress',
+      enRouteAt: '2030-08-01T14:00:00.000Z',
+      enRouteEtaMinutes: 18,
+    });
+    const client = clientWith(
+      { getServiceRequest: jest.fn().mockResolvedValue(enRoute) },
+      CUSTOMER,
+    );
+    let emitLoc: ((location: LiveLocation) => void) | undefined;
+    const connectLocationStream = (
+      _requestId: string,
+      onLocation: (location: LiveLocation) => void,
+    ) => {
+      emitLoc = onLocation;
+      return { close: () => undefined };
+    };
+    const liveMap = ({ worker, destination }: LiveMapProps) => (
+      <Text>{`map ${worker.latitude},${worker.longitude} -> ${destination.latitude},${destination.longitude}`}</Text>
+    );
+
+    const { findByText } = await render(
+      <RequestDetailScreen
+        requestId={REQUEST_ID}
+        client={client}
+        connectLocationStream={connectLocationStream}
+        liveMap={liveMap}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(emitLoc).toBeDefined();
+    });
+    emitLoc?.({
+      requestId: REQUEST_ID,
+      latitude: 40.7,
+      longitude: -74,
+      at: '2030-08-01T14:01:00.000Z',
+    });
+    // The map gets the live worker position and the request's location as the destination.
+    await findByText('map 40.7,-74 -> 40.7128,-74.006');
   });
 
   it('shows the customer an on-the-way line with the ETA and no action', async () => {

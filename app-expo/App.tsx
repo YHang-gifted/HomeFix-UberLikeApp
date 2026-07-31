@@ -15,6 +15,7 @@ import { deviceConfirmCardAction } from './src/cardAction';
 import { deviceOpenCheckout } from './src/checkout';
 import { DateTimePickerHost, openDeviceDateTimePicker } from './src/dateTimePicker';
 import { deviceImagePicker } from './src/imagePicker';
+import { deviceLiveMap, liveMapAvailable } from './src/liveMap';
 import { deviceGeocoder, deviceLocationProvider, deviceLocationWatcher } from './src/location';
 import { deviceConnectLocationStream } from './src/locationStream';
 import { MapPickerHost, deviceMapPicker, mapPickerAvailable } from './src/mapPicker';
@@ -256,6 +257,7 @@ function RequestDetailRoute({
       locationProvider={deviceLocationProvider}
       locationWatcher={deviceLocationWatcher}
       connectLocationStream={deviceConnectLocationStream}
+      liveMap={liveMapAvailable ? deviceLiveMap : undefined}
       onCancelled={() => {
         navigation.goBack();
       }}
