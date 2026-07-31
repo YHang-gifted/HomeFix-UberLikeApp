@@ -481,6 +481,12 @@ export function RequestDetailScreen({
         }
       }
       setRequest(await activeClient.markEnRoute(requestId, origin));
+      // Seed the live-location stream with this first fix so the customer sees the worker straight
+      // away — the tracker's own updates only fire once the worker actually moves. Best-effort; the
+      // ETA/"on the way" state does not depend on it.
+      if (origin !== undefined) {
+        void activeClient.publishLocation(requestId, origin).catch(() => undefined);
+      }
     } catch (failure) {
       setScheduleError(
         isApiError(failure) ? failure.message : 'Could not update your status. Please try again.',
