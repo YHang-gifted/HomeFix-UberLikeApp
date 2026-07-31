@@ -44,7 +44,8 @@ describe('RequestDetailScreen — worker on my way', () => {
   it('lets the assigned worker set out, sending a location, then shows the on-the-way line', async () => {
     const enRoute = makeRequest({ enRouteAt: '2030-08-01T14:00:00.000Z', enRouteEtaMinutes: 18 });
     const markEnRoute = jest.fn().mockResolvedValue(enRoute);
-    const client = clientWith({ markEnRoute }, WORKER);
+    const publishLocation = jest.fn().mockResolvedValue({});
+    const client = clientWith({ markEnRoute, publishLocation }, WORKER);
     const locationProvider = {
       getCurrentPosition: () => Promise.resolve({ latitude: 40.7, longitude: -74 }),
     };
@@ -60,6 +61,10 @@ describe('RequestDetailScreen — worker on my way', () => {
     await fireEvent.press(await findByLabelText('On my way'));
     await waitFor(() => {
       expect(markEnRoute).toHaveBeenCalledWith(REQUEST_ID, { latitude: 40.7, longitude: -74 });
+    });
+    // The first fix is streamed straight away so the customer sees the worker immediately.
+    await waitFor(() => {
+      expect(publishLocation).toHaveBeenCalledWith(REQUEST_ID, { latitude: 40.7, longitude: -74 });
     });
     await findByText(/on the way/i);
   });
